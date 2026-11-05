@@ -101,8 +101,8 @@ test('two devices merge offline work and concurrent edits', async ({ browser }) 
   const shared = await a.evaluate(() => (window as any).__structed.db.all('projects').find((x: any) => x.title === 'Shared thesis').id);
   await b.evaluate((id) => ((window as any).__structed.ui.projectId = id), shared);
   await a.evaluate((id) => ((window as any).__structed.ui.projectId = id), shared);
-  await a.locator('input.title').nth(0).fill('Intro (A)');
-  await b.locator('input.title').nth(1).fill('Research (B)');
+  await a.locator('textarea.title').nth(0).fill('Intro (A)');
+  await b.locator('textarea.title').nth(1).fill('Research (B)');
   await a.waitForTimeout(500);
   await b.waitForTimeout(500);
   await syncNow(a);
@@ -275,7 +275,7 @@ test('browser only: after expiry, the next click renews automatically', async ({
   await expect(btn).toHaveAttribute('title', /resumes automatically on your next click/);
   await expect(btn).toHaveClass(/waiting/);
   // the user simply keeps working: clicking a heading renews the session
-  await page.locator('input.title').first().click();
+  await page.locator('textarea.title').first().click();
   await expect(btn).toHaveAttribute('title', /^Synced/);
   const reqs = await page.evaluate(() => (window as any).__gis ?? []);
   expect(reqs.slice(before)).toEqual([{ kind: 'token', prompt: '' }]);
@@ -295,16 +295,16 @@ test('browser only: auto-renew can be turned off, and a blocked popup is not ret
   await reload(page);
   await page.evaluate(() => ((window as any).__gisFail = true));
   const n0 = await popups(page);
-  await page.locator('input.title').first().click();
+  await page.locator('textarea.title').first().click();
   await expect.poll(() => popups(page)).toBe(n0 + 1);
   await expect(page.locator('[data-tour="sync"]')).toHaveAttribute('title', /click to reconnect/);
-  await page.locator('input.title').nth(1).click();
+  await page.locator('textarea.title').nth(1).click();
   await page.waitForTimeout(200);
   expect(await popups(page)).toBe(n0 + 1); // not retried on every click
 
   await page.evaluate(() => (Object.assign((window as any).__structed.settings, { autoRenew: false }), ((window as any).__gisFail = false)));
   await reload(page);
-  await page.locator('input.title').first().click();
+  await page.locator('textarea.title').first().click();
   await page.waitForTimeout(200);
   expect(await popups(page)).toBe(0);
   await page.locator('[data-tour="sync"]').click(); // explicit reconnect still works

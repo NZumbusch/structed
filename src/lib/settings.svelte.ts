@@ -20,6 +20,8 @@ export interface Settings {
   citationStyle: string;
   citationLocale: string;
   panelGroupBy: GroupBy;
+  panelScope: 'project' | 'library';
+  panelUsage: 'unused' | 'all' | 'used';
   panelWidth: number;
   panelOpen: boolean;
   showAllProjectsInPanel: boolean;
@@ -49,6 +51,8 @@ const defaults: Settings = {
   citationStyle: 'apa',
   citationLocale: 'en-US',
   panelGroupBy: 'source',
+  panelScope: 'project',
+  panelUsage: 'all',
   panelWidth: 360,
   panelOpen: true,
   showAllProjectsInPanel: true,

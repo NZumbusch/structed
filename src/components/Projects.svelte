@@ -26,6 +26,7 @@
   }
   function open(id: string) {
     ui.projectId = id;
+    ui.libraryMode = false;
     ui.dialog = null;
     if (ui.stage === 'collect') ui.stage = 'outline';
   }

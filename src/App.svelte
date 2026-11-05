@@ -15,6 +15,7 @@
   import Outline from './stages/Outline.svelte';
   import Collect from './stages/Collect.svelte';
   import Write from './stages/Write.svelte';
+  import Select from './stages/Select.svelte';
   import { db } from './lib/db.svelte';
   import { ui, type Stage } from './lib/ui.svelte';
   import { settings } from './lib/settings.svelte';
@@ -27,17 +28,19 @@
   const STAGES: { id: Stage; label: string; icon: string; tourKey: string }[] = [
     { id: 'outline', label: 'Outline', icon: 'menu', tourKey: 'stageOutline' },
     { id: 'collect', label: 'Collect', icon: 'book', tourKey: 'stageCollect' },
+    { id: 'select', label: 'Select', icon: 'check', tourKey: 'stageSelect' },
     { id: 'arrange', label: 'Arrange', icon: 'layers', tourKey: 'stageArrange' },
     { id: 'write', label: 'Write', icon: 'edit', tourKey: 'stageWrite' }
   ];
-  const panelVisible = $derived(settings.panelOpen && ui.stage !== 'collect' && !!project);
+  const panelStage = $derived(ui.stage !== 'collect' && ui.stage !== 'select');
+  const panelVisible = $derived(settings.panelOpen && panelStage && !!project);
 
   $effect(() => {
-    // auto-open a project if the stored one vanished
     if (db.ready && !settings.tourDone && !ui.tour) ui.tour = true;
-    if (db.ready && !project) {
+    // the stored project vanished (deleted, e.g. on another device): open the newest one
+    if (db.ready && ui.projectId && !project) {
       const first = db.all('projects').sort((a, b) => b.updatedAt - a.updatedAt)[0];
-      if (first) ui.projectId = first.id;
+      ui.projectId = first?.id ?? null;
     }
   });
 
@@ -73,6 +76,7 @@
     tour: { run: () => (ui.tour = true), inFields: true },
     stageOutline: { run: () => (ui.stage = 'outline'), inFields: true, needsProject: true },
     stageCollect: { run: () => (ui.stage = 'collect'), inFields: true, needsProject: true },
+    stageSelect: { run: () => (ui.stage = 'select'), inFields: true, needsProject: true },
     stageArrange: { run: () => (ui.stage = 'arrange'), inFields: true, needsProject: true },
     stageWrite: { run: () => (ui.stage = 'write'), inFields: true, needsProject: true },
     newQuote: { run: () => (ui.editArtifact = { kind: 'quote' }), inFields: true },
@@ -132,6 +136,9 @@
     { label: t('Snapshots'), icon: 'history', run: () => (ui.dialog = 'snapshots') },
     { label: t('Import from Zotero…'), icon: 'download', run: () => (ui.dialog = 'zotero') },
     null,
+    { label: t('Library (all projects)'), icon: 'book', run: () => { ui.projectId = null; ui.libraryMode = true; ui.collectSourceId = null; } },
+    { label: t('Close project'), icon: 'x', run: () => { ui.projectId = null; ui.libraryMode = false; } },
+    null,
     { label: t('Settings'), icon: 'settings', run: () => (ui.dialog = 'settings') }
   ]);
 </script>
@@ -151,6 +158,9 @@
               <span class="pname ellipsis">{project.title || t('Untitled project')}</span><span class="sr-only">– {t('Project menu')}</span><Icon name="chevron-down" size={14} />
             {/snippet}
           </Menu>
+        {:else if ui.libraryMode}
+          <button class="btn ghost sm" onclick={() => (ui.libraryMode = false)}><Icon name="chevron-left" size={14} />{t('Projects')}</button>
+          <strong class="ltitle">{t('Library')}</strong>
         {:else}
           <strong>Structed</strong>
         {/if}
@@ -170,7 +180,7 @@
         <button data-tour="search" class="icon-btn" onclick={() => (ui.dialog = 'search')} title="{t('Search')} ({displayCombo(comboFor('search'))})"><Icon name="search" /></button>
         <button class="icon-btn hide-sm" onclick={() => db.undo() && ui.toast(t('Undone'), {}, 1200)} disabled={!db.canUndo} title="{t('Undo')} ({displayCombo(comboFor('undo'))})"><Icon name="undo" /></button>
         <button data-tour="sync" class="icon-btn sync s-{sync.status}" class:waiting={sync.waitingForClick} onclick={syncClick} title={syncTitle}><Icon name={syncIcon} /></button>
-        {#if project && ui.stage !== 'collect'}
+        {#if project && panelStage}
           <button
             class="icon-btn"
             class:active={ui.narrow ? ui.panelMobileOpen : settings.panelOpen}
@@ -183,12 +193,17 @@
     </header>
 
     <main class="main">
-      {#if !project}
+      {#if !project && ui.libraryMode}
+        <Collect />
+      {:else if !project}
         <div class="welcome scroll">
           <div class="wbox">
             <h1>{t('Structure your writing.')}</h1>
             <p class="muted">{t('Outline your essay, thesis or article, collect quotes from your sources, place them under headings – and write with everything at hand.')}</p>
             <Projects embedded />
+            <button class="btn libbtn" onclick={() => { ui.libraryMode = true; ui.collectSourceId = null; }}>
+              <Icon name="book" size={15} />{t('Open library (all sources & quotes)')}
+            </button>
             <p class="legal tiny muted">
               {t('Your data stays on your device.')}
               <a href="about.html">{t('About')}</a> · <a href="privacy.html">{t('Privacy policy')}</a> · <a href="terms.html">{t('Terms of use')}</a>
@@ -197,6 +212,8 @@
         </div>
       {:else if ui.stage === 'collect'}
         <Collect />
+      {:else if ui.stage === 'select'}
+        <Select {project} />
       {:else if ui.stage === 'write'}
         <Write {project} />
       {:else}
@@ -210,7 +227,7 @@
     {/if}
   </div>
 
-  {#if ui.narrow && ui.panelMobileOpen && project && ui.stage !== 'collect'}
+  {#if ui.narrow && ui.panelMobileOpen && project && panelStage}
     <div class="drawer"><Library /></div>
   {/if}
 
@@ -367,6 +384,12 @@
   }
   .legal {
     margin-top: 28px;
+  }
+  .libbtn {
+    margin-top: 14px;
+  }
+  .ltitle {
+    margin-left: 4px;
   }
   .legal a {
     color: var(--muted);

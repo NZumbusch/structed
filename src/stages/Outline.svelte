@@ -5,6 +5,7 @@
   import { ui } from '../lib/ui.svelte';
   import { t } from '../lib/i18n';
   import { droppable } from '../lib/dnd';
+  import { autosize } from '../lib/autosize';
   import { comboFor, displayCombo } from '../lib/shortcuts';
   import { addHeading, children, flatten, moveHeading, wordCount } from '../lib/ops';
   import type { Project } from '../lib/types';
@@ -36,18 +37,24 @@
 <div class="wrap scroll">
   <div class="page">
     <header class="ph">
-      <input
+      <textarea
+        rows="1"
+        use:autosize={project.title}
         class="ptitle"
         value={project.title}
         placeholder={t('Project title')}
-        oninput={(e) => db.update('projects', project.id, { title: e.currentTarget.value })}
-      />
-      <input
+        oninput={(e) => db.update('projects', project.id, { title: e.currentTarget.value.replace(/\s*\n\s*/g, ' ') })}
+        onkeydown={(e) => e.key === 'Enter' && e.preventDefault()}
+      ></textarea>
+      <textarea
+        rows="1"
+        use:autosize={project.subtitle}
         class="psub"
         value={project.subtitle ?? ''}
         placeholder={t('Subtitle, research question or thesis statement…')}
-        oninput={(e) => db.update('projects', project.id, { subtitle: e.currentTarget.value })}
-      />
+        oninput={(e) => db.update('projects', project.id, { subtitle: e.currentTarget.value.replace(/\s*\n\s*/g, ' ') })}
+        onkeydown={(e) => e.key === 'Enter' && e.preventDefault()}
+      ></textarea>
       <div class="stats row small muted">
         <span>{all.length} {t('headings')}</span>·
         <span>{words.toLocaleString()} {t('words')}{project.targetWords ? ` / ${project.targetWords.toLocaleString()}` : ''}</span>·
@@ -110,6 +117,12 @@
   }
   .ptitle,
   .psub {
+    display: block;
+    resize: none;
+    overflow: hidden;
+    font-family: inherit;
+    color: inherit;
+    line-height: 1.25;
     width: 100%;
     border: 0;
     outline: 0;

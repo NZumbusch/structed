@@ -248,3 +248,69 @@ describe('mergeSource', () => {
     expect(db.get('artifacts', q.id)?.sourceId).toBe(ph.id);
   });
 });
+
+import { addToProject, membership, projectArtifacts, projectsOf, removeFromProject, removeSourceFromProject } from '../../src/lib/ops';
+describe('project selection', () => {
+  function lib() {
+    const p = createProject('P', 'blank', 'en');
+    const [h] = children(p.id, null);
+    const s = db.create('sources', { csl: { id: 'd', type: 'book', title: 'Dürr' }, tags: [] });
+    const q1 = db.create('artifacts', { kind: 'quote', text: 'q1', tags: [], sourceId: s.id });
+    const q2 = db.create('artifacts', { kind: 'quote', text: 'q2', tags: [], sourceId: s.id });
+    const loose = db.create('artifacts', { kind: 'note', text: 'n', tags: [] });
+    const other = db.create('artifacts', { kind: 'quote', text: 'other topic', tags: [] });
+    return { p, h, s, q1, q2, loose, other };
+  }
+  it('items belong to a project by placement, by pick, or via their source', () => {
+    const { p, h, s, q1, q2, loose, other } = lib();
+    expect(projectArtifacts(p.id)).toHaveLength(0);
+    place(p.id, h.id, loose.id);
+    expect(membership(loose, p.id)).toBe('placed');
+    addToProject(p.id, 'source', s.id);
+    expect(membership(q1, p.id)).toBe('source');
+    // future items of a selected source are included automatically
+    const q3 = db.create('artifacts', { kind: 'quote', text: 'q3', tags: [], sourceId: s.id });
+    expect(membership(q3, p.id)).toBe('source');
+    expect(membership(other, p.id)).toBeNull();
+    addToProject(p.id, 'artifact', other.id);
+    expect(membership(other, p.id)).toBe('item');
+    expect(projectArtifacts(p.id).map((a) => a.text).sort()).toEqual(['n', 'other topic', 'q1', 'q2', 'q3']);
+    expect(projectsOf(q2).map((x) => x.id)).toEqual([p.id]);
+  });
+  it('single items of a selected source can be hidden and brought back', () => {
+    const { p, s, q1, q2 } = lib();
+    addToProject(p.id, 'source', s.id);
+    removeFromProject(p.id, q1);
+    expect(membership(q1, p.id)).toBeNull();
+    expect(membership(q2, p.id)).toBe('source');
+    addToProject(p.id, 'artifact', q1.id);
+    expect(membership(q1, p.id)).toBe('item');
+    removeFromProject(p.id, q1);
+    addToProject(p.id, 'source', s.id); // re-adding the source re-includes hidden items
+    expect(membership(q1, p.id)).toBe('source');
+    removeSourceFromProject(p.id, s.id);
+    expect(membership(q1, p.id)).toBeNull();
+    expect(db.all('selections')).toHaveLength(0);
+  });
+  it('removing an individually picked item; placements keep items in', () => {
+    const { p, h, other } = lib();
+    addToProject(p.id, 'artifact', other.id);
+    removeFromProject(p.id, other);
+    expect(membership(other, p.id)).toBeNull();
+    place(p.id, h.id, other.id);
+    removeFromProject(p.id, other);
+    expect(membership(other, p.id)).toBe('placed');
+  });
+  it('cleans up selections when deleting projects, sources and items; merge moves them', () => {
+    const { p, s, other } = lib();
+    addToProject(p.id, 'source', s.id);
+    addToProject(p.id, 'artifact', other.id);
+    const real = db.create('sources', { csl: { id: 'r', type: 'book', title: 'Die Kantaten' }, tags: [] });
+    mergeSource(s, real);
+    expect(db.all('selections').find((x) => x.refType === 'source')?.refId).toBe(real.id);
+    deleteArtifact(other);
+    expect(db.all('selections').filter((x) => x.refType === 'artifact')).toHaveLength(0);
+    deleteProject(p.id);
+    expect(db.all('selections')).toHaveLength(0);
+  });
+});

@@ -13,7 +13,7 @@ test('PWA: manifest, icons and service worker; works offline after first load', 
   await page.waitForTimeout(600);
   await context.setOffline(true);
   await page.reload();
-  await expect(page.locator('input.ptitle')).toHaveValue('Offline project');
+  await expect(page.locator('textarea.ptitle')).toHaveValue('Offline project');
   await context.setOffline(false);
 });
 
@@ -58,12 +58,12 @@ test('version is shown in About', async ({ page }) => {
 test('projects: create from template, switch, delete with undo', async ({ page }) => {
   await open(page);
   await newProject(page, 'First', 'Journal article (IMRaD)');
-  await expect(page.locator('input.title').first()).toHaveValue('Abstract');
+  await expect(page.locator('textarea.title').first()).toHaveValue('Abstract');
   await page.locator('[data-tour="project"]').getByRole('button', { name: /Project menu/ }).click();
   await page.getByRole('menuitem', { name: 'All projects…' }).click();
   await page.getByPlaceholder('Working title').fill('Second');
   await page.getByRole('button', { name: 'Create' }).click();
-  await expect(page.locator('input.ptitle')).toHaveValue('Second');
+  await expect(page.locator('textarea.ptitle')).toHaveValue('Second');
   await page.locator('[data-tour="project"]').getByRole('button', { name: /Project menu/ }).click();
   await page.getByRole('menuitem', { name: 'All projects…' }).click();
   page.once('dialog', (d) => d.accept());

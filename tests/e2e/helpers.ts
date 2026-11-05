@@ -30,7 +30,7 @@ export async function newProject(page: Page, title = 'Test project', template = 
   await page.getByPlaceholder('Working title').fill(title);
   await page.locator('.tpl', { hasText: template }).click();
   await page.getByRole('button', { name: 'Create' }).click();
-  await expect(page.locator('input.ptitle')).toHaveValue(title);
+  await expect(page.locator('textarea.ptitle')).toHaveValue(title);
 }
 
 export const stage = (page: Page, name: 'Outline' | 'Collect' | 'Arrange' | 'Write') =>
@@ -71,7 +71,7 @@ export const center = async (page: Page, sel: string | ReturnType<Page['locator'
   return { x: b.x + b.width / 2, y: b.y + b.height / 2 };
 };
 
-export const headingTitles = (page: Page) => page.locator('input.title').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value));
+export const headingTitles = (page: Page) => page.locator('textarea.title').evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value));
 export const numbers = (page: Page) => page.locator('.hrow .num').allTextContents();
 
 export async function noHorizontalOverflow(page: Page) {

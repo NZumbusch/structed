@@ -50,13 +50,13 @@ test('snapshots save and restore the outline', async ({ page }) => {
   await page.getByPlaceholder(/Name \(optional\)/).fill('before');
   await page.getByRole('button', { name: 'Save snapshot' }).click();
   await page.keyboard.press('Escape');
-  await page.locator('input.title').first().fill('Changed title');
+  await page.locator('textarea.title').first().fill('Changed title');
   await page.locator('[data-tour="project"]').getByRole('button', { name: /Project menu/ }).click();
   await page.getByRole('menuitem', { name: 'Snapshots' }).click();
   page.once('dialog', (d) => d.accept());
   await page.locator('.sn', { hasText: 'before' }).getByRole('button', { name: 'Restore' }).click();
   await page.keyboard.press('Escape');
-  await expect(page.locator('input.title').first()).toHaveValue('Introduction');
+  await expect(page.locator('textarea.title').first()).toHaveValue('Introduction');
   // an automatic safety snapshot was created
   await page.locator('[data-tour="project"]').getByRole('button', { name: /Project menu/ }).click();
   await page.getByRole('menuitem', { name: 'Snapshots' }).click();

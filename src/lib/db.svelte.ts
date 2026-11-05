@@ -62,11 +62,12 @@ class Database {
   private groupLabel = '';
 
   async init() {
-    this.idb = await openDB('structed', 1, {
+    // v2 adds 'selections'; upgrades only create what is missing, existing data stays.
+    this.idb = await openDB('structed', 2, {
       upgrade(db) {
-        for (const t of TABLES) db.createObjectStore(t, { keyPath: 'id' });
-        db.createObjectStore('blobdata');
-        db.createObjectStore('meta');
+        for (const t of TABLES) if (!db.objectStoreNames.contains(t)) db.createObjectStore(t, { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('blobdata')) db.createObjectStore('blobdata');
+        if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta');
       }
     });
     const next = emptyStore();

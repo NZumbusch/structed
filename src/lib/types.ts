@@ -76,6 +76,18 @@ export interface Tag extends EntityBase {
   color?: string;
 }
 
+/**
+ * Project selection ("Auswahl"): items or whole sources the user wants for a project
+ * before (or without) placing them under a heading. A whole source includes all of its
+ * current and future items; `excluded` hides a single item of a selected source.
+ */
+export interface Selection extends EntityBase {
+  projectId: string;
+  refType: 'source' | 'artifact';
+  refId: string;
+  excluded?: boolean;
+}
+
 export interface Snapshot extends EntityBase {
   projectId: string;
   name: string;
@@ -99,6 +111,7 @@ export interface Tables {
   tags: Tag;
   snapshots: Snapshot;
   blobs: BlobMeta;
+  selections: Selection;
 }
 export type TableName = keyof Tables;
 export const TABLES: TableName[] = [
@@ -110,6 +123,7 @@ export const TABLES: TableName[] = [
   'comments',
   'tags',
   'snapshots',
+  'selections',
   'blobs'
 ];
 

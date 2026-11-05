@@ -33,7 +33,7 @@ export function createProject(title: string, template: string, lang: 'en' | 'de'
 
 export function deleteProject(id: string) {
   db.batch('delete project', () => {
-    for (const t of ['headings', 'placements', 'comments', 'snapshots'] as const)
+    for (const t of ['headings', 'placements', 'comments', 'snapshots', 'selections'] as const)
       for (const e of db.all(t)) if (e.projectId === id) db.remove(t, e.id);
     db.remove('projects', id);
   });
@@ -237,6 +237,7 @@ export function usageCount(artifactId: string, projectId?: string): number {
 export function deleteArtifact(a: Artifact) {
   db.batch('delete item', () => {
     for (const p of db.all('placements')) if (p.artifactId === a.id) db.remove('placements', p.id);
+    for (const x of db.all('selections')) if (x.refType === 'artifact' && x.refId === a.id) db.remove('selections', x.id);
     if (a.imageId) db.remove('blobs', a.imageId);
     db.remove('artifacts', a.id);
   });
@@ -249,6 +250,7 @@ export function deleteSource(s: Source, withArtifacts: boolean) {
         if (withArtifacts) deleteArtifact(a);
         else db.update('artifacts', a.id, { sourceId: null });
       }
+    for (const x of db.all('selections')) if (x.refType === 'source' && x.refId === s.id) db.remove('selections', x.id);
     db.remove('sources', s.id);
   });
 }
@@ -267,12 +269,82 @@ export function mergeSource(from: Source, into: Source): number {
         db.update('artifacts', a.id, { sourceId: into.id });
         n++;
       }
+    for (const x of db.all('selections'))
+      if (x.refType === 'source' && x.refId === from.id) {
+        const dup = db.all('selections').some((y) => y.refType === 'source' && y.refId === into.id && y.projectId === x.projectId);
+        if (dup) db.remove('selections', x.id);
+        else db.update('selections', x.id, { refId: into.id });
+      }
     const tags = [...new Set([...into.tags, ...from.tags])];
     const note = [into.note, from.note].filter((x) => x?.trim()).join('\n\n');
     db.update('sources', into.id, { tags, note: note || undefined });
     db.remove('sources', from.id);
     return n;
   });
+}
+
+// ---------------- project selection ("Auswahl") ----------------
+const sel = (projectId: string, refType: 'source' | 'artifact', refId: string) =>
+  db.all('selections').find((x) => x.projectId === projectId && x.refType === refType && x.refId === refId);
+
+export function isPlaced(artifactId: string, projectId: string): boolean {
+  return usageCount(artifactId, projectId) > 0;
+}
+export function sourceSelected(sourceId: string, projectId: string): boolean {
+  return !!sel(projectId, 'source', sourceId);
+}
+/** Why an item belongs to a project: placed, picked individually, via its source – or not at all. */
+export function membership(a: Artifact, projectId: string): 'placed' | 'item' | 'source' | null {
+  if (isPlaced(a.id, projectId)) return 'placed';
+  const own = sel(projectId, 'artifact', a.id);
+  if (own && !own.excluded) return 'item';
+  if (own?.excluded) return null;
+  if (a.sourceId && sourceSelected(a.sourceId, projectId)) return 'source';
+  return null;
+}
+export const inProject = (a: Artifact, projectId: string) => membership(a, projectId) !== null;
+
+export function projectArtifacts(projectId: string): Artifact[] {
+  return db.all('artifacts').filter((a) => inProject(a, projectId));
+}
+
+export function addToProject(projectId: string, refType: 'source' | 'artifact', refId: string) {
+  db.batch('add to project', () => {
+    const cur = sel(projectId, refType, refId);
+    if (cur) {
+      if (cur.excluded) db.update('selections', cur.id, { excluded: false });
+    } else db.create('selections', { projectId, refType, refId });
+    // choosing a whole source re-includes its hidden items
+    if (refType === 'source')
+      for (const x of db.all('selections'))
+        if (x.projectId === projectId && x.refType === 'artifact' && x.excluded && db.get('artifacts', x.refId)?.sourceId === refId) db.remove('selections', x.id);
+  });
+}
+
+/** Remove an item from the selection (placements stay; use them to keep it). */
+export function removeFromProject(projectId: string, a: Artifact) {
+  db.batch('remove from project', () => {
+    const own = sel(projectId, 'artifact', a.id);
+    if (a.sourceId && sourceSelected(a.sourceId, projectId)) {
+      if (own) db.update('selections', own.id, { excluded: true });
+      else db.create('selections', { projectId, refType: 'artifact', refId: a.id, excluded: true });
+    } else if (own) db.remove('selections', own.id);
+  });
+}
+
+export function removeSourceFromProject(projectId: string, sourceId: string) {
+  db.batch('remove source from project', () => {
+    for (const x of db.all('selections')) {
+      if (x.projectId !== projectId) continue;
+      if (x.refType === 'source' && x.refId === sourceId) db.remove('selections', x.id);
+      else if (x.refType === 'artifact' && x.excluded && db.get('artifacts', x.refId)?.sourceId === sourceId) db.remove('selections', x.id);
+    }
+  });
+}
+
+/** Projects an item is part of (placed or selected), for the library overview. */
+export function projectsOf(a: Artifact) {
+  return db.all('projects').filter((p) => inProject(a, p.id));
 }
 
 // ---------------- labels ----------------

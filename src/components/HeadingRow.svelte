@@ -28,12 +28,13 @@
   } from '../lib/ops';
   import type { FlatHeading } from '../lib/ops';
   import { matches } from '../lib/shortcuts';
+  import { autosize, caretAtEdge } from '../lib/autosize';
   import type { HeadingStatus } from '../lib/types';
 
   let { f, mode }: { f: FlatHeading; mode: 'outline' | 'arrange' } = $props();
   const h = $derived(f.h);
 
-  let input: HTMLInputElement;
+  let input: HTMLTextAreaElement;
   let dropPos = $state<null | 'before' | 'after' | 'inside'>(null);
   const bodyOpen = $derived(ui.openBodies.has(h.id));
   const placements = $derived(placementsOf(h.id));
@@ -65,7 +66,7 @@
   }
 
   function key(e: KeyboardEvent) {
-    const el = e.currentTarget as HTMLInputElement;
+    const el = e.currentTarget as HTMLTextAreaElement;
     const run = (fn: () => void) => {
       e.preventDefault();
       e.stopPropagation();
@@ -87,8 +88,8 @@
     else if (matches(e, 'outline.outdent')) run(() => (outdent(h), (ui.focusHeading = h.id)));
     else if (matches(e, 'outline.moveUp')) run(() => (moveUpDown(h, -1), (ui.focusHeading = h.id)));
     else if (matches(e, 'outline.moveDown')) run(() => (moveUpDown(h, 1), (ui.focusHeading = h.id)));
-    else if (matches(e, 'outline.prev')) run(() => focusSibling(-1));
-    else if (matches(e, 'outline.next')) run(() => focusSibling(1));
+    else if (matches(e, 'outline.prev') && caretAtEdge(el, -1)) run(() => focusSibling(-1));
+    else if (matches(e, 'outline.next') && caretAtEdge(el, 1)) run(() => focusSibling(1));
     else if (matches(e, 'outline.collapse')) run(() => ui.toggle(ui.collapsed, h.id));
     else if (matches(e, 'outline.status')) run(cycleStatus);
     else if (matches(e, 'outline.delete'))
@@ -144,6 +145,13 @@
         ui.toast(t('Heading deleted'), { action: { label: t('Undo'), run: () => db.undo() } });
       } }
   ]);
+  const plain = (md: string) =>
+    md
+      .replace(/^\s*[-*+]\s+/gm, '')
+      .replace(/[*_`#>]+/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 220);
   const totalWords = $derived(h.targetWords ? headingWords(h.projectId, h) : 0);
 </script>
 
@@ -169,14 +177,21 @@
       <Icon name={collapsed ? 'chevron-right' : 'chevron-down'} size={14} />
     </button>
     <span class="num">{f.num}</span>
-    <input
+    <textarea
       bind:this={input}
       class="title"
+      rows="1"
       value={h.title}
+      use:autosize={h.title}
+      aria-label={f.num + ' ' + (h.title || (f.depth === 0 ? t('Heading') : t('Subheading')))}
       placeholder={f.depth === 0 ? t('Heading') : t('Subheading')}
-      oninput={(e) => db.update('headings', h.id, { title: e.currentTarget.value })}
+      oninput={(e) => {
+        const v = e.currentTarget.value.replace(/\s*\n\s*/g, ' ');
+        if (v !== e.currentTarget.value) e.currentTarget.value = v;
+        db.update('headings', h.id, { title: v });
+      }}
       onkeydown={key}
-    />
+    ></textarea>
     <div class="side">
       {#if h.targetWords}
         <span class="tgt" title={t('Words / target')}>{totalWords}/{h.targetWords}</span>
@@ -187,13 +202,13 @@
       {#if comments}
         <button class="chip" onclick={() => { ui.stage = 'write'; ui.focusHeading = h.id; }} title={t('Open comments')}><Icon name="comment" size={11} />{comments}</button>
       {/if}
-      <button class="status s-{h.status ?? 'idea'}" onclick={cycleStatus} title={t('Status') + ': ' + t(h.status ?? 'idea')}>
+      <button class="status s-{h.status ?? 'idea'}" class:hov={(h.status ?? 'idea') === 'idea'} onclick={cycleStatus} title={t('Status') + ': ' + t(h.status ?? 'idea')}>
         <span class="dot"></span><span class="slabel">{t(h.status ?? 'idea')}</span>
       </button>
-      <button class="icon-btn sm" class:active={bodyOpen || !!h.body} onclick={() => ui.toggle(ui.openBodies, h.id)} title={t('Notes / gist')}>
+      <button class="icon-btn sm hov" class:active={bodyOpen} onclick={() => ui.toggle(ui.openBodies, h.id)} title={t('Notes / gist')}>
         <Icon name="note" size={15} />
       </button>
-      <Menu items={menu} />
+      <span class="hov"><Menu items={menu} /></span>
     </div>
   </div>
 
@@ -211,7 +226,7 @@
       {#if words}<span class="wc tiny muted">{words} {t('words')}</span>{/if}
     </div>
   {:else if h.body && mode === 'outline'}
-    <button class="preview" onclick={() => { ui.openBodies.add(h.id); ui.focusBody = h.id; }}>{h.body.replace(/\s+/g, ' ').slice(0, 160)}</button>
+    <button class="preview" onclick={() => { ui.openBodies.add(h.id); ui.focusBody = h.id; }}>{plain(h.body)}</button>
   {/if}
 
   {#if mode === 'arrange'}
@@ -247,6 +262,9 @@
 
 <style>
   .hrow {
+    /* number column grows with depth so titles of siblings line up */
+    --numw: calc(1.4rem + var(--depth) * 1rem);
+    --textx: calc(42px + var(--numw));
     position: relative;
     min-width: 0;
     padding-left: calc(var(--depth) * 22px);
@@ -274,7 +292,7 @@
   }
   .line {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 2px;
     min-height: 38px;
   }
@@ -316,10 +334,13 @@
     visibility: hidden;
   }
   .num {
-    min-width: 2.2em;
+    flex: none;
+    width: var(--numw);
+    padding-right: 0.5rem;
     color: var(--faint);
     font-variant-numeric: tabular-nums;
-    font-size: 0.8em;
+    font-size: 0.8rem;
+    white-space: nowrap;
   }
   .title {
     flex: 1;
@@ -329,6 +350,11 @@
     outline: 0;
     background: transparent;
     padding: 4px 0;
+    resize: none;
+    overflow: hidden;
+    line-height: 1.35;
+    font-family: inherit;
+    color: inherit;
     font-weight: 600;
     letter-spacing: -0.01em;
   }
@@ -351,7 +377,29 @@
   .side {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
+    padding-top: 3px;
+  }
+  .grip,
+  .tw,
+  .num {
+    margin-top: 6px;
+  }
+  .d0 .grip,
+  .d0 .tw,
+  .d0 .num {
+    margin-top: 9px;
+  }
+  /* calm by default: actions appear on hover/focus (touch devices always show them) */
+  @media (hover: hover) {
+    .side .hov {
+      opacity: 0;
+      transition: opacity var(--dur);
+    }
+    .hrow:hover > .line .side .hov,
+    .hrow:focus-within > .line .side .hov {
+      opacity: 1;
+    }
   }
   .side .chip {
     border: 0;
@@ -398,7 +446,7 @@
   }
   .body {
     position: relative;
-    margin: 0 0 8px 66px;
+    margin: 0 0 8px var(--textx);
     padding: 6px 12px;
     border-left: 2px solid var(--border);
   }
@@ -409,8 +457,8 @@
   }
   .preview {
     display: block;
-    max-width: calc(100% - 66px);
-    margin: -4px 0 6px 66px;
+    max-width: calc(100% - var(--textx));
+    margin: -2px 0 8px var(--textx);
     padding: 0;
     border: 0;
     background: none;
@@ -425,13 +473,13 @@
   .placed {
     display: grid;
     gap: 6px;
-    margin: 0 0 10px 66px;
+    margin: 0 0 10px var(--textx);
   }
   .mini {
     display: flex;
     flex-wrap: wrap;
     gap: 4px;
-    margin: -2px 0 6px 66px;
+    margin: -2px 0 8px var(--textx);
   }
   .mchip {
     max-width: 220px;

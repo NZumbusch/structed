@@ -1,6 +1,6 @@
 import { SvelteSet } from 'svelte/reactivity';
 
-export type Stage = 'outline' | 'collect' | 'arrange' | 'write';
+export type Stage = 'outline' | 'collect' | 'select' | 'arrange' | 'write';
 
 function ls<T>(k: string, d: T): T {
   try {
@@ -38,6 +38,8 @@ class UI {
   focusHeading: string | null = $state(null);
   focusBody: string | null = $state(null);
   tour = $state(false);
+  /** library opened without a project (from the start screen) */
+  libraryMode = $state(false);
   recordingShortcut = $state(false);
   toasts: Toast[] = $state([]);
   collapsed = new SvelteSet<string>(ls<string[]>('collapsed', []));

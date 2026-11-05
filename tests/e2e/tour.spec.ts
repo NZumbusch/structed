@@ -26,7 +26,7 @@ test('first use: tour starts, creates a demo, highlights every step, can remove 
     expect(bb.x + bb.width).toBeLessThanOrEqual(vp.width);
     expect(bb.y + bb.height).toBeLessThanOrEqual(vp.height + 1);
   }
-  await expect(page.locator('input.ptitle, nav.stages').first()).toBeVisible();
+  await expect(page.locator('textarea.ptitle, nav.stages').first()).toBeVisible();
   await bubble.getByRole('button', { name: 'Remove demo' }).click();
   await expect(page.locator('.tour')).toHaveCount(0);
   await expect(page.getByPlaceholder('Working title')).toBeVisible();

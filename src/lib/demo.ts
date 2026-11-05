@@ -1,6 +1,6 @@
 // Demo content used by the guided tour when the user has no project yet.
 import { db } from './db.svelte';
-import { createProject, children, place, addChildHeading } from './ops';
+import { createProject, children, place, addChildHeading, addToProject } from './ops';
 
 export const DEMO_TAG = 'structed-demo';
 
@@ -44,12 +44,14 @@ export function createDemo(lang: 'en' | 'de'): string {
       page: '22–23',
       tags: ['media', DEMO_TAG]
     });
-    db.create('artifacts', {
+    const note = db.create('artifacts', {
       kind: 'note',
       sourceId: null,
       text: lang === 'de' ? 'Eigene Idee: Vergleich mit Social Media.' : 'Own idea: compare with social media.',
       tags: [DEMO_TAG]
     });
+    addToProject(p.id, 'source', s.id);
+    addToProject(p.id, 'artifact', note.id);
     place(p.id, intro.id, q1.id);
     place(p.id, sub.id, q1.id);
     return p.id;
@@ -60,7 +62,7 @@ export function removeDemo() {
   db.batch('remove demo', () => {
     for (const p of db.all('projects')) {
       if (p.kind !== DEMO_TAG) continue;
-      for (const t of ['headings', 'placements', 'comments', 'snapshots'] as const)
+      for (const t of ['headings', 'placements', 'comments', 'snapshots', 'selections'] as const)
         for (const e of db.all(t)) if (e.projectId === p.id) db.remove(t, e.id);
       db.remove('projects', p.id);
     }

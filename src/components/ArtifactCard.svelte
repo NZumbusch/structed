@@ -5,7 +5,7 @@
   import { ui } from '../lib/ui.svelte';
   import { t } from '../lib/i18n';
   import { draggable } from '../lib/dnd';
-  import { artifactLabel, deleteArtifact, shortCite, sourceLabel, tagColor, usageCount } from '../lib/ops';
+  import { addToProject, artifactLabel, deleteArtifact, membership, projectsOf, removeFromProject, shortCite, sourceLabel, tagColor, usageCount } from '../lib/ops';
   import { copyText } from '../lib/clipboard';
   import { citeArtifact } from '../lib/cite';
   import { settings } from '../lib/settings.svelte';
@@ -81,6 +81,10 @@
     null,
     { label: t('Edit'), icon: 'edit', run: () => (ui.editArtifact = { id: a.id }) },
     ui.projectId ? { label: t('Place under heading…'), icon: 'layers', run: () => (ui.placeTarget = a.id) } : null,
+    ui.projectId && !membership(a, ui.projectId) ? { label: t('Add to this project'), icon: 'plus', run: () => addToProject(ui.projectId!, 'artifact', a.id) } : null,
+    ui.projectId && (membership(a, ui.projectId) === 'item' || membership(a, ui.projectId) === 'source')
+      ? { label: t('Remove from project'), icon: 'x', run: () => removeFromProject(ui.projectId!, a) }
+      : null,
     source ? { label: t('Open source'), icon: 'book', run: () => { ui.collectSourceId = source.id; ui.stage = 'collect'; } } : null,
     placement ? { label: t('Remove from heading'), icon: 'x', run: remove } : null,
     { label: t('Delete item'), icon: 'trash', run: del, danger: true }
@@ -118,6 +122,9 @@
       {#if a.sourceId}<span class="cite">{shortCite(a)}</span>{/if}
       {#each a.tags.slice(0, 3) as tg (tg)}<span class="tg">#{tg}</span>{/each}
       {#if context === 'panel' && used}<span class="used" title={t('Placed in this project')}>×{used}</span>{/if}
+      {#if context === 'collect'}
+        {#each projectsOf(a) as pr (pr.id)}<span class="proj" title={t('Part of project')}>{pr.title || t('Untitled project')}</span>{/each}
+      {/if}
       {#if placement?.note}<span class="pnote">· {placement.note}</span>{/if}
     </div>
   {:else}
@@ -248,6 +255,16 @@
   }
   .tg {
     color: var(--faint);
+  }
+  .proj {
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--surface-2);
+    color: var(--muted);
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .used {
     margin-left: auto;

@@ -15,7 +15,7 @@ const row = (page: import('@playwright/test').Page, id: string) => page.locator(
 test('lists defaults and unassigned extras', async ({ page }) => {
   await openShortcuts(page);
   await expect(row(page, 'search').locator('.key')).toHaveText('Ctrl+K');
-  await expect(row(page, 'stageWrite').locator('.key')).toHaveText('Alt+4');
+  await expect(row(page, 'stageWrite').locator('.key')).toHaveText('Alt+5');
   await expect(row(page, 'newQuote').locator('.key')).toHaveText('Not set');
 });
 
@@ -74,7 +74,7 @@ test('rebound outline keys and stage keys take effect; persist after reload', as
   await page.waitForFunction(() => (window as any).__structed?.db?.ready);
   // Main part is the 2nd root; its first child "Cultural memory"
   const t = await headingTitles(page);
-  const conclusion = page.locator('input.title').nth(t.indexOf('Conclusion'));
+  const conclusion = page.locator('textarea.title').nth(t.indexOf('Conclusion'));
   await conclusion.focus();
   await page.keyboard.press('Tab'); // no longer indents
   expect(await numbers(page)).toEqual(['1', '2', '2.1', '3']);

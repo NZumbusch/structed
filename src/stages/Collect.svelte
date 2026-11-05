@@ -6,10 +6,10 @@
   import { db } from '../lib/db.svelte';
   import { ui } from '../lib/ui.svelte';
   import { t } from '../lib/i18n';
-  import { authorsFull, deleteArtifact, sourceLabel, yearOf } from '../lib/ops';
+  import { addToProject, authorsFull, deleteArtifact, projectsOf, removeFromProject, sourceLabel, yearOf } from '../lib/ops';
   import { referenceOf } from '../lib/cite';
   import { cleanText } from '../lib/ocr';
-  import type { ArtifactKind } from '../lib/types';
+  import type { Artifact, ArtifactKind } from '../lib/types';
 
   let q = $state('');
   let sort = $state<'author' | 'year' | 'added' | 'items'>('author');
@@ -43,9 +43,34 @@
 
   const sel = $derived(ui.collectSourceId);
   const source = $derived(sel && sel !== '~none' && sel !== '~all' ? db.get('sources', sel) : undefined);
+  // cleanup views across all projects
+  const norm = (x: string) => x.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim().slice(0, 120);
+  const dupeKeys = $derived.by(() => {
+    const c = new Map<string, number>();
+    for (const a of db.all('artifacts')) if (a.text.trim().length > 15) c.set(norm(a.text), (c.get(norm(a.text)) ?? 0) + 1);
+    return new Set([...c].filter(([, n]) => n > 1).map(([k]) => k));
+  });
+  const VIEWS: Record<string, (a: Artifact) => boolean> = {
+    '~all': () => true,
+    '~none': (a) => !db.get('sources', a.sourceId),
+    '~orphan': (a) => projectsOf(a).length === 0,
+    '~nopage': (a) => (a.kind === 'quote' || a.kind === 'paraphrase') && !!db.get('sources', a.sourceId) && !a.page?.trim(),
+    '~dupes': (a) => dupeKeys.has(norm(a.text))
+  };
+  const viewCount = (v: string) => db.all('artifacts').filter(VIEWS[v]).length;
+  const VIEW_LABEL: Record<string, string> = {
+    '~all': 'All items',
+    '~none': 'Own notes & unsourced',
+    '~orphan': 'In no project',
+    '~nopage': 'Without page number',
+    '~dupes': 'Possible duplicates'
+  };
+
   const items = $derived.by(() => {
     const all = db.all('artifacts');
-    const list = sel === '~all' ? all : sel === '~none' ? all.filter((a) => !db.get('sources', a.sourceId)) : all.filter((a) => a.sourceId === sel);
+    const v = sel ? VIEWS[sel] : undefined;
+    const list = v ? all.filter(v) : all.filter((a) => a.sourceId === sel);
+    if (sel === '~dupes') return list.sort((a, b) => norm(a.text).localeCompare(norm(b.text)));
     const pn = (p?: string) => +(p?.match(/\d+/)?.[0] ?? 1e9);
     return list.sort((a, b) => pn(a.page) - pn(b.page) || a.createdAt - b.createdAt);
   });
@@ -99,7 +124,20 @@
     ui.toast(t('{n} items updated', { n: list.length }), { action: { label: t('Undo'), run: () => db.undo() } });
   }
 
+  function bulkProject(pid: string, add: boolean) {
+    const list = items.filter((a) => selected.has(a.id));
+    db.batch(add ? 'add to project' : 'remove from project', () => {
+      for (const a of list) add ? addToProject(pid, 'artifact', a.id) : removeFromProject(pid, a);
+    });
+    selected.clear();
+    const p = db.get('projects', pid);
+    ui.toast(t(add ? '{n} items added to “{p}”' : '{n} items removed from “{p}”', { n: list.length, p: p?.title ?? '' }), { action: { label: t('Undo'), run: () => db.undo() } });
+  }
+  const projects = $derived(db.all('projects').sort((a, b) => b.updatedAt - a.updatedAt));
+
   const bulkMenu = $derived([
+    ...projects.map((p) => ({ label: t('Add to “{p}”', { p: p.title || t('Untitled project') }), icon: 'plus', run: () => bulkProject(p.id, true) })),
+    ...(projects.length ? [null] : []),
     { label: t('Clean up text (OCR/PDF)'), icon: 'sparkle', run: () => bulk('clean') },
     { label: t('Add tag…'), icon: 'tag', run: () => { const v = prompt(t('Tag')); if (v) bulk('tag', v.trim().replace(/^#/, '')); } },
     { label: t('Make quotes'), icon: 'quote', run: () => bulk('kind', 'quote') },
@@ -132,6 +170,15 @@
       <button class="src special" class:on={sel === '~none'} onclick={() => (ui.collectSourceId = '~none')}>
         <span class="grow">{t('Own notes & unsourced')}</span><span class="cnt">{counts.get('~none') ?? 0}</span>
       </button>
+      <div class="views">
+        <span class="tiny muted vh">{t('Clean up')}</span>
+        {#each ['~orphan', '~nopage', '~dupes'] as v (v)}
+          <button class="src special sub" class:on={sel === v} onclick={() => (ui.collectSourceId = v)}>
+            <span class="grow">{t(VIEW_LABEL[v])}</span><span class="cnt">{viewCount(v)}</span>
+          </button>
+        {/each}
+      </div>
+      <div class="tiny muted vh">{t('Sources')} ({sources.length})</div>
       {#each sources as s (s.id)}
         <button class="src" class:on={sel === s.id} onclick={() => (ui.collectSourceId = s.id)}>
           <span class="grow">
@@ -176,10 +223,12 @@
             {/if}
           </header>
         {:else}
-          <h2 class="sh">{sel === '~all' ? t('All items') : t('Own notes & unsourced')}</h2>
+          <h2 class="sh">{t(VIEW_LABEL[sel] ?? 'All items')}</h2>
+          {#if sel === '~orphan'}<p class="small muted">{t('Quotes and notes that are neither selected for nor placed in any project.')}</p>{/if}
+          {#if sel === '~dupes'}<p class="small muted">{t('Items with (almost) the same text, sorted next to each other.')}</p>{/if}
         {/if}
 
-        {#if sel !== '~all'}
+        {#if sel === '~none' || !sel?.startsWith('~')}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div class="capture card" data-tour="capture" onkeydown={captureKey}>
             <div class="row">
@@ -285,6 +334,20 @@
   .st {
     font-size: 0.78rem;
     color: var(--muted);
+  }
+  .views {
+    margin: 4px 0 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--border);
+  }
+  .vh {
+    display: block;
+    padding: 6px 10px 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .special.sub {
+    font-weight: 400;
   }
   .special {
     font-size: 0.875rem;

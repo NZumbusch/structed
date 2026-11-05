@@ -71,7 +71,7 @@ test('library groups by author, tag, kind, year; filters unused and kinds', asyn
   await expect(page.locator('.lib .gh').first()).toContainText('2011');
   await sel.selectOption('none');
   await expect(page.locator('.lib .art')).toHaveCount(3);
-  await page.locator('.lib .chip.toggle').click(); // unused only
+  await page.locator('.lib .usage button', { hasText: 'Unused' }).click();
   await expect(page.locator('.lib .art')).toHaveCount(2);
   await page.locator('.lib .filters').getByTitle('note').click();
   await expect(page.locator('.lib .art')).toHaveCount(1);

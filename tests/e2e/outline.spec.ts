@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('builds a nested outline with the keyboard', async ({ page }) => {
-  const first = page.locator('input.title').first();
+  const first = page.locator('textarea.title').first();
   await first.fill('Introduction');
   await first.press('Enter');
   await page.keyboard.type('Question');
@@ -24,17 +24,17 @@ test('builds a nested outline with the keyboard', async ({ page }) => {
   expect(await headingTitles(page)).toEqual(['Main part', 'Introduction', 'Question', 'Relevance']);
   // arrow navigation
   await page.keyboard.press('ArrowDown');
-  await expect(page.locator('input.title').nth(1)).toBeFocused();
+  await expect(page.locator('textarea.title').nth(1)).toBeFocused();
 });
 
 test('Enter splits a title at the caret; Backspace on empty removes', async ({ page }) => {
-  const first = page.locator('input.title').first();
+  const first = page.locator('textarea.title').first();
   await first.fill('HelloWorld');
   await first.press('Home');
   for (let i = 0; i < 5; i++) await first.press('ArrowRight');
   await first.press('Enter');
   expect(await headingTitles(page)).toEqual(['Hello', 'World']);
-  await expect(page.locator('input.title').nth(1)).toBeFocused();
+  await expect(page.locator('textarea.title').nth(1)).toBeFocused();
   await page.keyboard.press('Enter');
   expect(await headingTitles(page)).toHaveLength(3);
   await page.keyboard.press('Backspace');
@@ -42,7 +42,7 @@ test('Enter splits a title at the caret; Backspace on empty removes', async ({ p
 });
 
 test('notes editor, status, word target and collapse', async ({ page }) => {
-  const first = page.locator('input.title').first();
+  const first = page.locator('textarea.title').first();
   await first.fill('Chapter');
   await first.press('Shift+Enter');
   await expect(page.locator('.hrow .cm-content').first()).toBeFocused();
@@ -64,16 +64,16 @@ test('notes editor, status, word target and collapse', async ({ page }) => {
 });
 
 test('delete heading shows undo toast that restores it', async ({ page }) => {
-  await page.locator('input.title').first().fill('Keep me');
+  await page.locator('textarea.title').first().fill('Keep me');
   await page.locator('.hrow').first().getByRole('button', { name: 'More' }).click();
   await page.getByRole('menuitem', { name: 'Delete heading' }).click();
-  await expect(page.locator('input.title')).toHaveCount(0);
+  await expect(page.locator('textarea.title')).toHaveCount(0);
   await page.locator('.toast').getByRole('button', { name: 'Undo' }).click();
-  await expect(page.locator('input.title').first()).toHaveValue('Keep me');
+  await expect(page.locator('textarea.title').first()).toHaveValue('Keep me');
 });
 
 test('drag a heading to reorder and nest', async ({ page }) => {
-  const first = page.locator('input.title').first();
+  const first = page.locator('textarea.title').first();
   await first.fill('A');
   await first.press('Enter');
   await page.keyboard.type('B');
@@ -93,22 +93,22 @@ test('drag a heading to reorder and nest', async ({ page }) => {
 });
 
 test('outline persists across reloads', async ({ page }) => {
-  await page.locator('input.title').first().fill('Persistent heading');
-  await page.locator('input.psub').fill('My research question');
+  await page.locator('textarea.title').first().fill('Persistent heading');
+  await page.locator('textarea.psub').fill('My research question');
   await page.waitForTimeout(700);
   await page.reload();
   await page.waitForFunction(() => (window as any).__structed?.db?.ready);
-  await expect(page.locator('input.title').first()).toHaveValue('Persistent heading');
-  await expect(page.locator('input.psub')).toHaveValue('My research question');
+  await expect(page.locator('textarea.title').first()).toHaveValue('Persistent heading');
+  await expect(page.locator('textarea.psub')).toHaveValue('My research question');
 });
 
 test('global undo via keyboard outside inputs', async ({ page }) => {
   await page.locator('.hrow').first().getByRole('button', { name: 'More' }).click();
   await page.getByRole('menuitem', { name: 'Add heading below' }).click();
-  await expect(page.locator('input.title')).toHaveCount(2);
+  await expect(page.locator('textarea.title')).toHaveCount(2);
   await page.locator('.ph .stats').click(); // blur
   await page.keyboard.press('Control+z');
-  await expect(page.locator('input.title')).toHaveCount(1);
+  await expect(page.locator('textarea.title')).toHaveCount(1);
   await page.keyboard.press('Control+Shift+z');
-  await expect(page.locator('input.title')).toHaveCount(2);
+  await expect(page.locator('textarea.title')).toHaveCount(2);
 });

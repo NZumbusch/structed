@@ -8,11 +8,13 @@
   import { settings, type GroupBy } from '../lib/settings.svelte';
   import { t } from '../lib/i18n';
   import { droppable } from '../lib/dnd';
-  import { authorsFull, familyStr, sourceLabel, usageCount, yearOf } from '../lib/ops';
+  import { authorsFull, familyStr, inProject, projectArtifacts, sourceLabel, usageCount, yearOf } from '../lib/ops';
   import type { Artifact, ArtifactKind } from '../lib/types';
 
   let kinds = new SvelteSet<ArtifactKind>();
-  let unusedOnly = $state(false);
+  // project scope: only items selected for / placed in this project
+  const scoped = $derived(!!ui.projectId && settings.panelScope === 'project');
+  const projectCount = $derived(ui.projectId ? projectArtifacts(ui.projectId).length : 0);
   let openGroups = new SvelteSet<string>();
 
   const GROUPS: GroupBy[] = ['source', 'author', 'tag', 'kind', 'publication', 'year', 'none'];
@@ -26,7 +28,11 @@
     const q = ui.panelQuery.trim().toLowerCase();
     return db.all('artifacts').filter((a) => {
       if (kinds.size && !kinds.has(a.kind)) return false;
-      if (unusedOnly && ui.projectId && usageCount(a.id, ui.projectId) > 0) return false;
+      if (scoped && !inProject(a, ui.projectId!)) return false;
+      if (ui.projectId && settings.panelUsage !== 'all') {
+        const used = usageCount(a.id, ui.projectId) > 0;
+        if (settings.panelUsage === 'unused' ? used : !used) return false;
+      }
       if (!q) return true;
       const s = db.get('sources', a.sourceId);
       const hay = [a.title, a.text, a.comment, a.page, a.tags.join(' '), s ? sourceLabel(s) + ' ' + (s.csl.title ?? '') + ' ' + authorsFull(s.csl) : '']
@@ -122,6 +128,21 @@
         <button class="icon-btn" onclick={() => (ui.panelMobileOpen = false)} aria-label={t('Close')}><Icon name="x" /></button>
       {/if}
     </div>
+    {#if ui.projectId}
+      <div class="row scopes">
+        <div class="seg" role="group" aria-label={t('Show')}>
+          <button class:on={settings.panelScope === 'project'} onclick={() => (settings.panelScope = 'project')} title={t('Only quotes selected for or placed in this project')}>
+            {t('Project')} <span class="n">{projectCount}</span>
+          </button>
+          <button class:on={settings.panelScope === 'library'} onclick={() => (settings.panelScope = 'library')} title={t('All sources and quotes')}>{t('Library')}</button>
+        </div>
+        <div class="seg usage" role="group" aria-label={t('Placed under headings')}>
+          {#each [['unused', 'Unused'], ['all', 'All'], ['used', 'Used']] as [v, l] (v)}
+            <button class:on={settings.panelUsage === v} onclick={() => (settings.panelUsage = v as typeof settings.panelUsage)} title={v === 'unused' ? t('Not yet placed under a heading') : v === 'used' ? t('Already placed under a heading') : ''}>{t(l)}</button>
+          {/each}
+        </div>
+      </div>
+    {/if}
     <div class="row filters">
       <select class="select gsel" bind:value={settings.panelGroupBy} aria-label={t('Group by')}>
         {#each GROUPS as g (g)}<option value={g}>{t('By ' + g)}</option>{/each}
@@ -134,18 +155,17 @@
           onclick={() => (kinds.has(k as ArtifactKind) ? kinds.delete(k as ArtifactKind) : kinds.add(k as ArtifactKind))}
         ><Icon name={k} size={15} /></button>
       {/each}
-      {#if ui.projectId}
-        <button class="chip toggle" class:on={unusedOnly} onclick={() => (unusedOnly = !unusedOnly)} title={t('Only items not yet placed in this project')}>
-          {t('Unused')}
-        </button>
-      {/if}
     </div>
   </div>
 
   <div class="list scroll">
     {#if !groups.length}
       <div class="empty small">
-        {#if db.all('artifacts').length}
+        {#if scoped && !projectCount && db.all('artifacts').length}
+          <p>{t('Nothing selected for this project yet.')}</p>
+          <button class="btn sm" onclick={() => (ui.stage = 'select')}><Icon name="check" size={14} />{t('Select quotes')}</button>
+          <button class="btn sm" onclick={() => (settings.panelScope = 'library')}><Icon name="book" size={14} />{t('Show whole library')}</button>
+        {:else if db.all('artifacts').length}
           {t('Nothing matches.')}
         {:else}
           <p>{t('No quotes or notes yet.')}</p>
@@ -216,6 +236,19 @@
   .filters {
     gap: 2px;
   }
+  .scopes {
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .scopes .seg button {
+    padding: 0 9px;
+  }
+  .n {
+    margin-left: 2px;
+    font-size: 0.72rem;
+    color: var(--muted);
+  }
   .gsel {
     width: auto;
     min-height: 28px;
@@ -223,15 +256,6 @@
     padding: 0 6px;
     font-size: 0.8rem;
     margin-right: 6px;
-  }
-  .toggle {
-    margin-left: auto;
-    border: 0;
-    cursor: pointer;
-  }
-  .toggle.on {
-    background: var(--accent-soft);
-    color: var(--accent-text);
   }
   .list {
     flex: 1;
