@@ -34,16 +34,57 @@ The **library panel** is available in every stage. It groups items by source, au
 
 ```bash
 npm install
-npm run dev      # http://localhost:5173/structed/
-npm run check    # type check
-npm run build    # production build in dist/
+npm run dev        # http://localhost:5173/structed/
+npm run check      # type check
+npm run build      # production build in dist/
+npm test           # unit + end-to-end tests
+npm run test:unit  # Vitest only (fast)
+npm run test:e2e   # Playwright only
 ```
+
+## Tests
+
+Tests are the safety net for every change. CI runs them on every push and pull request, and **deploys only happen when everything passes**.
+
+| Layer | Tool | Covers |
+|---|---|---|
+| Unit (`tests/unit`) | Vitest + fake IndexedDB | Data store (persistence, last-write-wins merge, tombstones, undo/redo and nested batches), outline operations (indent, move, split at the caret, cascade delete), placements, labels and word counts, OCR cleanup, BibTeX/RIS/CSL parsing, APA citations, Markdown export, shortcut parsing and conflicts, version scheme |
+| End-to-end (`tests/e2e`) | Playwright | Every workflow in a real browser: keyboard outlining, collecting quotes, Zotero Web API (mocked) with highlight review, drag & drop (mouse and touch long-press), the place picker, Write view, comments, citation copy, search, export (md/docx/bib), backup round-trip, snapshots, two-device Google Drive sync (mocked, including images and expired sessions), PWA offline mode, German UI, shortcuts and the tour |
+| Accessibility | axe-core | WCAG 2.1 AA (contrast, labels, names) in every theme (light, dark, sepia, high contrast light/dark), on every stage and dialog, at desktop, tablet and phone sizes |
+| Layout | Playwright | No horizontal overflow with very long words and URLs, line breaks preserved in quotes and texts, wrapping editors, two-line clamping of collapsed cards, touch-target sizes on phones |
+
+Tests run in three viewports: desktop at 1400px, tablet at 820px with touch, and phone at 390px with touch.
+
+## Versioning
+
+Stable releases are **git tags** such as `v1.0` or `v2.0`. Every build between releases is numbered from the most recent tag: the last number counts the commits since then, followed by the commit hash.
+
+| State | Shown in Settings → About |
+|---|---|
+| on tag `v1.0` | `1.0` |
+| 7 commits after `v1.0` | `1.0.7 (abc1234) · development build` |
+| no tag yet | `0.0.<total commits> (hash)` |
+
+To promote a release, tag a commit and push the tag (CI tests it, then deploys it):
+
+```bash
+git tag v1.0 && git push origin v1.0
+```
+
+## Keyboard shortcuts & tour
+
+Shortcuts can be changed under **Settings → Keyboard shortcuts**:
+- Click a shortcut, then press the new keys. Esc cancels and Backspace removes the shortcut.
+- If the keys are already in use, a warning lets you reassign them (the other action becomes unassigned) or cancel.
+- Many extra actions (new quote/note/source, export, sync, theme toggle…) are available but unassigned by default.
+
+The **guided tour** starts on first use and spotlights each part of the app. If you have no project yet, it creates a demo project, which you can keep or remove afterwards. You can restart the tour from Settings → About & help.
 
 ## Deploying to GitHub Pages
 
 1. Repository **Settings → Pages → Source: GitHub Actions**.
 2. Optionally, **Settings → Secrets and variables → Actions → Variables**: add `GOOGLE_CLIENT_ID` (see below). The ID is not a secret.
-3. Push to `main`, or run the "Deploy to GitHub Pages" workflow manually. The app is then served at `https://<user>.github.io/structed/`.
+3. Push to `main` (or push a `v*` tag). The "CI & Deploy" workflow runs all tests and deploys only if they pass. The app is then served at `https://<user>.github.io/structed/`.
 
 For a custom domain, build with `BASE=/`.
 

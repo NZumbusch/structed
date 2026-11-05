@@ -57,6 +57,7 @@
   }
   .modal {
     width: min(var(--w), 100%);
+    min-width: 0;
     max-height: min(88vh, 900px);
     display: flex;
     flex-direction: column;
@@ -74,9 +75,13 @@
   }
   h2 {
     flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
     font-size: 1.05rem;
   }
   .body {
+    min-width: 0;
+    overflow-x: hidden;
     padding: 4px 20px 20px;
     flex: 1;
     min-height: 0;

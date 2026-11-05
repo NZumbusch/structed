@@ -117,15 +117,15 @@
       </div>
     {/if}
 
-    <label class="field">
-      <span class="row">
-        <span class="grow">{kind === 'quote' ? t('Quote (verbatim)') : kind === 'paraphrase' ? t('Paraphrase / summary') : kind === 'image' ? t('Caption') : t('Note (markdown)')}</span>
-        <button class="btn ghost sm" onclick={(e) => { e.preventDefault(); text = cleanText(text); }} title={t('Fix PDF/OCR artifacts: hyphenation, line breaks, ligatures')}>
+    <div class="field">
+      <div class="row">
+        <label class="grow lbl" for="art-text">{kind === 'quote' ? t('Quote (verbatim)') : kind === 'paraphrase' ? t('Paraphrase / summary') : kind === 'image' ? t('Caption') : t('Note (markdown)')}</label>
+        <button class="btn ghost sm" onclick={() => (text = cleanText(text))} title={t('Fix PDF/OCR artifacts: hyphenation, line breaks, ligatures')}>
           <Icon name="sparkle" size={13} />{t('Clean up')}
         </button>
-      </span>
-      <textarea bind:this={textEl} class="textarea" rows="6" bind:value={text}></textarea>
-    </label>
+      </div>
+      <textarea id="art-text" bind:this={textEl} class="textarea" rows="6" bind:value={text}></textarea>
+    </div>
 
     <label class="field"><span>{t('Comment')}</span><textarea class="textarea" rows="2" bind:value={comment} placeholder={t('Your thoughts on it…')}></textarea></label>
     <label class="field"><span>{t('Tags / topics')}</span><TagInput bind:tags /></label>
@@ -166,6 +166,11 @@
   }
   .page {
     width: 110px;
+  }
+  .lbl {
+    font-size: 0.8125rem;
+    color: var(--muted);
+    font-weight: 500;
   }
   .more {
     justify-self: start;

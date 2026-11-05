@@ -20,18 +20,21 @@
   import { settings } from './lib/settings.svelte';
   import { sync } from './lib/sync.svelte';
   import { t } from './lib/i18n';
+  import { matches, comboFor, displayCombo } from './lib/shortcuts';
+  import Tour from './components/Tour.svelte';
 
   const project = $derived(db.get('projects', ui.projectId));
-  const STAGES: { id: Stage; label: string; icon: string }[] = [
-    { id: 'outline', label: 'Outline', icon: 'menu' },
-    { id: 'collect', label: 'Collect', icon: 'book' },
-    { id: 'arrange', label: 'Arrange', icon: 'layers' },
-    { id: 'write', label: 'Write', icon: 'edit' }
+  const STAGES: { id: Stage; label: string; icon: string; tourKey: string }[] = [
+    { id: 'outline', label: 'Outline', icon: 'menu', tourKey: 'stageOutline' },
+    { id: 'collect', label: 'Collect', icon: 'book', tourKey: 'stageCollect' },
+    { id: 'arrange', label: 'Arrange', icon: 'layers', tourKey: 'stageArrange' },
+    { id: 'write', label: 'Write', icon: 'edit', tourKey: 'stageWrite' }
   ];
   const panelVisible = $derived(settings.panelOpen && ui.stage !== 'collect' && !!project);
 
   $effect(() => {
     // auto-open a project if the stored one vanished
+    if (db.ready && !settings.tourDone && !ui.tour) ui.tour = true;
     if (db.ready && !project) {
       const first = db.all('projects').sort((a, b) => b.updatedAt - a.updatedAt)[0];
       if (first) ui.projectId = first.id;
@@ -43,21 +46,52 @@
     return !!e && (e.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(e.tagName) || !!e.closest?.('.cm-editor'));
   }
 
+  const ACTIONS: Record<string, { run: () => void; inFields?: boolean; needsProject?: boolean }> = {
+    search: { run: () => (ui.dialog = ui.dialog === 'search' ? null : 'search'), inFields: true },
+    togglePanel: { run: () => (settings.panelOpen = !settings.panelOpen), inFields: true },
+    settings: { run: () => (ui.dialog = 'settings'), inFields: true },
+    undo: { run: () => db.undo() && ui.toast(t('Undone'), {}, 1200) },
+    redo: { run: () => db.redo() && ui.toast(t('Redone'), {}, 1200) },
+    projects: { run: () => (ui.dialog = 'projects'), inFields: true },
+    export: { run: () => (ui.dialog = 'export'), inFields: true, needsProject: true },
+    snapshot: { run: () => (ui.dialog = 'snapshots'), inFields: true, needsProject: true },
+    syncNow: { run: () => syncClick(), inFields: true },
+    toggleTheme: {
+      run: () => (settings.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'),
+      inFields: true
+    },
+    toggleContrast: { run: () => (settings.contrast = settings.contrast === 'high' ? 'normal' : 'high'), inFields: true },
+    focusLibrary: {
+      run: () => {
+        settings.panelOpen = true;
+        if (ui.narrow) ui.panelMobileOpen = true;
+        setTimeout(() => document.querySelector<HTMLInputElement>('[data-tour="library"] .search input')?.focus(), 30);
+      },
+      inFields: true,
+      needsProject: true
+    },
+    tour: { run: () => (ui.tour = true), inFields: true },
+    stageOutline: { run: () => (ui.stage = 'outline'), inFields: true, needsProject: true },
+    stageCollect: { run: () => (ui.stage = 'collect'), inFields: true, needsProject: true },
+    stageArrange: { run: () => (ui.stage = 'arrange'), inFields: true, needsProject: true },
+    stageWrite: { run: () => (ui.stage = 'write'), inFields: true, needsProject: true },
+    newQuote: { run: () => (ui.editArtifact = { kind: 'quote' }), inFields: true },
+    newParaphrase: { run: () => (ui.editArtifact = { kind: 'paraphrase' }), inFields: true },
+    newNote: { run: () => (ui.editArtifact = { kind: 'note' }), inFields: true },
+    newSource: { run: () => (ui.editSource = {}), inFields: true },
+    importZotero: { run: () => (ui.dialog = 'zotero'), inFields: true }
+  };
+
   function keys(e: KeyboardEvent) {
-    const mod = e.ctrlKey || e.metaKey;
-    if (mod && e.key.toLowerCase() === 'k') {
+    if (e.defaultPrevented || ui.recordingShortcut) return;
+    const editable = isEditable(e.target);
+    for (const [id, a] of Object.entries(ACTIONS)) {
+      if (!matches(e, id)) continue;
+      if (!a.inFields && (editable || ui.dialog)) return;
+      if (a.needsProject && !project) return;
       e.preventDefault();
-      ui.dialog = ui.dialog === 'search' ? null : 'search';
-    } else if (mod && e.key === '\\') {
-      e.preventDefault();
-      settings.panelOpen = !settings.panelOpen;
-    } else if (e.altKey && /^[1-4]$/.test(e.key) && project) {
-      e.preventDefault();
-      ui.stage = STAGES[+e.key - 1].id;
-    } else if (mod && e.key.toLowerCase() === 'z' && !isEditable(e.target) && !ui.dialog) {
-      e.preventDefault();
-      const l = e.shiftKey ? db.redo() : db.undo();
-      if (l) ui.toast(e.shiftKey ? t('Redone') : t('Undone'), {}, 1200);
+      a.run();
+      return;
     }
   }
 
@@ -109,12 +143,12 @@
 {:else}
   <div class="app" class:has-panel={panelVisible && !ui.narrow} style="--panel:{settings.panelWidth}px">
     <header class="top">
-      <div class="left">
+      <div class="left" data-tour="project">
         <img src="{import.meta.env.BASE_URL}icon.svg" alt="" class="logo" />
         {#if project}
-          <Menu items={projectMenu} label={t('Project')}>
+          <Menu items={projectMenu} label={t('Project menu')}>
             {#snippet trigger()}
-              <span class="pname ellipsis">{project.title || t('Untitled project')}</span><Icon name="chevron-down" size={14} />
+              <span class="pname ellipsis">{project.title || t('Untitled project')}</span><span class="sr-only">– {t('Project menu')}</span><Icon name="chevron-down" size={14} />
             {/snippet}
           </Menu>
         {:else}
@@ -123,9 +157,9 @@
       </div>
 
       {#if project}
-        <nav class="stages seg" aria-label={t('Stages')}>
-          {#each STAGES as s, i (s.id)}
-            <button class:on={ui.stage === s.id} onclick={() => (ui.stage = s.id)} title="{t(s.label)} (Alt+{i + 1})">
+        <nav class="stages seg" aria-label={t('Stages')} data-tour="stages">
+          {#each STAGES as s (s.id)}
+            <button class:on={ui.stage === s.id} onclick={() => (ui.stage = s.id)} title="{t(s.label)}{comboFor(s.tourKey) ? ` (${displayCombo(comboFor(s.tourKey))})` : ''}">
               <Icon name={s.icon} size={15} /><span class="sl">{t(s.label)}</span>
             </button>
           {/each}
@@ -133,18 +167,18 @@
       {/if}
 
       <div class="right">
-        <button class="icon-btn" onclick={() => (ui.dialog = 'search')} title="{t('Search')} (Ctrl+K)"><Icon name="search" /></button>
-        <button class="icon-btn hide-sm" onclick={() => db.undo() && ui.toast(t('Undone'), {}, 1200)} disabled={!db.canUndo} title="{t('Undo')} (Ctrl+Z)"><Icon name="undo" /></button>
-        <button class="icon-btn sync s-{sync.status}" onclick={syncClick} title={syncTitle}><Icon name={syncIcon} /></button>
+        <button data-tour="search" class="icon-btn" onclick={() => (ui.dialog = 'search')} title="{t('Search')} ({displayCombo(comboFor('search'))})"><Icon name="search" /></button>
+        <button class="icon-btn hide-sm" onclick={() => db.undo() && ui.toast(t('Undone'), {}, 1200)} disabled={!db.canUndo} title="{t('Undo')} ({displayCombo(comboFor('undo'))})"><Icon name="undo" /></button>
+        <button data-tour="sync" class="icon-btn sync s-{sync.status}" onclick={syncClick} title={syncTitle}><Icon name={syncIcon} /></button>
         {#if project && ui.stage !== 'collect'}
           <button
             class="icon-btn"
             class:active={ui.narrow ? ui.panelMobileOpen : settings.panelOpen}
             onclick={() => (ui.narrow ? (ui.panelMobileOpen = !ui.panelMobileOpen) : (settings.panelOpen = !settings.panelOpen))}
-            title="{t('Library panel')} (Ctrl+\\)"
+            title="{t('Library panel')} ({displayCombo(comboFor('togglePanel'))})"
           ><Icon name="panel" /></button>
         {/if}
-        <button class="icon-btn hide-sm" onclick={() => (ui.dialog = 'settings')} title={t('Settings')}><Icon name="settings" /></button>
+        <button data-tour="settings" class="icon-btn" onclick={() => (ui.dialog = 'settings')} title={t('Settings')}><Icon name="settings" /></button>
       </div>
     </header>
 
@@ -187,6 +221,7 @@
   {#if ui.editSource}<SourceEditor />{/if}
   {#if ui.editArtifact}<ArtifactEditor />{/if}
   {#if ui.placeTarget && project}<PlacePicker />{/if}
+  {#if ui.tour}<Tour />{/if}
 
   <div class="toasts" aria-live="polite">
     {#each ui.toasts as tt (tt.id)}

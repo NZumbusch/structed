@@ -3,3 +3,6 @@ dist
 dev-dist
 .env.local
 *.log
+test-results/
+playwright-report/
+coverage/

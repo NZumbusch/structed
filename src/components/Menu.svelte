@@ -26,7 +26,7 @@
 
 <svelte:window onpointerdown={() => (open = false)} onkeydown={(e) => e.key === 'Escape' && (open = false)} />
 
-<button bind:this={btn} class={trigger ? 'btn ghost sm' : 'icon-btn sm'} onclick={toggle} aria-label={label} title={label} aria-haspopup="menu" aria-expanded={open}>
+<button bind:this={btn} class={trigger ? 'btn ghost sm' : 'icon-btn sm'} onclick={toggle} aria-label={trigger ? undefined : label} title={label} aria-haspopup="menu" aria-expanded={open}>
   {#if trigger}{@render trigger()}{:else}<Icon name={icon} size={16} />{/if}
 </button>
 {#if open}

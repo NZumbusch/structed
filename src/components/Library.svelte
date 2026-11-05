@@ -101,6 +101,7 @@
 
 <aside
   class="lib"
+  data-tour="library"
   use:droppable={{
     accepts: (p) => p.type === 'placement',
     onDrop: (p) => {

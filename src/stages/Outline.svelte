@@ -5,6 +5,7 @@
   import { ui } from '../lib/ui.svelte';
   import { t } from '../lib/i18n';
   import { droppable } from '../lib/dnd';
+  import { comboFor, displayCombo } from '../lib/shortcuts';
   import { addHeading, children, flatten, moveHeading, wordCount } from '../lib/ops';
   import type { Project } from '../lib/types';
 
@@ -64,7 +65,7 @@
       {/if}
     </header>
 
-    <div class="tree">
+    <div class="tree" data-tour="tree">
       {#each flat as f (f.h.id)}
         <HeadingRow {f} {mode} />
       {/each}
@@ -87,12 +88,9 @@
 
     {#if mode === 'outline'}
       <div class="keys tiny muted">
-        <span><span class="kbd">Enter</span> {t('new heading')}</span>
-        <span><span class="kbd">Tab</span>/<span class="kbd">⇧Tab</span> {t('indent / outdent')}</span>
-        <span><span class="kbd">Alt ↑↓</span> {t('move')}</span>
-        <span><span class="kbd">⇧Enter</span> {t('notes')}</span>
-        <span><span class="kbd">Ctrl .</span> {t('collapse')}</span>
-        <span><span class="kbd">Ctrl K</span> {t('search')}</span>
+        {#each [['outline.newHeading', 'new heading'], ['outline.indent', 'indent'], ['outline.outdent', 'outdent'], ['outline.moveUp', 'move'], ['outline.notes', 'notes'], ['outline.collapse', 'collapse'], ['search', 'search']] as [id, label] (id)}
+          {#if comboFor(id)}<span><span class="kbd">{displayCombo(comboFor(id))}</span> {t(label)}</span>{/if}
+        {/each}
       </div>
     {/if}
   </div>

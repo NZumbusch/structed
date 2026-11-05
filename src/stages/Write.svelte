@@ -67,7 +67,7 @@
 </script>
 
 <div class="write">
-  <nav class="toc scroll">
+  <nav class="toc scroll" data-tour="toc">
     <div class="tochead tiny muted">{t('Contents')} · {total.toLocaleString()} {t('words')}</div>
     {#each flat as f (f.h.id)}
       <button class="ti" class:on={current === f.h.id} style="--d:{f.depth}" onclick={() => go(f.h.id)}>
@@ -89,7 +89,7 @@
         <button class="btn ghost sm" onclick={() => expandAll(false)}>{t('Collapse all')}</button>
       {/if}
     </div>
-    <article class="paper">
+    <article class="paper" data-tour="paper">
       <h1 class="dtitle">{project.title || t('Untitled project')}</h1>
       {#if project.subtitle}<p class="dsub">{project.subtitle}</p>{/if}
 
@@ -112,7 +112,7 @@
 
           {#if editing === h.id}
             <div class="edit">
-              <MdEditor value={h.body} onchange={(v) => db.update('headings', h.id, { body: v })} autofocus placeholder={t('Write…')} onkeydown={(e) => { if (e.key === 'Escape') { editing = null; return true; } }} />
+              <MdEditor value={h.body} onchange={(v) => db.update('headings', h.id, { body: v })} autofocus placeholder={t('Write…')} label={t('Text for “{h}”', { h: h.title || t('Untitled') })} onkeydown={(e) => { if (e.key === 'Escape') { editing = null; return true; } }} />
               <div class="row"><span class="grow tiny muted">{wordCount(h.body)} {t('words')}</span><button class="btn sm" onclick={() => (editing = null)}>{t('Done')}</button></div>
             </div>
           {:else if h.body}
@@ -144,6 +144,7 @@
                 </div>
               {/each}
               <input
+                aria-label={t('Add a comment…')}
                 class="cin"
                 placeholder={t('Add a comment…')}
                 value={newComment[h.id] ?? ''}
@@ -204,7 +205,7 @@
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: var(--faint);
+    background: var(--deco);
     flex: none;
   }
   .dot.s-draft {
@@ -272,7 +273,7 @@
     font-weight: 500;
   }
   .chip.s-draft {
-    color: var(--k-quote);
+    color: var(--st-draft);
   }
   .chip.s-revise {
     color: var(--warn);

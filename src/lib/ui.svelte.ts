@@ -37,6 +37,8 @@ class UI {
   zoteroFor: string | null = $state(null); // source id: jump to highlight import
   focusHeading: string | null = $state(null);
   focusBody: string | null = $state(null);
+  tour = $state(false);
+  recordingShortcut = $state(false);
   toasts: Toast[] = $state([]);
   collapsed = new SvelteSet<string>(ls<string[]>('collapsed', []));
   openBodies = new SvelteSet<string>(ls<string[]>('openBodies', []));
@@ -60,6 +62,8 @@ class UI {
   private n = 0;
   toast(text: string, opts: Omit<Toast, 'id' | 'text'> = {}, ms = 4500) {
     const id = ++this.n;
+    // Only the newest undo toast is meaningful (undo always reverts the latest change).
+    if (opts.action) this.toasts = this.toasts.filter((x) => !x.action);
     this.toasts.push({ id, text, ...opts });
     setTimeout(() => (this.toasts = this.toasts.filter((x) => x.id !== id)), ms);
   }

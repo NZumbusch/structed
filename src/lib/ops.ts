@@ -155,6 +155,31 @@ export function moveHeading(id: string, targetId: string, pos: 'before' | 'after
   db.update('headings', id, { parentId: t.parentId, order });
 }
 
+/**
+ * Outliner "Enter": split the title at the caret. Text after the caret moves to
+ * a new heading (first child if `intoChildren`, else next sibling). With the caret
+ * at position 0 of a non-empty title, an empty heading is inserted *before*.
+ * Returns the id that should receive focus.
+ */
+export function splitHeading(h: Heading, value: string, pos: number, intoChildren: boolean): string {
+  return db.batch('new heading', () => {
+    const rest = value.slice(pos);
+    if (pos === 0 && value) {
+      const n = addHeading(h.projectId, h.parentId, h.id);
+      moveHeading(n.id, h.id, 'before');
+      return h.id;
+    }
+    if (rest) db.update('headings', h.id, { title: value.slice(0, pos) });
+    if (intoChildren) {
+      const first = children(h.projectId, h.id)[0];
+      const n = addChildHeading(h, rest);
+      if (first) moveHeading(n.id, first.id, 'before');
+      return n.id;
+    }
+    return addHeading(h.projectId, h.parentId, h.id, rest).id;
+  });
+}
+
 export function deleteHeading(h: Heading) {
   db.batch('delete heading', () => {
     const all = [h, ...descendants(h.projectId, h.id)];

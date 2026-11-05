@@ -111,12 +111,12 @@
 </script>
 
 <div class="collect" class:detail={ui.narrow && !!sel}>
-  <div class="srcs">
+  <div class="srcs" data-tour="sources">
     <div class="stop">
       <div class="row">
         <input class="input grow" placeholder={t('Filter sources…')} bind:value={q} />
         <button class="icon-btn" title={t('New source')} onclick={() => (ui.editSource = {})}><Icon name="plus" /></button>
-        <button class="icon-btn" title={t('Import from Zotero…')} onclick={() => (ui.dialog = 'zotero')}><Icon name="download" /></button>
+        <button class="icon-btn" data-tour="zotero" title={t('Import from Zotero…')} onclick={() => (ui.dialog = 'zotero')}><Icon name="download" /></button>
       </div>
       <div class="row tiny muted">
         {t('Sort')}:
@@ -181,7 +181,7 @@
 
         {#if sel !== '~all'}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div class="capture card" onkeydown={captureKey}>
+          <div class="capture card" data-tour="capture" onkeydown={captureKey}>
             <div class="row">
               <div class="seg">
                 {#each ['quote', 'paraphrase', 'note'] as k (k)}

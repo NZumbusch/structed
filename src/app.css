@@ -17,16 +17,19 @@
   --surface-2: #f0efeb;
   --surface-3: #e7e5df;
   --text: #1d2026;
-  --muted: #6b6f78;
-  --faint: #9a9ea6;
+  --muted: #5f6166;
+  --faint: #6a6b6e;
+  --deco: #a4a7ad; /* non-text decoration only */
   --border: #e2e0da;
   --border-strong: #cfccc4;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 6px 24px rgb(0 0 0 / 0.06);
   --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
   --accent-text: color-mix(in srgb, var(--accent) 80%, black);
-  --danger: #c23b3b;
-  --ok: #2f8a5f;
-  --warn: #b07a12;
+  --danger: #b3261e;
+  --ok: #23704b;
+  --warn: #865a06;
+  --on-accent: #fff;
+  --st-draft: #2c55aa;
 
   --k-quote: #3b6fd8;
   --k-paraphrase: #2f9e75;
@@ -42,14 +45,19 @@
   --surface-2: #23262e;
   --surface-3: #2c3039;
   --text: #e6e7ea;
-  --muted: #9aa0ab;
-  --faint: #6c717c;
+  --muted: #a3a5a9;
+  --faint: #8e9094;
+  --deco: #5b606b;
+  --ok: #55c08f;
+  --warn: #e2a640;
+  --danger: #f2817a;
   --border: #2e323b;
   --border-strong: #3d424d;
   --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 28px rgb(0 0 0 / 0.35);
   --accent-soft: color-mix(in srgb, var(--accent) 20%, transparent);
   --accent-text: color-mix(in srgb, var(--accent) 70%, white);
   --k-quote: #7aa2f0;
+  --st-draft: #8fb1f3;
   --k-paraphrase: #5cc59c;
   --k-note: #d9b34d;
   --k-image: #b48ae6;
@@ -62,15 +70,17 @@
   --surface-2: #ece3d2;
   --surface-3: #e2d7c2;
   --text: #3b3026;
-  --muted: #7a6a58;
-  --faint: #a59580;
+  --muted: #62574d;
+  --faint: #6d6359;
+  --deco: #b9a98f;
   --border: #e0d4bf;
   --border-strong: #cdbfa6;
 }
 
 :root[data-contrast='high'] {
   --muted: var(--text);
-  --faint: color-mix(in srgb, var(--text) 70%, var(--bg));
+  --faint: color-mix(in srgb, var(--text) 80%, var(--bg));
+  --deco: color-mix(in srgb, var(--text) 50%, var(--bg));
   --border: color-mix(in srgb, var(--text) 45%, var(--bg));
   --border-strong: var(--text);
   --accent-text: var(--text);
@@ -137,7 +147,10 @@ textarea {
 h1,
 h2,
 h3,
-h4 {
+h4,
+h5,
+h6 {
+  overflow-wrap: anywhere;
   margin: 0;
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -181,7 +194,7 @@ a {
 .btn.primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
 }
 .btn.primary:hover {
   filter: brightness(1.08);
@@ -284,6 +297,9 @@ a {
   white-space: nowrap;
 }
 .chip {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -407,4 +423,16 @@ body.dnd-active {
   overflow: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--border-strong) transparent;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }

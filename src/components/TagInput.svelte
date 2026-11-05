@@ -67,6 +67,9 @@
     background: transparent;
     height: 26px;
   }
+  .chip {
+    min-width: 0;
+  }
   .chip button {
     border: 0;
     background: none;

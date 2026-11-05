@@ -14,7 +14,8 @@
     autofocus = false,
     minHeight = '3em',
     onkeydown,
-    onfocused
+    onfocused,
+    label = ''
   }: {
     value: string;
     onchange: (v: string) => void;
@@ -23,6 +24,7 @@
     minHeight?: string;
     onkeydown?: (e: KeyboardEvent) => boolean | void;
     onfocused?: () => void;
+    label?: string;
   } = $props();
 
   let host: HTMLDivElement;
@@ -77,6 +79,7 @@
           syntaxHighlighting(live),
           EditorView.lineWrapping,
           ph(placeholder),
+          EditorView.contentAttributes.of({ 'aria-label': label || placeholder, 'aria-multiline': 'true' }),
           theme,
           EditorView.updateListener.of((u) => {
             if (u.docChanged) onchange(u.state.doc.toString());

@@ -23,9 +23,11 @@
     outdent,
     place,
     placementsOf,
+    splitHeading,
     wordCount
   } from '../lib/ops';
   import type { FlatHeading } from '../lib/ops';
+  import { matches } from '../lib/shortcuts';
   import type { HeadingStatus } from '../lib/types';
 
   let { f, mode }: { f: FlatHeading; mode: 'outline' | 'arrange' } = $props();
@@ -64,48 +66,42 @@
 
   function key(e: KeyboardEvent) {
     const el = e.currentTarget as HTMLInputElement;
-    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+    const run = (fn: () => void) => {
       e.preventDefault();
-      // Split title at caret like an outliner.
-      const pos = el.selectionStart ?? el.value.length;
-      const rest = el.value.slice(pos);
-      if (rest && pos > 0) db.update('headings', h.id, { title: el.value.slice(0, pos) });
-      const asChild = f.hasChildren && !collapsed && pos > 0;
-      const first = asChild ? children(h.projectId, h.id)[0] : undefined;
-      const n = asChild ? addChildHeading(h, rest) : addHeading(h.projectId, h.parentId, h.id, pos > 0 ? rest : '');
-      if (first) moveHeading(n.id, first.id, 'before');
-      if (pos === 0 && el.value) {
-        // caret at start: insert empty heading before
-        moveHeading(n.id, h.id, 'before');
-      }
-      ui.focusHeading = pos === 0 && el.value ? h.id : n.id;
-    } else if (e.key === 'Enter' && (e.shiftKey || e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      ui.openBodies.add(h.id);
-      ui.focusBody = h.id;
-    } else if (e.key === 'Tab') {
-      e.preventDefault();
-      if (e.shiftKey) outdent(h);
-      else indent(h);
-      ui.focusHeading = h.id;
-    } else if (e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
-      e.preventDefault();
-      moveUpDown(h, e.key === 'ArrowUp' ? -1 : 1);
-      ui.focusHeading = h.id;
-    } else if (e.key === 'ArrowUp' && !e.shiftKey) {
-      e.preventDefault();
-      focusSibling(-1);
-    } else if (e.key === 'ArrowDown' && !e.shiftKey) {
-      e.preventDefault();
-      focusSibling(1);
-    } else if (e.key === 'Backspace' && !el.value && !h.body && !placements.length && !f.hasChildren) {
-      e.preventDefault();
-      focusSibling(-1);
-      db.remove('headings', h.id);
-    } else if ((e.ctrlKey || e.metaKey) && e.key === '.') {
-      e.preventDefault();
-      ui.toggle(ui.collapsed, h.id);
-    }
+      e.stopPropagation();
+      fn();
+    };
+    if (matches(e, 'outline.newHeading'))
+      run(() => (ui.focusHeading = splitHeading(h, el.value, el.selectionStart ?? el.value.length, f.hasChildren && !collapsed)));
+    else if (matches(e, 'outline.notes'))
+      run(() => {
+        ui.openBodies.add(h.id);
+        ui.focusBody = h.id;
+      });
+    else if (matches(e, 'outline.addChild'))
+      run(() => {
+        ui.collapsed.delete(h.id);
+        ui.focusHeading = addChildHeading(h).id;
+      });
+    else if (matches(e, 'outline.indent')) run(() => (indent(h), (ui.focusHeading = h.id)));
+    else if (matches(e, 'outline.outdent')) run(() => (outdent(h), (ui.focusHeading = h.id)));
+    else if (matches(e, 'outline.moveUp')) run(() => (moveUpDown(h, -1), (ui.focusHeading = h.id)));
+    else if (matches(e, 'outline.moveDown')) run(() => (moveUpDown(h, 1), (ui.focusHeading = h.id)));
+    else if (matches(e, 'outline.prev')) run(() => focusSibling(-1));
+    else if (matches(e, 'outline.next')) run(() => focusSibling(1));
+    else if (matches(e, 'outline.collapse')) run(() => ui.toggle(ui.collapsed, h.id));
+    else if (matches(e, 'outline.status')) run(cycleStatus);
+    else if (matches(e, 'outline.delete'))
+      run(() => {
+        focusSibling(-1);
+        deleteHeading(h);
+        ui.toast(t('Heading deleted'), { action: { label: t('Undo'), run: () => db.undo() } });
+      });
+    else if (e.key === 'Backspace' && !el.value && !h.body && !placements.length && !f.hasChildren)
+      run(() => {
+        focusSibling(-1);
+        db.remove('headings', h.id);
+      });
   }
 
   function bodyKey(e: KeyboardEvent) {
@@ -208,6 +204,7 @@
         onchange={(v) => db.update('headings', h.id, { body: v })}
         placeholder={t('Gist, arguments, draft… (markdown)')}
         onkeydown={bodyKey}
+        label={t('Notes for “{h}”', { h: h.title || t('Untitled') })}
         autofocus={ui.focusBody === h.id}
         onfocused={() => ui.focusBody === h.id && (ui.focusBody = null)}
       />
@@ -236,9 +233,6 @@
           </div>
         {/if}
       {/each}
-      {#if !placements.length}
-        <div class="dropzone tiny">{t('Drop quotes or notes here')}</div>
-      {/if}
     </div>
   {:else if placements.length && mode === 'outline' && !collapsed}
     <div class="mini">
@@ -388,7 +382,7 @@
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--faint);
+    background: var(--deco);
   }
   .s-draft .dot {
     background: var(--k-quote);
@@ -432,17 +426,6 @@
     display: grid;
     gap: 6px;
     margin: 0 0 10px 66px;
-  }
-  .dropzone {
-    display: none;
-    padding: 8px;
-    border: 1px dashed var(--border-strong);
-    border-radius: 8px;
-    color: var(--faint);
-    text-align: center;
-  }
-:global(body.dnd-active) .dropzone {
-    display: block;
   }
   .mini {
     display: flex;

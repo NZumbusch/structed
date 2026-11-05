@@ -132,14 +132,19 @@ class Database {
   }
 
   /** Group several writes into one undo step. */
+  private batchDepth = 0;
   batch<T>(label: string, fn: () => T): T {
-    this.groupLabel = label;
-    this.openGroup(`batch:${label}:${uid()}`, label, true);
+    if (this.batchDepth++ === 0) {
+      this.groupLabel = label;
+      this.openGroup(`batch:${label}:${uid()}`, label, true);
+    }
     try {
       return fn();
     } finally {
-      this.groupLabel = '';
-      this.closeGroup();
+      if (--this.batchDepth === 0) {
+        this.groupLabel = '';
+        this.closeGroup();
+      }
     }
   }
 

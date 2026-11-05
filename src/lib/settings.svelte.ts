@@ -22,6 +22,8 @@ export interface Settings {
   panelOpen: boolean;
   showAllProjectsInPanel: boolean;
   snapshotOnBigChange: boolean;
+  shortcuts: Record<string, string | null>;
+  tourDone: boolean;
 }
 
 export const ACCENTS = ['#3b6fd8', '#2f9e75', '#c0582f', '#8a55c9', '#c94a73', '#b08a1e', '#56606f'];
@@ -46,7 +48,9 @@ const defaults: Settings = {
   panelWidth: 360,
   panelOpen: true,
   showAllProjectsInPanel: true,
-  snapshotOnBigChange: true
+  snapshotOnBigChange: true,
+  shortcuts: {},
+  tourDone: false
 };
 
 const KEY = 'structed.settings';
@@ -68,6 +72,14 @@ const media = matchMedia('(prefers-color-scheme: dark)');
 let systemDark = $state(media.matches);
 media.addEventListener('change', (e) => (systemDark = e.matches));
 
+/** Black or white, whichever has more contrast on the given color. */
+export function onColor(hex: string): string {
+  const h = hex.replace('#', '');
+  const ch = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+  const L = 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+  return 1.05 / (L + 0.05) >= (L + 0.05) / 0.05 ? '#ffffff' : '#111111';
+}
+
 export function applySettings() {
   $effect.root(() => {
     $effect(() => {
@@ -82,6 +94,7 @@ export function applySettings() {
       root.dataset.width = settings.lineWidth;
       root.dataset.motion = settings.reduceMotion ? 'reduce' : 'normal';
       root.style.setProperty('--accent', settings.accent);
+      root.style.setProperty('--on-accent', onColor(settings.accent));
       root.style.setProperty('--fs', settings.fontSize + 'px');
       root.lang = settings.language;
       const meta = document.querySelector('meta[name="theme-color"]');

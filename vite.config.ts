@@ -1,14 +1,27 @@
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
-import pkg from './package.json' with { type: 'json' };
+import { execSync } from 'node:child_process';
+import { parseDescribe } from './scripts/version.ts';
+
+function git(cmd: string, fallback = ''): string {
+  try {
+    return execSync(`git ${cmd}`, { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+  } catch {
+    return fallback;
+  }
+}
+const versionInfo = parseDescribe(
+  process.env.APP_DESCRIBE ?? git('describe --tags --long --always --match "v[0-9]*"', 'unknown'),
+  Number(git('rev-list --count HEAD', '0'))
+);
 
 // GitHub Pages serves the app under /<repo>/. Override with BASE=/ for custom domains.
 const base = process.env.BASE ?? '/structed/';
 
 export default defineConfig({
   base,
-  define: { __APP_VERSION__: JSON.stringify(pkg.version) },
+  define: { __APP_VERSION__: JSON.stringify(versionInfo) },
   plugins: [
     svelte(),
     VitePWA({

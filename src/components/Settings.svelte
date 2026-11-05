@@ -8,10 +8,12 @@
   import { sync } from '../lib/sync.svelte';
   import { LOCALES, STYLES } from '../lib/cite';
   import { exportBackup, importBackup } from '../lib/backup';
+  import ShortcutSettings from './ShortcutSettings.svelte';
 
   const TABS = [
     ['appearance', 'Appearance', 'eye'],
     ['writing', 'Citations', 'quote'],
+    ['shortcuts', 'Keyboard shortcuts', 'menu'],
     ['zotero', 'Zotero', 'book'],
     ['sync', 'Sync', 'cloud'],
     ['data', 'Backup & data', 'download'],
@@ -79,9 +81,9 @@
             <input type="color" bind:value={settings.accent} aria-label={t('Custom')} />
           </div>
         </div>
-        <div class="f"><span>{t('Text size')} · {settings.fontSize}px</span>
+        <label class="f"><span>{t('Text size')} · {settings.fontSize}px</span>
           <input type="range" min="13" max="22" step="1" bind:value={settings.fontSize} />
-        </div>
+        </label>
         <div class="f"><span>{t('Writing font')}</span>
           <div class="seg">
             <button class:on={settings.editorFont === 'sans'} onclick={() => (settings.editorFont = 'sans')}>Sans</button>
@@ -115,6 +117,8 @@
           </select>
         </label>
         <p class="small muted">{t('Used for “Copy with citation”, reference previews and exports.')}</p>
+      {:else if ui.settingsTab === 'shortcuts'}
+        <ShortcutSettings />
       {:else if ui.settingsTab === 'zotero'}
         <p class="small">{t('Connect your Zotero library via the Zotero Web API to import items, collections and PDF highlights. Your key is stored only on this device.')}</p>
         <label class="field"><span>{t('Zotero user ID (numeric)')}</span><input class="input" bind:value={settings.zoteroUserId} placeholder="1234567" /></label>
@@ -180,6 +184,7 @@
         </div>
       {:else}
         <h3>Structed</h3>
+        <button class="btn primary tourbtn" onclick={() => { ui.dialog = null; ui.tour = true; }}><Icon name="sparkle" size={15} />{t('Start guided tour')}</button>
         <p class="small">{t('A minimalist tool to structure academic writing: build an outline, collect quotes from your sources, arrange them under headings, and write with everything at hand.')}</p>
         <ul class="small">
           <li><b>{t('Outline')}</b> – {t('headings, subheadings and the gist of each section.')}</li>
@@ -188,7 +193,7 @@
           <li><b>{t('Write')}</b> – {t('overview with texts, quotes, comments; copy with citation.')}</li>
         </ul>
         <p class="small muted">{t('All data is stored locally in your browser (IndexedDB) and works offline. Install it via your browser’s “Install app” / “Add to Home Screen”.')}</p>
-        <p class="tiny muted">v{__APP_VERSION__}</p>
+        <p class="tiny muted">{t("Version")} {__APP_VERSION__.display}{__APP_VERSION__.stable ? "" : " · " + t("development build")}</p>
       {/if}
     </div>
   </div>
@@ -202,6 +207,9 @@
     min-height: 420px;
   }
   nav {
+    position: sticky;
+    top: 0;
+    align-self: start;
     display: grid;
     align-content: start;
     gap: 2px;
@@ -289,6 +297,9 @@
     border-radius: 4px;
     word-break: break-all;
   }
+  .tourbtn {
+    justify-self: start;
+  }
   .btns {
     display: flex;
     flex-wrap: wrap;
@@ -301,6 +312,8 @@
     nav {
       display: flex;
       overflow-x: auto;
+      background: var(--surface);
+      z-index: 1;
     }
     nav button {
       white-space: nowrap;
