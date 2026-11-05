@@ -28,7 +28,7 @@ export interface DragOptions {
   handle?: string;
 }
 
-const IGNORE = 'input,textarea,select,button,a,[contenteditable],.cm-editor,[data-nodrag]';
+const IGNORE = 'input,textarea,select,a,[contenteditable],.cm-editor,[data-nodrag],[role="menu"]';
 const zones = new Map<HTMLElement, DropOptions>();
 
 let active: {
@@ -93,10 +93,20 @@ function move(x: number, y: number) {
   if (z) zones.get(z)?.onOver?.(active.payload, { x, y, rect: z.getBoundingClientRect(), el: z });
 }
 
+function suppressClick() {
+  const stop = (e: Event) => {
+    e.stopPropagation();
+    e.preventDefault();
+  };
+  window.addEventListener('click', stop, { capture: true, once: true });
+  setTimeout(() => window.removeEventListener('click', stop, { capture: true }), 50);
+}
+
 function end(drop: boolean) {
   if (!active) return;
   const a = active;
   active = null;
+  suppressClick();
   cancelAnimationFrame(a.raf);
   a.ghost.remove();
   document.body.classList.remove('dnd-active');

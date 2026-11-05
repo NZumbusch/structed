@@ -1,4 +1,5 @@
 import { db, byOrder, orderBetween } from './db.svelte';
+import { t } from './i18n';
 import type { Artifact, CSLItem, CSLName, Heading, Placement, Source } from './types';
 
 // ---------------- projects ----------------
@@ -264,7 +265,8 @@ export function shortCite(a: Artifact): string {
   const s = db.get('sources', a.sourceId);
   if (!s) return '';
   const base = sourceLabel(s);
-  return a.page ? `${base}, ${/[-–]/.test(a.page) ? 'pp.' : 'p.'} ${a.page}` : base;
+  const pp = /[-–]/.test(a.page ?? '') ? t('pp.') : t('p.');
+  return a.page ? `${base}, ${pp} ${a.page}` : base;
 }
 export function artifactLabel(a: Artifact, n = 90): string {
   const t = (a.title || a.text || a.comment || '').replace(/\s+/g, ' ').trim();

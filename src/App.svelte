@@ -212,7 +212,7 @@
     height: 100dvh;
   }
   .app.has-panel {
-    grid-template-columns: 1fr 5px var(--panel);
+    grid-template-columns: minmax(0, 1fr) 5px min(var(--panel), 45vw);
   }
   .top {
     grid-column: 1 / -1;

@@ -82,6 +82,7 @@
     } else if (e.key === 'Enter' && (e.shiftKey || e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       ui.openBodies.add(h.id);
+      ui.focusBody = h.id;
     } else if (e.key === 'Tab') {
       e.preventDefault();
       if (e.shiftKey) outdent(h);
@@ -202,11 +203,18 @@
 
   {#if bodyOpen}
     <div class="body">
-      <MdEditor value={h.body} onchange={(v) => db.update('headings', h.id, { body: v })} placeholder={t('Gist, arguments, draft… (markdown)')} onkeydown={bodyKey} />
+      <MdEditor
+        value={h.body}
+        onchange={(v) => db.update('headings', h.id, { body: v })}
+        placeholder={t('Gist, arguments, draft… (markdown)')}
+        onkeydown={bodyKey}
+        autofocus={ui.focusBody === h.id}
+        onfocused={() => ui.focusBody === h.id && (ui.focusBody = null)}
+      />
       {#if words}<span class="wc tiny muted">{words} {t('words')}</span>{/if}
     </div>
   {:else if h.body && mode === 'outline'}
-    <button class="preview" onclick={() => ui.openBodies.add(h.id)}>{h.body.replace(/\s+/g, ' ').slice(0, 160)}</button>
+    <button class="preview" onclick={() => { ui.openBodies.add(h.id); ui.focusBody = h.id; }}>{h.body.replace(/\s+/g, ' ').slice(0, 160)}</button>
   {/if}
 
   {#if mode === 'arrange'}
@@ -246,6 +254,7 @@
 <style>
   .hrow {
     position: relative;
+    min-width: 0;
     padding-left: calc(var(--depth) * 22px);
     border-radius: 8px;
   }
@@ -320,6 +329,7 @@
   }
   .title {
     flex: 1;
+    width: 0;
     min-width: 0;
     border: 0;
     outline: 0;
@@ -424,11 +434,15 @@
     margin: 0 0 10px 66px;
   }
   .dropzone {
+    display: none;
     padding: 8px;
     border: 1px dashed var(--border-strong);
     border-radius: 8px;
     color: var(--faint);
     text-align: center;
+  }
+:global(body.dnd-active) .dropzone {
+    display: block;
   }
   .mini {
     display: flex;

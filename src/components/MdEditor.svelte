@@ -13,7 +13,8 @@
     placeholder = '',
     autofocus = false,
     minHeight = '3em',
-    onkeydown
+    onkeydown,
+    onfocused
   }: {
     value: string;
     onchange: (v: string) => void;
@@ -21,6 +22,7 @@
     autofocus?: boolean;
     minHeight?: string;
     onkeydown?: (e: KeyboardEvent) => boolean | void;
+    onfocused?: () => void;
   } = $props();
 
   let host: HTMLDivElement;
@@ -82,7 +84,11 @@
         ]
       })
     });
-    if (autofocus) view.focus();
+    if (autofocus) {
+      view.focus();
+      view.dispatch({ selection: { anchor: view.state.doc.length } });
+      onfocused?.();
+    }
     return () => view?.destroy();
   });
 

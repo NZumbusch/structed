@@ -223,7 +223,7 @@
 <style>
   .collect {
     display: grid;
-    grid-template-columns: 300px 1fr;
+    grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
     height: 100%;
     min-height: 0;
   }
@@ -332,7 +332,7 @@
     display: grid;
     gap: 6px;
   }
-  @media (max-width: 900px) {
+  @media (max-width: 700px) {
     .collect {
       grid-template-columns: 1fr;
     }

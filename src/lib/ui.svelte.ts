@@ -36,6 +36,7 @@ class UI {
   collectSourceId: string | null = $state(null);
   zoteroFor: string | null = $state(null); // source id: jump to highlight import
   focusHeading: string | null = $state(null);
+  focusBody: string | null = $state(null);
   toasts: Toast[] = $state([]);
   collapsed = new SvelteSet<string>(ls<string[]>('collapsed', []));
   openBodies = new SvelteSet<string>(ls<string[]>('openBodies', []));
@@ -51,7 +52,7 @@ class UI {
       $effect(() => save('collapsed', [...this.collapsed]));
       $effect(() => save('openBodies', [...this.openBodies]));
     });
-    const mq = matchMedia('(max-width: 900px)');
+    const mq = matchMedia('(max-width: 700px)');
     this.narrow = mq.matches;
     mq.addEventListener('change', (e) => (this.narrow = e.matches));
   }

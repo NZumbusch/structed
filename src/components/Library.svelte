@@ -257,6 +257,10 @@
   .gl {
     flex: 1;
   }
+  .gl .muted {
+    margin-left: 6px;
+    font-weight: 400;
+  }
   .count {
     font-size: 0.75rem;
     color: var(--faint);
