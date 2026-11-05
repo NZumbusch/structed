@@ -84,6 +84,7 @@
     ...(inserting
       ? [
           { label: t('Insert in the sentence'), icon: 'quote', run: () => insert('inline') },
+          { label: t('Insert as editable text'), icon: 'edit', run: () => insert('editable') },
           { label: t('Insert as block quote'), icon: 'paraphrase', run: () => insert('block') },
           { label: t('Insert in a footnote'), icon: 'note', run: () => insert('footnote') },
           { label: t('Insert citation only'), icon: 'book', run: () => insert('cite') },

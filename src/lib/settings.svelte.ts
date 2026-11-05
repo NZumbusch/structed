@@ -30,7 +30,7 @@ export interface Settings {
   // editor & Word export
   quoteItalic: boolean;
   quoteMarks: 'de' | 'en' | 'ch' | 'none';
-  insertMode: 'inline' | 'block' | 'footnote' | 'cite';
+  insertMode: 'inline' | 'editable' | 'block' | 'footnote' | 'cite';
   autoBlockWords: number; // inline quotes with at least this many words become block quotes (0 = off)
   editorSpellcheck: boolean;
   editorLang: string;

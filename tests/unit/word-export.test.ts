@@ -110,6 +110,24 @@ describe('Word export with the Seminararbeit template', () => {
     settings.exportZotero = true;
   });
 
+  it('exports an edited (shortened) quote as italic text with a live Zotero citation', async () => {
+    settings.exportZotero = true;
+    const p = setup();
+    const sub = db.all('headings').find((h) => h.title === 'Bachs Kantatenschaffen')!;
+    const q = db.all('artifacts').find((a) => a.page === '797')!;
+    db.update('headings', sub.id, {
+      draft: JSON.stringify({
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: '„' }, { type: 'text', text: 'Bach gibt […] den Titel Motetto', marks: [{ type: 'italic' }] }, { type: 'text', text: '“ ' }, { type: 'quoteRef', attrs: { id: q.id, mode: 'cite' } }] }]
+      })
+    });
+    const { doc } = await unzip(await buildWordDocument(p, { templateBytes: bytes, cover: false, toc: false, bibliography: false }));
+    expect(doc).toMatch(/<w:i\/><w:iCs\/>.*?Bach gibt \[…\] den Titel Motetto/s);
+    expect(doc).not.toContain('Bach gibt seiner Komposition'); // the edited version, not the original
+    expect(doc).toContain('ADDIN ZOTERO_ITEM CSL_CITATION');
+    expect(doc).toContain('&quot;locator&quot;:&quot;797&quot;');
+  });
+
   it('rpr merges formatting in schema order', () => {
     const base = '<w:rPr><w:rFonts w:ascii="X"/><w:lang w:eastAsia="de-DE"/></w:rPr>';
     expect(rpr(base, { b: true, i: true, u: true })).toBe('<w:rPr><w:rFonts w:ascii="X"/><w:b/><w:bCs/><w:i/><w:iCs/><w:u w:val="single"/><w:lang w:eastAsia="de-DE"/></w:rPr>');

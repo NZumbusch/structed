@@ -8,6 +8,19 @@ import { db } from './db.svelte';
 import { settings } from './settings.svelte';
 import { citeText, marks, oneLine, wordsOf } from './citecache.svelte';
 import { editorState, type InsertMode } from './editorState.svelte';
+import { ui } from './ui.svelte';
+import { t } from './i18n';
+
+function quoteMenu(e: MouseEvent, editor: Editor, getPos: (() => number | undefined) | boolean) {
+  const pos = typeof getPos === 'function' ? getPos() : undefined;
+  if (pos == null) return;
+  ui.openContext(e, [
+    { label: t('Convert to editable text'), icon: 'edit', run: () => makeEditable(editor, pos) },
+    { label: t('Edit quote in library'), icon: 'quote', run: () => (ui.editArtifact = { id: String(editor.state.doc.nodeAt(pos)?.attrs.id) }) },
+    null,
+    { label: t('Remove'), icon: 'trash', danger: true, run: () => editor.chain().focus().deleteRange({ from: pos, to: pos + 1 }).run() }
+  ]);
+}
 
 /** Mount a reactive renderer into a node view; returns a cleanup function. */
 function live(render: () => void) {
@@ -40,9 +53,10 @@ export const QuoteRef = Node.create({
     return ['span', mergeAttributes(HTMLAttributes, { 'data-quote-ref': '' })];
   },
   addNodeView() {
-    return ({ node }) => {
+    return ({ node, editor, getPos }) => {
       const dom = document.createElement('span');
       dom.className = 'qref';
+      dom.addEventListener('contextmenu', (e) => attrs.mode !== 'cite' && quoteMenu(e, editor, getPos));
       dom.contentEditable = 'false';
       let attrs = $state({ ...node.attrs });
       const stop = live(() => {
@@ -91,9 +105,10 @@ export const QuoteBlock = Node.create({
     return ['div', mergeAttributes(HTMLAttributes, { 'data-quote-block': '' })];
   },
   addNodeView() {
-    return ({ node }) => {
+    return ({ node, editor, getPos }) => {
       const dom = document.createElement('div');
       dom.className = 'qblock';
+      dom.addEventListener('contextmenu', (e) => quoteMenu(e, editor, getPos));
       dom.contentEditable = 'false';
       let attrs = $state({ ...node.attrs });
       const stop = live(() => {
@@ -231,9 +246,56 @@ export function insertArtifact(editor: Editor, artifactId: string, mode: InsertM
     chain.insertContent([{ type: 'text', text: oneLine(a.text) + ' ' }, ...(a.sourceId ? [{ type: 'quoteRef', attrs: { id: a.id, mode: 'cite' } }] : [])]).run();
     return;
   }
+  if (m === 'editable') {
+    chain.insertContent(editableQuote(a.id)).run();
+    return;
+  }
   if (m === 'block') chain.insertContent({ type: 'quoteBlock', attrs: { id: a.id } }).run();
   else if (m === 'footnote') chain.insertContent({ type: 'footnote', attrs: { before: '', quoteId: a.id, after: '' } }).run();
   else chain.insertContent({ type: 'quoteRef', attrs: { id: a.id, mode: m } }).run();
+}
+
+/**
+ * A quote as normal, editable text („…“, italic per settings) followed by a linked
+ * citation – for shortened or adapted quotes ([…], [sic], own additions).
+ */
+export function editableQuote(id: string, text?: string) {
+  const a = db.get('artifacts', id);
+  const [l, r] = marks();
+  const q = oneLine(text ?? a?.text ?? '');
+  const italic = settings.quoteItalic ? [{ type: 'italic' }] : [];
+  return [
+    { type: 'text', text: l },
+    ...(q ? [{ type: 'text', text: q, marks: italic }] : []),
+    { type: 'text', text: r + ' ' },
+    ...(a?.sourceId ? [{ type: 'quoteRef', attrs: { id, mode: 'cite' } }] : [])
+  ];
+}
+
+/** Replace the linked quote node at `pos` by editable text (keeps the citation linked). */
+export function makeEditable(editor: Editor, pos: number) {
+  const node = editor.state.doc.nodeAt(pos);
+  if (!node) return false;
+  const id = String(node.attrs.id);
+  if (node.type.name === 'quoteRef' && node.attrs.mode !== 'cite') {
+    return editor.chain().focus().insertContentAt({ from: pos, to: pos + node.nodeSize }, editableQuote(id)).run();
+  }
+  if (node.type.name === 'quoteBlock') {
+    return editor
+      .chain()
+      .focus()
+      .insertContentAt({ from: pos, to: pos + node.nodeSize }, { type: 'blockquote', content: [{ type: 'paragraph', content: editableQuote(id) }] })
+      .run();
+  }
+  return false;
+}
+
+/** The linked quote node currently selected (tap/click on it), if any. */
+export function selectedQuotePos(editor: Editor): number | null {
+  const sel = editor.state.selection as { node?: { type: { name: string }; attrs: Record<string, unknown> }; from: number };
+  const n = sel.node;
+  if (n && ((n.type.name === 'quoteRef' && n.attrs.mode !== 'cite') || n.type.name === 'quoteBlock')) return sel.from;
+  return null;
 }
 
 /** Plain text of a draft (for word counts and search). */

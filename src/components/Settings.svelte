@@ -129,6 +129,7 @@
         <label class="field"><span>{t('Insert quotes by default')}</span>
           <select class="select" bind:value={settings.insertMode}>
             <option value="inline">{t('In the sentence')}</option>
+            <option value="editable">{t('As editable text')}</option>
             <option value="block">{t('Block quote')}</option>
             <option value="footnote">{t('In a footnote')}</option>
             <option value="cite">{t('Citation only')}</option>

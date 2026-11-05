@@ -1,6 +1,6 @@
 // Light-weight bridge between the library panel and the (lazy-loaded) editor.
 // Keeps TipTap out of the main bundle.
-export type InsertMode = 'inline' | 'block' | 'footnote' | 'cite';
+export type InsertMode = 'inline' | 'editable' | 'block' | 'footnote' | 'cite';
 
 export interface EditorApi {
   headingId: string;

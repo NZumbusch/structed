@@ -103,3 +103,57 @@ test('Word export: title page fields, template, Zotero fields', async ({ page })
   await page.locator('.bar').getByRole('button', { name: 'Word export' }).click();
   await expect(page.locator('.modal').getByLabel('Module / course')).toHaveValue('im Seminar „Test“');
 });
+
+test('editable quotes: shorten with […], citation stays linked; convert a linked quote', async ({ page }) => {
+  const ed = page.locator('.compose .ProseMirror').first();
+  await ed.click();
+  await page.keyboard.type('Assmann: ');
+  await page.locator('.lib .gh').first().click();
+  const card = page.locator('.lib .art', { hasText: 'The past is not simply' });
+  await card.getByRole('button', { name: 'More' }).click();
+  await page.getByRole('menuitem', { name: 'Insert as editable text' }).click();
+  // quote is now plain italic text, followed by a linked citation
+  await expect(ed.locator('em')).toHaveText('The past is not simply preserved but reconstructed.');
+  await expect(ed.locator('.qref.cite-only')).toHaveText('(Assmann, 2011, p. 18)');
+  // shorten it: replace "not simply preserved but " with "[…] "
+  await ed.locator('em').evaluate((el) => {
+    const r = document.createRange();
+    const tn = el.firstChild!;
+    const s = tn.textContent!;
+    r.setStart(tn, s.indexOf('not simply'));
+    r.setEnd(tn, s.indexOf('reconstructed'));
+    const sel = getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(r);
+  });
+  await page.keyboard.type('[…] ');
+  await expect(ed.locator('em')).toHaveText('The past is […] reconstructed.');
+  // page change in the library still updates the citation
+  await page.evaluate(() => {
+    const { db } = (window as any).__structed;
+    const a = db.all('artifacts').find((x: any) => x.text.startsWith('The past'));
+    db.update('artifacts', a.id, { page: '20' });
+  });
+  await expect(ed.locator('.qref.cite-only')).toHaveText('(Assmann, 2011, p. 20)');
+  // the original in the library is untouched
+  expect(await page.evaluate(() => (window as any).__structed.db.all('artifacts').some((x: any) => x.text === 'The past is not simply preserved but reconstructed.'))).toBe(true);
+
+  // convert an already inserted linked quote via the toolbar
+  await page.keyboard.press('End');
+  await page.keyboard.type(' Again: ');
+  await card.getByRole('button', { name: 'Insert at cursor' }).click();
+  await ed.locator('.qref:not(.cite-only)').click();
+  await page.locator('.bar').getByRole('button', { name: 'Edit quote text' }).click();
+  await expect(ed.locator('.qref:not(.cite-only)')).toHaveCount(0);
+  await expect(ed.locator('em')).toHaveCount(2);
+  await expect(ed.locator('.qref.cite-only')).toHaveCount(2);
+
+  // right-click a block quote → convert
+  await card.getByRole('button', { name: 'More' }).click();
+  await page.getByRole('menuitem', { name: 'Insert as block quote' }).click();
+  await ed.locator('.qblock').click({ button: 'right' });
+  await page.locator('.cmenu').getByRole('menuitem', { name: 'Convert to editable text' }).click();
+  await expect(ed.locator('.qblock')).toHaveCount(0);
+  await expect(ed.locator('blockquote')).toContainText('The past is not simply');
+  await expect(ed.locator('blockquote .qref.cite-only')).toHaveCount(1);
+});

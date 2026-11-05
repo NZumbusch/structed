@@ -1,5 +1,12 @@
 // German UI strings. Keys are the English originals (see i18n.ts).
 export const de: Record<string, string> = {
+  "Turn the selected quote into editable text to shorten or adapt it; the citation stays linked": "Ausgewähltes Zitat in bearbeitbaren Text umwandeln, um es zu kürzen oder anzupassen; der Beleg bleibt verknüpft",
+  "Edit quote text": "Zitattext bearbeiten",
+  "Remove": "Entfernen",
+  "Edit quote in library": "Zitat in der Bibliothek bearbeiten",
+  "Convert to editable text": "In bearbeitbaren Text umwandeln",
+  "Insert as editable text": "Als bearbeitbaren Text einfügen",
+  "As editable text": "Als bearbeitbarer Text",
   "Delete with items": "Mit Einträgen löschen",
   "Delete, keep items": "Löschen, Einträge behalten",
   "They contain {n} quotes and notes.": "Sie enthalten {n} Zitate und Notizen.",

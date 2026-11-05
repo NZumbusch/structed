@@ -11,7 +11,7 @@
   import { settings } from '../lib/settings.svelte';
   import { t } from '../lib/i18n';
   import { flatten, wordCount, placementsOf, artifactLabel } from '../lib/ops';
-  import { draftText } from '../lib/editor.svelte';
+  import { draftText, makeEditable, selectedQuotePos } from '../lib/editor.svelte';
   import { editorState, type InsertMode } from '../lib/editorState.svelte';
   import { matches } from '../lib/shortcuts';
   import type { Project } from '../lib/types';
@@ -30,6 +30,11 @@
     e.on('selectionUpdate', () => tick++);
     e.on('transaction', () => tick++);
   }
+  const quoteSelected = () => {
+    void tick;
+    const e = activeEditor();
+    return !!e && selectedQuotePos(e) != null;
+  };
   const is = (name: string) => {
     void tick; // re-evaluate when the selection changes
     return activeEditor()?.isActive(name) ?? false;
@@ -69,6 +74,7 @@
 
   const MODES: { id: InsertMode; label: string; icon: string }[] = [
     { id: 'inline', label: 'In the sentence', icon: 'quote' },
+    { id: 'editable', label: 'As editable text', icon: 'edit' },
     { id: 'block', label: 'Block quote', icon: 'paraphrase' },
     { id: 'footnote', label: 'In a footnote', icon: 'note' },
     { id: 'cite', label: 'Citation only', icon: 'book' }
@@ -94,6 +100,11 @@
     <button class="icon-btn" class:active={is('bulletList')} title={t('Bullet list')} aria-label={t('Bullet list')} onclick={() => cmd((e) => e.chain().focus().toggleBulletList().run())}><Icon name="menu" size={16} /></button>
     <button class="icon-btn" class:active={is('blockquote')} title={t('Block quote (own text)')} aria-label={t('Block quote (own text)')} onclick={() => cmd((e) => e.chain().focus().toggleBlockquote().run())}><Icon name="quote" size={16} /></button>
     <button class="btn sm" title="{t('Footnote')} (Ctrl+Alt+F)" onclick={footnote}><sup>1</sup> {t('Footnote')}</button>
+    {#if quoteSelected()}
+      <button class="btn sm" title={t('Turn the selected quote into editable text to shorten or adapt it; the citation stays linked')} onclick={() => cmd((e) => { const p = selectedQuotePos(e); if (p != null) makeEditable(e, p); })}>
+        <Icon name="edit" size={14} />{t('Edit quote text')}
+      </button>
+    {/if}
     <span class="sep"></span>
     <Menu items={quickMenu} label={t('Insert a quote placed here')}>
       {#snippet trigger()}<Icon name="plus" size={14} />{t('Insert quote')}{/snippet}
