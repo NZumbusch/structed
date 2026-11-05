@@ -1,5 +1,15 @@
 // German UI strings. Keys are the English originals (see i18n.ts).
 export const de: Record<string, string> = {
+  'Sync paused – resumes automatically on your next click': 'Sync pausiert – läuft bei deinem nächsten Klick automatisch weiter',
+  'Stays signed in automatically': 'Bleibt automatisch angemeldet',
+  'Paused – resumes on your next click': 'Pausiert – läuft beim nächsten Klick weiter',
+  'Renew the Google session automatically on my next click': 'Google-Sitzung bei meinem nächsten Klick automatisch erneuern',
+  'Without an auth server, Google sessions last about an hour. Structed syncs just before that and renews on your next click (a Google window flashes briefly). With an auth server it stays signed in silently.': 'Ohne Auth-Server hält eine Google-Sitzung etwa eine Stunde. Structed synchronisiert kurz vorher und erneuert sie bei deinem nächsten Klick (ein Google-Fenster blitzt kurz auf). Mit Auth-Server bleibt die App unbemerkt angemeldet.',
+  'Auth server URL (optional, keeps you signed in)': 'Auth-Server-URL (optional, hält dich angemeldet)',
+  'A tiny free Cloudflare Worker that holds the Google client secret so the app can refresh its access silently. It never sees your content.': 'Ein kleiner, kostenloser Cloudflare Worker, der das Google-Client-Secret verwahrt, damit die App ihren Zugriff unbemerkt erneuern kann. Er sieht deine Inhalte nie.',
+  'Setup guide': 'Einrichtungsanleitung',
+  'Reconnect once to switch to the auth server.': 'Einmal neu verbinden, um zum Auth-Server zu wechseln.',
+  'Almost done: click “Reconnect” once more to stay signed in permanently.': 'Fast fertig: Klicke noch einmal auf „Neu verbinden“, um dauerhaft angemeldet zu bleiben.',
   Homepage: 'Website',
   About: 'Über',
   'Privacy policy': 'Datenschutzerklärung',

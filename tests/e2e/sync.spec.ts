@@ -5,14 +5,18 @@ import { headingTitles, open } from './helpers';
 function fakeDrive() {
   const files = new Map<string, { id: string; name: string; version: number; body: Buffer }>();
   let n = 0;
-  const gis = `window.google={accounts:{oauth2:{initTokenClient:(o)=>({requestAccessToken:()=>setTimeout(()=>o.callback({access_token:'tok',expires_in:3600}),5)}),revoke:()=>{}}}};`;
+  // Fake Google Identity Services; records every popup request in window.__gis.
+  const gis = `window.__gis=[];window.google={accounts:{oauth2:{
+    initTokenClient:(o)=>({requestAccessToken:(c)=>{window.__gis.push({kind:'token',prompt:c&&c.prompt});setTimeout(()=>window.__gisFail?(o.error_callback&&o.error_callback({type:'popup_closed'})):o.callback({access_token:'tok',expires_in:3600}),5)}}),
+    initCodeClient:(o)=>({requestCode:()=>{window.__gis.push({kind:'code'});setTimeout(()=>o.callback({code:'CODE'}),5)}}),
+    revoke:()=>{}}}};`;
   async function attach(ctx: BrowserContext) {
     await ctx.route('https://accounts.google.com/**', (r) => r.fulfill({ body: gis, contentType: 'text/javascript' }));
     await ctx.route('https://www.googleapis.com/**', async (r) => {
       const req = r.request();
       const u = new URL(req.url());
       const m = req.method();
-      expect(req.headers()['authorization']).toBe('Bearer tok');
+      expect(req.headers()['authorization']).toMatch(/^Bearer tok/);
       const json = (o: unknown) => r.fulfill({ body: JSON.stringify(o), contentType: 'application/json' });
       if (u.pathname.endsWith('/about')) return json({ user: { emailAddress: 'me@example.com' } });
       if (u.pathname === '/drive/v3/files' && m === 'GET') {
@@ -60,6 +64,7 @@ async function connect(p: Page) {
   await p.getByRole('button', { name: 'Connect Google Drive' }).click();
   await expect(p.locator('.modal')).toContainText('me@example.com');
   await expect(p.locator('.modal')).toContainText('Last sync');
+  await expect(p.locator('.modal .status strong')).toHaveText('Connected'); // updates without reopening
   await p.keyboard.press('Escape');
 }
 const syncNow = async (p: Page) => {
@@ -156,7 +161,7 @@ test('expired session asks to reconnect; data stays local', async ({ page, conte
   });
   await page.reload();
   await page.waitForFunction(() => (window as any).__structed?.db?.ready);
-  await expect(page.locator('[data-tour="sync"]')).toHaveAttribute('title', /expired/);
+  await expect(page.locator('[data-tour="sync"]')).toHaveAttribute('title', /Sync paused/);
   await page.locator('[data-tour="sync"]').click();
   await expect(page.locator('[data-tour="sync"]')).toHaveAttribute('title', /^Synced/);
 });
@@ -167,4 +172,141 @@ test('without client ID, sync explains what to do', async ({ page }) => {
   await expect(page.locator('.modal')).toContainText('How to create a free Client ID');
   await page.getByRole('button', { name: 'Connect Google Drive' }).click();
   await expect(page.locator('.modal .err')).toContainText('No Google OAuth Client ID');
+});
+
+// ---------------- staying signed in ----------------
+
+/** Fake auth Worker (Cloudflare) */
+async function fakeWorker(ctx: BrowserContext, opts: { refreshToken?: string | null; refreshFails?: boolean } = {}) {
+  const calls: string[] = [];
+  let n = 0;
+  await ctx.route('https://auth.test/**', async (r) => {
+    const path = new URL(r.request().url()).pathname;
+    const body = r.request().postDataJSON();
+    calls.push(path);
+    const json = (o: unknown, status = 200) => r.fulfill({ status, body: JSON.stringify(o), contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' } });
+    if (path === '/token') {
+      expect(body.code).toBe('CODE');
+      return json({ access_token: 'tok-' + ++n, expires_in: 3599, ...(opts.refreshToken === null ? {} : { refresh_token: opts.refreshToken ?? 'RT' }) });
+    }
+    if (path === '/refresh') {
+      if (opts.refreshFails) return json({ error: 'invalid_grant' }, 401);
+      expect(body.refresh_token).toBe('RT');
+      return json({ access_token: 'tok-' + ++n, expires_in: 3599 });
+    }
+    if (path === '/revoke') return json({ ok: true });
+    return json({ error: 'not_found' }, 404);
+  });
+  return calls;
+}
+
+const expireToken = (p: Page) =>
+  p.evaluate(() => {
+    const d = JSON.parse(localStorage.getItem('structed.drive')!);
+    d.expires = Date.now() - 1000;
+    localStorage.setItem('structed.drive', JSON.stringify(d));
+  });
+const reload = async (p: Page) => {
+  await p.reload();
+  await p.waitForFunction(() => (window as any).__structed?.db?.ready);
+};
+const popups = (p: Page) => p.evaluate(() => ((window as any).__gis?.length ?? 0) as number);
+
+test('auth server: connects with code flow and refreshes silently without popups', async ({ page, context }) => {
+  const drive = fakeDrive();
+  await drive.attach(context);
+  const calls = await fakeWorker(context);
+  await open(page, { settings: { googleClientId: 'x', authWorkerUrl: 'https://auth.test', autoSync: false } });
+  await connect(page);
+  expect(calls).toEqual(['/token']);
+  await page.getByTitle('Settings').click();
+  await page.locator('.modal nav button', { hasText: 'Sync' }).click();
+  await expect(page.locator('.modal')).toContainText('Stays signed in automatically');
+  await page.keyboard.press('Escape');
+
+  // an hour later: token expired, but no popup is needed
+  await expireToken(page);
+  await reload(page);
+  await page.evaluate(() => (window as any).__structed.db.create('tags', { name: 'edit after an hour' }));
+  await page.locator('[data-tour="sync"]').click();
+  await expect(page.locator('[data-tour="sync"]')).toHaveAttribute('title', /^Synced/);
+  expect(calls).toContain('/refresh');
+  expect(await popups(page)).toBe(0);
+});
+
+test('auth server: revoked access asks to reconnect', async ({ page, context }) => {
+  const drive = fakeDrive();
+  await drive.attach(context);
+  await fakeWorker(context, { refreshFails: true });
+  await open(page, { settings: { googleClientId: 'x', authWorkerUrl: 'https://auth.test', autoSync: false } });
+  await connect(page);
+  await expireToken(page);
+  await reload(page);
+  await expect(page.locator('[data-tour="sync"]')).toHaveAttribute('title', /expired/);
+  await page.getByTitle('Settings').click();
+  await page.locator('.modal nav button', { hasText: 'Sync' }).click();
+  await expect(page.locator('.modal .err')).toContainText('expired or was revoked');
+});
+
+test('auth server: missing refresh token asks for one more reconnect', async ({ page, context }) => {
+  const drive = fakeDrive();
+  await drive.attach(context);
+  const calls = await fakeWorker(context, { refreshToken: null });
+  await open(page, { settings: { googleClientId: 'x', authWorkerUrl: 'https://auth.test', autoSync: false } });
+  await page.getByTitle('Settings').click();
+  await page.locator('.modal nav button', { hasText: 'Sync' }).click();
+  await page.getByRole('button', { name: 'Connect Google Drive' }).click();
+  await expect(page.locator('.modal .notice')).toContainText('once more');
+  await expect(page.locator('.modal').getByRole('button', { name: 'Reconnect' })).toBeVisible();
+  expect(calls).toEqual(['/token', '/revoke']);
+});
+
+test('browser only: after expiry, the next click renews automatically', async ({ page, context }) => {
+  const drive = fakeDrive();
+  await drive.attach(context);
+  await open(page, { settings: { googleClientId: 'x', autoSync: false } });
+  await page.getByPlaceholder('Working title').fill('P');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await connect(page);
+  await expireToken(page);
+  await reload(page);
+  const before = await popups(page);
+  const btn = page.locator('[data-tour="sync"]');
+  await expect(btn).toHaveAttribute('title', /resumes automatically on your next click/);
+  await expect(btn).toHaveClass(/waiting/);
+  // the user simply keeps working: clicking a heading renews the session
+  await page.locator('input.title').first().click();
+  await expect(btn).toHaveAttribute('title', /^Synced/);
+  const reqs = await page.evaluate(() => (window as any).__gis ?? []);
+  expect(reqs.slice(before)).toEqual([{ kind: 'token', prompt: '' }]);
+  // typing does not trigger popups
+  await page.keyboard.type('abc');
+  expect(await popups(page)).toBe(before + 1);
+});
+
+test('browser only: auto-renew can be turned off, and a blocked popup is not retried', async ({ page, context }) => {
+  const drive = fakeDrive();
+  await drive.attach(context);
+  await open(page, { settings: { googleClientId: 'x', autoSync: false } });
+  await page.getByPlaceholder('Working title').fill('P');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await connect(page);
+  await expireToken(page);
+  await reload(page);
+  await page.evaluate(() => ((window as any).__gisFail = true));
+  const n0 = await popups(page);
+  await page.locator('input.title').first().click();
+  await expect.poll(() => popups(page)).toBe(n0 + 1);
+  await expect(page.locator('[data-tour="sync"]')).toHaveAttribute('title', /click to reconnect/);
+  await page.locator('input.title').nth(1).click();
+  await page.waitForTimeout(200);
+  expect(await popups(page)).toBe(n0 + 1); // not retried on every click
+
+  await page.evaluate(() => (Object.assign((window as any).__structed.settings, { autoRenew: false }), ((window as any).__gisFail = false)));
+  await reload(page);
+  await page.locator('input.title').first().click();
+  await page.waitForTimeout(200);
+  expect(await popups(page)).toBe(0);
+  await page.locator('[data-tour="sync"]').click(); // explicit reconnect still works
+  await expect(page.locator('[data-tour="sync"]')).toHaveAttribute('title', /^Synced/);
 });

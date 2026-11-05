@@ -21,3 +21,20 @@ describe('parseDescribe', () => {
     expect(parseDescribe('unknown').commit).toBe('unknown');
   });
 });
+
+import { EARLY_MS, renewPlan } from '../../src/lib/sync.svelte';
+describe('renewPlan', () => {
+  it('refreshes silently a few minutes before expiry with a refresh token', () => {
+    const p = renewPlan(0, 3_600_000, true);
+    expect(p.refreshAt).toBe(3_600_000 - EARLY_MS);
+    expect(p.preSyncAt).toBeNull();
+  });
+  it('without refresh token: last sync and click-renew window before expiry', () => {
+    const p = renewPlan(0, 3_600_000, false);
+    expect(p.preSyncAt).toBe(3_600_000 - EARLY_MS);
+    expect(p.gestureFrom).toBe(3_600_000 - EARLY_MS);
+  });
+  it('acts immediately when already past the window', () => {
+    expect(renewPlan(5000, 1000, true).refreshAt).toBe(5000);
+  });
+});

@@ -48,6 +48,9 @@ test('privacy policy contains what Google requires', async ({ page }) => {
   await expect(en).toContainText('na.zumbusch@gmail.com');
   await expect(en).toContainText('myaccount.google.com/connections');
   await expect(page.locator('main [lang="de"]')).toContainText('Limited Use');
+  await expect(en).toContainText('auth server');
+  await expect(en).toContainText('never your projects, quotes or any Drive content');
+  await expect(page.locator('main [lang="de"]')).toContainText('Auth-Server');
 });
 
 test('owner name is filled in (no placeholder on published pages)', async ({ page }) => {

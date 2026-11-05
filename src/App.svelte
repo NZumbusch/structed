@@ -114,7 +114,7 @@
       idle: t('Synced') + (sync.lastSync ? ` · ${new Date(sync.lastSync).toLocaleTimeString()}` : ''),
       syncing: t('Syncing…'),
       error: t('Sync error') + ': ' + sync.error,
-      auth: t('Google session expired – click to reconnect'),
+      auth: sync.waitingForClick ? t('Sync paused – resumes automatically on your next click') : t('Google session expired – click to reconnect'),
       offline: t('Offline – will sync when back online')
     }[sync.status]
   );
@@ -169,7 +169,7 @@
       <div class="right">
         <button data-tour="search" class="icon-btn" onclick={() => (ui.dialog = 'search')} title="{t('Search')} ({displayCombo(comboFor('search'))})"><Icon name="search" /></button>
         <button class="icon-btn hide-sm" onclick={() => db.undo() && ui.toast(t('Undone'), {}, 1200)} disabled={!db.canUndo} title="{t('Undo')} ({displayCombo(comboFor('undo'))})"><Icon name="undo" /></button>
-        <button data-tour="sync" class="icon-btn sync s-{sync.status}" onclick={syncClick} title={syncTitle}><Icon name={syncIcon} /></button>
+        <button data-tour="sync" class="icon-btn sync s-{sync.status}" class:waiting={sync.waitingForClick} onclick={syncClick} title={syncTitle}><Icon name={syncIcon} /></button>
         {#if project && ui.stage !== 'collect'}
           <button
             class="icon-btn"
@@ -301,6 +301,9 @@
   .sync.s-error,
   .sync.s-auth {
     color: var(--warn);
+  }
+  .sync.s-auth.waiting {
+    color: var(--muted);
   }
   @keyframes spin {
     to {

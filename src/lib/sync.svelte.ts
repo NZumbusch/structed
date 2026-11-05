@@ -1,7 +1,15 @@
 // Google Drive sync via the hidden appDataFolder (scope drive.appdata).
-// Pure client-side: Google Identity Services token flow, no backend needed.
+//
+// Two ways to stay signed in:
+//  • Auth server (optional Cloudflare Worker, see /worker): Google sign-in *code* flow.
+//    The Worker exchanges the code for a long-lived refresh token, and the app silently
+//    refreshes the 1-hour access token before it expires. No popups for months.
+//  • Browser only (default): Google *token* flow. Tokens last ~1 hour. The app syncs
+//    right before expiry and renews automatically on the user's next click (a Google
+//    popup flashes and closes by itself) – browsers only allow popups after a gesture.
 import { db } from './db.svelte';
-import { clientId, settings } from './settings.svelte';
+import { clientId, settings, workerUrl } from './settings.svelte';
+import { isDragging } from './dnd';
 
 const SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 const API = 'https://www.googleapis.com/drive/v3';
@@ -25,6 +33,16 @@ interface Persisted {
   lastSync?: number;
   lastVersion?: string;
   pending?: boolean; // local edits not yet uploaded
+  refresh?: string; // refresh token (auth-server mode only)
+}
+
+/** Sync / renew this long before the access token expires. */
+export const EARLY_MS = 4 * 60_000;
+
+/** When to act relative to token expiry. Exported for tests. */
+export function renewPlan(now: number, expires: number, hasRefresh: boolean) {
+  const at = Math.max(now, expires - EARLY_MS);
+  return hasRefresh ? { refreshAt: at, preSyncAt: null, gestureFrom: null } : { refreshAt: null, preSyncAt: at, gestureFrom: at };
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -51,21 +69,33 @@ class Sync {
   private busy = false;
   private again = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private expiryTimer: ReturnType<typeof setTimeout> | null = null;
+  private gestureArmed = false;
+  private gestureFailed = false;
+  private refreshing: Promise<boolean> | null = null;
+  /** true when the session renews by itself (auth server) */
+  silent = $state(false);
+  /** shown when renewal waits for the next click */
+  waitingForClick = $state(false);
+  /** persistent hint (not cleared by syncing) */
+  notice = $state('');
 
   constructor() {
     try {
       this.p = JSON.parse(localStorage.getItem(LS) || '{}');
     } catch {
       this.p = { connected: false };
+    this.connected = false;
     }
     this.email = this.p.email ?? '';
     this.lastSync = this.p.lastSync ?? null;
-    if (this.p.connected) this.status = this.tokenValid() ? 'idle' : 'auth';
+    this.silent = !!this.p.refresh;
+    this.connected = !!this.p.connected;
+    if (this.p.connected) this.status = this.tokenValid() || this.p.refresh ? 'idle' : 'auth';
   }
 
-  get connected() {
-    return !!this.p.connected;
-  }
+  /** reactive mirror of p.connected */
+  connected = $state(false);
 
   private save() {
     localStorage.setItem(LS, JSON.stringify(this.p));
@@ -83,20 +113,13 @@ class Sync {
       return;
     }
     this.error = '';
+    this.gestureFailed = false;
     try {
       await loadGis();
-      const resp = await new Promise<any>((res, rej) => {
-        const tc = google.accounts.oauth2.initTokenClient({
-          client_id: cid,
-          scope: SCOPE,
-          callback: (r: any) => (r.error ? rej(new Error(r.error_description || r.error)) : res(r)),
-          error_callback: (e: any) => rej(new Error(e?.message || e?.type || 'Sign-in cancelled'))
-        });
-        tc.requestAccessToken({ prompt: this.p.connected ? '' : 'consent', login_hint: this.p.email || undefined });
-      });
-      this.p.token = resp.access_token;
-      this.p.expires = Date.now() + (Number(resp.expires_in) || 3600) * 1000;
+      if (workerUrl()) await this.connectViaWorker(cid);
+      else this.setToken(await this.requestToken(cid, this.p.connected ? '' : 'consent'));
       this.p.connected = true;
+      this.connected = true;
       this.save();
       try {
         const about = await this.api(`${API}/about?fields=user(emailAddress)`);
@@ -113,29 +136,186 @@ class Sync {
     }
   }
 
+  /** Token flow (browser only). Must run inside a user gesture. */
+  private requestToken(cid: string, prompt: '' | 'consent'): Promise<any> {
+    return new Promise<any>((res, rej) => {
+      const tc = google.accounts.oauth2.initTokenClient({
+        client_id: cid,
+        scope: SCOPE,
+        callback: (r: any) => (r.error ? rej(new Error(r.error_description || r.error)) : res(r)),
+        error_callback: (e: any) => rej(new Error(e?.message || e?.type || 'Sign-in cancelled'))
+      });
+      tc.requestAccessToken({ prompt, login_hint: this.p.email || undefined });
+    });
+  }
+
+  /** Code flow: Google gives a one-time code, the Worker trades it for tokens. */
+  private async connectViaWorker(cid: string) {
+    const code = await new Promise<string>((res, rej) => {
+      const cc = google.accounts.oauth2.initCodeClient({
+        client_id: cid,
+        scope: SCOPE,
+        ux_mode: 'popup',
+        login_hint: this.p.email || undefined,
+        callback: (r: any) => (r.error || !r.code ? rej(new Error(r.error_description || r.error || 'No code')) : res(r.code)),
+        error_callback: (e: any) => rej(new Error(e?.message || e?.type || 'Sign-in cancelled'))
+      });
+      cc.requestCode();
+    });
+    const t = await this.worker('/token', { code });
+    this.setToken(t);
+    if (t.refresh_token) {
+      this.p.refresh = t.refresh_token;
+      this.silent = true;
+      this.notice = '';
+    } else {
+      // Google only issues a refresh token on first consent. Reset the grant so the
+      // next connect issues one; meanwhile this session works like browser-only mode.
+      this.silent = false;
+      this.notice = 'Almost done: click “Reconnect” once more to stay signed in permanently.';
+      await this.worker('/revoke', { token: t.access_token }).catch(() => {});
+    }
+  }
+
+  private async worker(path: string, body: Record<string, string>): Promise<any> {
+    const base = workerUrl().replace(/\/+$/, '');
+    let r: Response;
+    try {
+      r = await fetch(base + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    } catch {
+      throw new Error('Auth server unreachable');
+    }
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      const err = new Error(data.error || `Auth server ${r.status}`) as Error & { status?: number };
+      err.status = r.status;
+      throw err;
+    }
+    return data;
+  }
+
+  private setToken(t: { access_token: string; expires_in?: number | string }) {
+    this.p.token = t.access_token;
+    this.p.expires = Date.now() + (Number(t.expires_in) || 3600) * 1000;
+    this.waitingForClick = false;
+    this.save();
+    this.planExpiry();
+  }
+
+  /** Make sure there is a usable access token; refresh silently when possible. */
+  private async ensureToken(): Promise<boolean> {
+    if (this.tokenValid()) return true;
+    if (this.p.refresh && workerUrl()) {
+      this.refreshing ??= (async () => {
+        try {
+          this.setToken(await this.worker('/refresh', { refresh_token: this.p.refresh! }));
+          return true;
+        } catch (e) {
+          const err = e as Error & { status?: number };
+          if (err.status === 401) {
+            // revoked or expired (e.g. 7-day limit while the Google app is in "Testing")
+            this.p.refresh = undefined;
+            this.silent = false;
+            this.save();
+            this.status = 'auth';
+            this.error = 'Google access expired or was revoked – please reconnect.';
+          } else {
+            this.status = 'error';
+            this.error = err.message;
+          }
+          return false;
+        } finally {
+          this.refreshing = null;
+        }
+      })();
+      return this.refreshing;
+    }
+    this.status = 'auth';
+    this.armGesture();
+    return false;
+  }
+
+  /** Timers around token expiry: silent refresh, or a last sync before it runs out. */
+  private planExpiry() {
+    if (this.expiryTimer) clearTimeout(this.expiryTimer);
+    if (!this.p.connected || !this.p.expires) return;
+    const plan = renewPlan(Date.now(), this.p.expires, !!(this.p.refresh && workerUrl()));
+    const at = plan.refreshAt ?? plan.preSyncAt!;
+    this.expiryTimer = setTimeout(async () => {
+      if (plan.refreshAt) {
+        this.p.expires = 0; // force refresh
+        await this.ensureToken();
+        if (this.p.pending) this.syncNow();
+      } else {
+        if (this.p.pending && this.tokenValid()) await this.syncNow();
+        this.armGesture();
+      }
+    }, Math.max(0, at - Date.now()));
+  }
+
+  /** Browser-only mode: renew on the next click (popups need a user gesture). */
+  private armGesture() {
+    if (this.gestureArmed || this.gestureFailed || !settings.autoRenew || !this.p.connected || this.p.refresh) return;
+    this.gestureArmed = true;
+    this.waitingForClick = true;
+    const handler = (e: PointerEvent) => {
+      if (isDragging() || document.visibilityState !== 'visible' || e.button !== 0) return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest('[data-tour="sync"]')) return; // the sync button handles itself
+      window.removeEventListener('pointerup', handler, true);
+      this.gestureArmed = false;
+      this.renewOnGesture();
+    };
+    window.addEventListener('pointerup', handler, true);
+  }
+
+  private async renewOnGesture() {
+    const cid = clientId();
+    if (!cid) return;
+    try {
+      await loadGis();
+      this.setToken(await this.requestToken(cid, ''));
+      this.status = 'idle';
+      this.error = '';
+      if (this.p.pending) await this.syncNow();
+      else this.poll();
+    } catch (e) {
+      // popup blocked or closed: don't keep trying on every click
+      this.gestureFailed = true;
+      this.waitingForClick = false;
+      this.status = 'auth';
+      this.error = String((e as Error).message ?? e);
+    }
+  }
+
   disconnect() {
     try {
-      if (this.p.token && typeof google !== 'undefined') google.accounts.oauth2.revoke(this.p.token, () => {});
+      if (this.p.refresh && workerUrl()) this.worker('/revoke', { token: this.p.refresh }).catch(() => {});
+      else if (this.p.token && typeof google !== 'undefined') google.accounts.oauth2.revoke(this.p.token, () => {});
     } catch {
       /* ignore */
     }
+    if (this.expiryTimer) clearTimeout(this.expiryTimer);
+    this.silent = false;
+    this.waitingForClick = false;
     this.p = { connected: false };
+    this.connected = false;
     this.save();
     this.status = 'off';
     this.email = '';
     this.lastSync = null;
   }
 
-  private async api(url: string, init: RequestInit = {}): Promise<Response> {
-    if (!this.tokenValid()) {
-      this.status = 'auth';
-      throw new Error('auth');
-    }
+  private async api(url: string, init: RequestInit = {}, retry = true): Promise<Response> {
+    if (!(await this.ensureToken())) throw new Error('auth');
     const r = await fetch(url, { ...init, headers: { ...(init.headers ?? {}), Authorization: `Bearer ${this.p.token}` } });
     if (r.status === 401) {
       this.p.token = undefined;
+      this.p.expires = 0;
       this.save();
+      if (retry && this.p.refresh) return this.api(url, init, false);
       this.status = 'auth';
+      this.armGesture();
       throw new Error('auth');
     }
     if (!r.ok) throw new Error(`Drive ${r.status}: ${(await r.text()).slice(0, 200)}`);
@@ -181,18 +361,15 @@ class Sync {
       this.status = 'offline';
       return;
     }
-    if (!this.tokenValid()) {
-      this.status = 'auth';
-      return;
-    }
     if (this.busy) {
       this.again = true;
       return;
     }
     this.busy = true;
-    this.status = 'syncing';
-    this.error = '';
     try {
+      if (!(await this.ensureToken())) return;
+      this.status = 'syncing';
+      this.error = '';
       await db.flush();
       const files = await this.list();
       const main = files.find((f) => f.name === MAIN);
@@ -256,7 +433,7 @@ class Sync {
 
   /** Lightweight remote check: only pulls when the Drive file changed. */
   async poll() {
-    if (this.p.connected && this.tokenValid() && document.visibilityState === 'visible') await this.syncNow();
+    if (this.p.connected && document.visibilityState === 'visible' && (this.tokenValid() || this.p.refresh)) await this.syncNow();
   }
 
   start() {
@@ -275,11 +452,15 @@ class Sync {
     setInterval(() => this.poll(), 120_000);
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') this.poll();
-      else if (this.p.connected && this.p.pending && this.tokenValid()) this.syncNow();
+      else if (this.p.connected && this.p.pending && (this.tokenValid() || this.p.refresh)) this.syncNow();
     });
     window.addEventListener('online', () => this.poll());
     window.addEventListener('offline', () => this.p.connected && (this.status = 'offline'));
-    if (this.p.connected) setTimeout(() => this.poll(), 1500);
+    if (this.p.connected) {
+      this.planExpiry();
+      if (!this.tokenValid() && !this.p.refresh) this.armGesture();
+      setTimeout(() => this.poll(), 1500);
+    }
   }
 }
 

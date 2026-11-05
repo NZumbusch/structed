@@ -3,4 +3,5 @@
 declare const __APP_VERSION__: { version: string; stable: boolean; commit: string; display: string };
 interface ImportMetaEnv {
   readonly VITE_GOOGLE_CLIENT_ID?: string;
+  readonly VITE_AUTH_WORKER_URL?: string;
 }

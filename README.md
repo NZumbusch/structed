@@ -101,7 +101,12 @@ For a custom domain, build with `BASE=/`.
    - `http://localhost:5173` (for development)
 5. Put the client ID in the `GOOGLE_CLIENT_ID` repository variable, or paste it in the app under **Settings → Sync**.
 
-Browser-only apps get Google access tokens that last about an hour. When a token expires, the sync icon turns amber and one click reconnects. Your data stays local and usable in the meantime.
+### Staying signed in
+
+Browser-only apps get Google access tokens that last about an hour. Structed handles this in one of two ways:
+
+- **Without extra setup:** Structed syncs just before the token expires. Afterwards the sync icon shows *paused*, and your **next click** anywhere renews the session automatically: a Google window flashes and closes by itself. Typing never triggers it, and a blocked popup is not retried. You can turn this off in Settings → Sync.
+- **With the optional auth server** (a free Cloudflare Worker, see [`worker/README.md`](worker/README.md)): the app refreshes its access silently in the background and stays signed in for months with no popups.
 
 ## Public pages (homepage, privacy policy, terms)
 

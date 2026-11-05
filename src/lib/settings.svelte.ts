@@ -11,6 +11,8 @@ export interface Settings {
   reduceMotion: boolean;
   lineWidth: 'narrow' | 'normal' | 'wide';
   googleClientId: string;
+  authWorkerUrl: string;
+  autoRenew: boolean;
   autoSync: boolean;
   zoteroUserId: string;
   zoteroApiKey: string;
@@ -38,6 +40,8 @@ const defaults: Settings = {
   reduceMotion: false,
   lineWidth: 'normal',
   googleClientId: '',
+  authWorkerUrl: '',
+  autoRenew: true,
   autoSync: true,
   zoteroUserId: '',
   zoteroApiKey: '',
@@ -67,6 +71,8 @@ export const settings: Settings = $state(load());
 
 export const BUILD_CLIENT_ID: string = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 export const clientId = () => settings.googleClientId.trim() || BUILD_CLIENT_ID;
+export const BUILD_AUTH_URL: string = import.meta.env.VITE_AUTH_WORKER_URL ?? '';
+export const workerUrl = () => settings.authWorkerUrl.trim() || BUILD_AUTH_URL;
 
 const media = matchMedia('(prefers-color-scheme: dark)');
 let systemDark = $state(media.matches);

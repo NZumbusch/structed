@@ -1,7 +1,7 @@
 <script lang="ts">
   import Modal from './Modal.svelte';
   import Icon from './Icon.svelte';
-  import { ACCENTS, BUILD_CLIENT_ID, settings } from '../lib/settings.svelte';
+  import { ACCENTS, BUILD_AUTH_URL, BUILD_CLIENT_ID, settings, workerUrl } from '../lib/settings.svelte';
   import { ui } from '../lib/ui.svelte';
   import { t } from '../lib/i18n';
   import { db } from '../lib/db.svelte';
@@ -139,12 +139,14 @@
               {#if sync.email}<span class="muted small"> · {sync.email}</span>{/if}
               <div class="tiny muted">
                 {#if sync.lastSync}{t('Last sync')}: {new Date(sync.lastSync).toLocaleString()}{/if}
-                {#if sync.status === 'auth'} · {t('Session expired – reconnect to continue syncing')}{/if}
+                {#if sync.connected && sync.silent} · {t('Stays signed in automatically')}{/if}
+                {#if sync.status === 'auth'} · {sync.waitingForClick ? t('Paused – resumes on your next click') : t('Session expired – reconnect to continue syncing')}{/if}
               </div>
             </div>
             {#if sync.connected}
-              <button class="btn" onclick={() => (sync.status === 'auth' ? sync.connect() : sync.syncNow())} disabled={sync.status === 'syncing'}>
-                <Icon name="refresh" size={15} />{sync.status === 'auth' ? t('Reconnect') : t('Sync now')}
+              {@const reconnect = sync.status === 'auth' || (!!workerUrl() && !sync.silent)}
+              <button class="btn" onclick={() => (reconnect ? sync.connect() : sync.syncNow())} disabled={sync.status === 'syncing'}>
+                <Icon name="refresh" size={15} />{reconnect ? t('Reconnect') : t('Sync now')}
               </button>
               <button class="btn ghost" onclick={() => sync.disconnect()}>{t('Disconnect')}</button>
             {:else}
@@ -152,9 +154,13 @@
             {/if}
           </div>
           {#if sync.error}<p class="small err">{sync.error}</p>{/if}
+          {#if sync.notice}<p class="small notice">{t(sync.notice)}</p>{/if}
         </div>
         <p class="small muted">{t('Structed only gets access to its own hidden folder in your Drive – never to your other files.')} <a href="privacy.html" target="_blank" rel="noopener">{t('Privacy policy')}</a></p>
         <label class="chk"><input type="checkbox" bind:checked={settings.autoSync} />{t('Sync automatically after changes')}</label>
+        {#if !workerUrl()}
+          <label class="chk"><input type="checkbox" bind:checked={settings.autoRenew} />{t('Renew the Google session automatically on my next click')}</label>
+        {/if}
         <label class="field"><span>{t('Google OAuth Client ID')} {BUILD_CLIENT_ID ? t('(optional override)') : ''}</span>
           <input class="input" bind:value={settings.googleClientId} placeholder={BUILD_CLIENT_ID || 'xxxxxxxx.apps.googleusercontent.com'} />
         </label>
@@ -167,8 +173,16 @@
             <li>Clients → Create client → <b>Web application</b>. Authorized JavaScript origins: <code>{origin}</code> (and <code>http://localhost:5173</code> for development). No redirect URI needed.</li>
             <li>Copy the Client ID here, or set it as GitHub repository variable <code>GOOGLE_CLIENT_ID</code> so every device gets it automatically.</li>
           </ol>
-          <p class="small muted">Google tokens for browser apps last ~1 hour; when it expires the app asks you to reconnect with one click. Your data stays local in the meantime.</p>
+          <p class="small muted">{t('Without an auth server, Google sessions last about an hour. Structed syncs just before that and renews on your next click (a Google window flashes briefly). With an auth server it stays signed in silently.')}</p>
         </details>
+        <label class="field"><span>{t('Auth server URL (optional, keeps you signed in)')} {BUILD_AUTH_URL ? t('(optional override)') : ''}</span>
+          <input class="input" bind:value={settings.authWorkerUrl} placeholder={BUILD_AUTH_URL || 'https://structed-auth.<you>.workers.dev'} />
+        </label>
+        <p class="small muted">
+          {t('A tiny free Cloudflare Worker that holds the Google client secret so the app can refresh its access silently. It never sees your content.')}
+          <a href="https://github.com/NZumbusch/structed/tree/main/worker#readme" target="_blank" rel="noopener">{t('Setup guide')}</a>
+          {#if workerUrl() && sync.connected && !sync.silent}<br /><strong>{t('Reconnect once to switch to the auth server.')}</strong>{/if}
+        </p>
       {:else if ui.settingsTab === 'data'}
         <p class="small">{counts.projects} {t('projects')} · {counts.sources} {t('sources')} · {counts.items} {t('items')} · {usage}</p>
         <div class="btns">
@@ -285,6 +299,10 @@
   .err {
     color: var(--danger);
     margin: 8px 0 0;
+  }
+  .notice {
+    margin: 8px 0 0;
+    font-weight: 500;
   }
   .help summary {
     cursor: pointer;
