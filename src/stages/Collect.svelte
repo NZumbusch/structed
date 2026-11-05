@@ -6,7 +6,9 @@
   import { db } from '../lib/db.svelte';
   import { ui } from '../lib/ui.svelte';
   import { t } from '../lib/i18n';
-  import { addToProject, authorsFull, deleteArtifact, projectsOf, removeFromProject, sourceLabel, yearOf } from '../lib/ops';
+  import { addToProject, authorsFull, deleteArtifact, deleteSource, mergeSource, projectsOf, removeFromProject, sourceLabel, yearOf } from '../lib/ops';
+  import Modal from '../components/Modal.svelte';
+  import type { MenuItem } from '../lib/ui.svelte';
   import { referenceOf } from '../lib/cite';
   import { cleanText } from '../lib/ocr';
   import type { Artifact, ArtifactKind } from '../lib/types';
@@ -135,6 +137,111 @@
   }
   const projects = $derived(db.all('projects').sort((a, b) => b.updatedAt - a.updatedAt));
 
+  // ---------- several sources at once ----------
+  const picked = new SvelteSet<string>();
+  let pickMode = $state(false);
+  let anchor: string | null = null;
+  let delOpen = $state(false);
+  const showChecks = $derived(pickMode || picked.size > 1);
+  const pickedSources = $derived(sources.filter((x) => picked.has(x.id)));
+  const pickedItems = $derived(db.all('artifacts').filter((a) => a.sourceId && picked.has(a.sourceId)).length);
+
+  function endPick() {
+    pickMode = false;
+    picked.clear();
+  }
+  function srcClick(e: MouseEvent, id: string) {
+    if (e.shiftKey && anchor) {
+      const ids = sources.map((x) => x.id);
+      const [i, j] = [ids.indexOf(anchor), ids.indexOf(id)].sort((x, y) => x - y);
+      if (i >= 0) ids.slice(i, j + 1).forEach((x) => picked.add(x));
+      return;
+    }
+    if (e.ctrlKey || e.metaKey || pickMode) {
+      if (picked.has(id)) picked.delete(id);
+      else picked.add(id);
+      anchor = id;
+      return;
+    }
+    picked.clear();
+    anchor = id;
+    ui.collectSourceId = id;
+  }
+  function listKey(e: KeyboardEvent) {
+    if ((e.key === 'Delete' || e.key === 'Backspace') && picked.size && !(e.target as HTMLElement).closest('input,textarea')) {
+      e.preventDefault();
+      delOpen = true;
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a' && !(e.target as HTMLElement).closest('input,textarea')) {
+      e.preventDefault();
+      sources.forEach((x) => picked.add(x.id));
+    } else if (e.key === 'Escape' && picked.size) endPick();
+  }
+
+  function tagSources() {
+    const v = prompt(t('Tag'))?.trim().replace(/^#/, '');
+    if (!v) return;
+    db.batch('tag sources', () => pickedSources.forEach((x) => db.update('sources', x.id, { tags: [...new Set([...x.tags, v])] })));
+  }
+  function addSourcesTo(pid: string) {
+    db.batch('add sources to project', () => pickedSources.forEach((x) => addToProject(pid, 'source', x.id)));
+    const p = db.get('projects', pid);
+    ui.toast(t('{n} sources added to “{p}”', { n: pickedSources.length, p: p?.title ?? '' }), { action: { label: t('Undo'), run: () => db.undo() } });
+  }
+  function mergeInto(targetId: string) {
+    const target = db.get('sources', targetId);
+    if (!target) return;
+    const others = pickedSources.filter((x) => x.id !== targetId);
+    let n = 0;
+    db.batch('merge sources', () => others.forEach((x) => (n += mergeSource(x, target))));
+    picked.clear();
+    picked.add(targetId);
+    ui.collectSourceId = targetId;
+    ui.toast(t('{n} sources merged into “{s}” ({m} items moved)', { n: others.length, s: sourceLabel(target), m: n }), { action: { label: t('Undo'), run: () => db.undo() } });
+  }
+  function deletePicked(withItems: boolean) {
+    const list = pickedSources;
+    db.batch('delete sources', () => list.forEach((x) => deleteSource(x, withItems)));
+    if (sel && picked.has(sel)) ui.collectSourceId = null;
+    delOpen = false;
+    endPick();
+    ui.toast(t('{n} sources deleted', { n: list.length }), { action: { label: t('Undo'), run: () => db.undo() } });
+  }
+
+  const pickMenu: MenuItem[] = $derived([
+    ...projects.map((p) => ({ label: t('Add to “{p}”', { p: p.title || t('Untitled project') }), icon: 'plus', run: () => { addSourcesTo(p.id); } })),
+    ...(projects.length ? [null] : []),
+    ...(pickedSources.length > 1
+      ? pickedSources.slice(0, 8).map((x) => ({ label: t('Merge all into “{s}”', { s: sourceLabel(x) }), icon: 'layers', run: () => { mergeInto(x.id); } }))
+      : []),
+    { label: t('Add tag…'), icon: 'tag', run: tagSources },
+    null,
+    { label: t('Delete…'), icon: 'trash', danger: true, run: () => { delOpen = true; } }
+  ]);
+
+  function srcContext(e: MouseEvent, id: string) {
+    if (!picked.has(id)) {
+      picked.clear();
+      picked.add(id);
+      anchor = id;
+    }
+    const single = picked.size === 1;
+    const s = db.get('sources', id);
+    ui.openContext(
+      e,
+      [
+        ...(single
+          ? [
+              { label: t('Open'), icon: 'book', run: () => { picked.clear(); ui.collectSourceId = id; } },
+              { label: t('Edit'), icon: 'edit', run: () => (ui.editSource = { id }) },
+              null
+            ]
+          : []),
+        ...pickMenu
+      ],
+      single ? sourceLabel(s) : t('{n} selected', { n: picked.size })
+    );
+  }
+
   const bulkMenu = $derived([
     ...projects.map((p) => ({ label: t('Add to “{p}”', { p: p.title || t('Untitled project') }), icon: 'plus', run: () => bulkProject(p.id, true) })),
     ...(projects.length ? [null] : []),
@@ -161,9 +268,21 @@
         {#each ['author', 'year', 'added', 'items'] as s (s)}
           <button class="lnk" class:on={sort === s} onclick={() => (sort = s as typeof sort)}>{t(s)}</button>
         {/each}
+        <span class="grow"></span>
+        <button class="lnk" class:on={pickMode} onclick={() => (pickMode ? endPick() : (pickMode = true))} title={t('Select several sources (or Ctrl/⌘-click, Shift-click)')}>{t('Select')}</button>
       </div>
     </div>
-    <div class="slist scroll">
+    {#if showChecks}
+      <div class="pickbar row small" role="toolbar" aria-label={t('Selected sources')}>
+        <span class="grow">{t('{n} selected', { n: picked.size })}</span>
+        <button class="btn ghost sm" onclick={() => sources.forEach((x) => picked.add(x.id))}>{t('All')}</button>
+        <Menu items={pickMenu} label={t('Actions for selected sources')} />
+        <button class="icon-btn sm danger" disabled={!picked.size} title={t('Delete selected sources')} aria-label={t('Delete selected sources')} onclick={() => (delOpen = true)}><Icon name="trash" size={15} /></button>
+        <button class="icon-btn sm" title={t('Done')} aria-label={t('End selection')} onclick={endPick}><Icon name="x" size={15} /></button>
+      </div>
+    {/if}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="slist scroll" onkeydown={listKey}>
       <button class="src special" class:on={sel === '~all'} onclick={() => (ui.collectSourceId = '~all')}>
         <span class="grow">{t('All items')}</span><span class="cnt">{db.all('artifacts').length}</span>
       </button>
@@ -180,7 +299,15 @@
       </div>
       <div class="tiny muted vh">{t('Sources')} ({sources.length})</div>
       {#each sources as s (s.id)}
-        <button class="src" class:on={sel === s.id} onclick={() => (ui.collectSourceId = s.id)}>
+        <button
+          class="src"
+          class:on={sel === s.id}
+          class:picked={picked.has(s.id)}
+          aria-pressed={showChecks ? picked.has(s.id) : undefined}
+          onclick={(e) => srcClick(e, s.id)}
+          oncontextmenu={(e) => srcContext(e, s.id)}
+        >
+          {#if showChecks}<span class="ck" aria-hidden="true">{#if picked.has(s.id)}<Icon name="check" size={12} />{/if}</span>{/if}
           <span class="grow">
             <span class="sl">{sourceLabel(s)}</span>
             <span class="st ellipsis">{s.csl.title}</span>
@@ -269,6 +396,23 @@
   </div>
 </div>
 
+{#if delOpen}
+  <Modal title={t('Delete sources')} onclose={() => (delOpen = false)} width="480px">
+    <p>{t('Delete {n} sources?', { n: pickedSources.length })}</p>
+    <ul class="small dl">
+      {#each pickedSources.slice(0, 6) as x (x.id)}<li>{sourceLabel(x)} – {x.csl.title}</li>{/each}
+      {#if pickedSources.length > 6}<li>… {t('and {n} more', { n: pickedSources.length - 6 })}</li>{/if}
+    </ul>
+    {#if pickedItems}<p class="small muted">{t('They contain {n} quotes and notes.', { n: pickedItems })}</p>{/if}
+    {#snippet footer()}
+      <button class="btn" onclick={() => (delOpen = false)}>{t('Cancel')}</button>
+      <span class="grow"></span>
+      {#if pickedItems}<button class="btn" onclick={() => deletePicked(false)}>{t('Delete, keep items')}</button>{/if}
+      <button class="btn primary danger-bg" onclick={() => deletePicked(true)}>{pickedItems ? t('Delete with items') : t('Delete')}</button>
+    {/snippet}
+  </Modal>
+{/if}
+
 <style>
   .collect {
     display: grid;
@@ -334,6 +478,36 @@
   .st {
     font-size: 0.78rem;
     color: var(--muted);
+  }
+  .pickbar {
+    gap: 4px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--accent-soft);
+  }
+  .src.picked {
+    background: var(--accent-soft);
+  }
+  .ck {
+    display: grid;
+    place-items: center;
+    width: 16px;
+    height: 16px;
+    flex: none;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 4px;
+    color: var(--accent-text);
+  }
+  .src.picked .ck {
+    border-color: var(--accent);
+  }
+  .dl {
+    padding-left: 1.2em;
+  }
+  :global(.danger-bg) {
+    background: var(--danger) !important;
+    border-color: var(--danger) !important;
+    color: #fff !important;
   }
   .views {
     margin: 4px 0 6px;

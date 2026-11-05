@@ -118,6 +118,9 @@
   class:selected
   style:--tag={a.color || (a.tags[0] && tagColor(a.tags[0])) || undefined}
   use:draggable={{ payload, disabled: context === 'collect' }}
+  role="group"
+  aria-label={artifactLabel(a, 60)}
+  oncontextmenu={(e) => ui.openContext(e, menu, artifactLabel(a, 50))}
 >
   <div class="head">
     {#if selectable}

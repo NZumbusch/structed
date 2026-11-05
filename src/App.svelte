@@ -23,6 +23,7 @@
   import { t } from './lib/i18n';
   import { matches, comboFor, displayCombo } from './lib/shortcuts';
   import Tour from './components/Tour.svelte';
+  import ContextMenu from './components/ContextMenu.svelte';
 
   const project = $derived(db.get('projects', ui.projectId));
   const STAGES: { id: Stage; label: string; icon: string; tourKey: string }[] = [
@@ -249,6 +250,7 @@
   {#if ui.editArtifact}<ArtifactEditor />{/if}
   {#if ui.placeTarget && project}<PlacePicker />{/if}
   {#if ui.tour}<Tour />{/if}
+  <ContextMenu />
 
   <div class="toasts" aria-live="polite">
     {#each ui.toasts as tt (tt.id)}

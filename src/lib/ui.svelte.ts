@@ -18,6 +18,8 @@ function save(k: string, v: unknown) {
   }
 }
 
+export type MenuItem = { label: string; icon?: string; run: () => void; danger?: boolean } | null;
+
 export interface Toast {
   id: number;
   text: string;
@@ -41,6 +43,14 @@ class UI {
   tour = $state(false);
   /** library opened without a project (from the start screen) */
   libraryMode = $state(false);
+  contextMenu: { x: number; y: number; title?: string; items: MenuItem[] } | null = $state(null);
+
+  /** open the right-click menu at the pointer */
+  openContext(e: MouseEvent, items: MenuItem[], title?: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    this.contextMenu = { x: e.clientX, y: e.clientY, items, title };
+  }
   recordingShortcut = $state(false);
   toasts: Toast[] = $state([]);
   collapsed = new SvelteSet<string>(ls<string[]>('collapsed', []));
