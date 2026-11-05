@@ -52,7 +52,7 @@ async function ensureStyle(core: CiteMod, id: string) {
 async function ensureLocale(core: CiteMod, lang: string) {
   if (loadedLocales.has(lang)) return lang;
   try {
-    const r = await fetch(`https://raw.githubusercontent.com/citation-style-language/locales/master/locales-${lang}.xml`);
+    const r = await fetch(`${import.meta.env.BASE_URL}csl/locales-${lang}.xml`); // bundled, no third-party request
     if (r.ok) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (core.plugins.config.get('@csl') as any).locales.add(lang, await r.text());

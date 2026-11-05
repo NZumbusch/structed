@@ -189,6 +189,10 @@
             <h1>{t('Structure your writing.')}</h1>
             <p class="muted">{t('Outline your essay, thesis or article, collect quotes from your sources, place them under headings – and write with everything at hand.')}</p>
             <Projects embedded />
+            <p class="legal tiny muted">
+              {t('Your data stays on your device.')}
+              <a href="about.html">{t('About')}</a> · <a href="privacy.html">{t('Privacy policy')}</a> · <a href="terms.html">{t('Terms of use')}</a>
+            </p>
           </div>
         </div>
       {:else if ui.stage === 'collect'}
@@ -357,6 +361,12 @@
   .wbox > p {
     margin: 8px 0 24px;
     line-height: 1.6;
+  }
+  .legal {
+    margin-top: 28px;
+  }
+  .legal a {
+    color: var(--muted);
   }
   .toasts {
     position: fixed;

@@ -153,6 +153,7 @@
           </div>
           {#if sync.error}<p class="small err">{sync.error}</p>{/if}
         </div>
+        <p class="small muted">{t('Structed only gets access to its own hidden folder in your Drive – never to your other files.')} <a href="privacy.html" target="_blank" rel="noopener">{t('Privacy policy')}</a></p>
         <label class="chk"><input type="checkbox" bind:checked={settings.autoSync} />{t('Sync automatically after changes')}</label>
         <label class="field"><span>{t('Google OAuth Client ID')} {BUILD_CLIENT_ID ? t('(optional override)') : ''}</span>
           <input class="input" bind:value={settings.googleClientId} placeholder={BUILD_CLIENT_ID || 'xxxxxxxx.apps.googleusercontent.com'} />
@@ -193,6 +194,11 @@
           <li><b>{t('Write')}</b> – {t('overview with texts, quotes, comments; copy with citation.')}</li>
         </ul>
         <p class="small muted">{t('All data is stored locally in your browser (IndexedDB) and works offline. Install it via your browser’s “Install app” / “Add to Home Screen”.')}</p>
+        <p class="small legal">
+          <a href="about.html" target="_blank" rel="noopener">{t('Homepage')}</a> ·
+          <a href="privacy.html" target="_blank" rel="noopener">{t('Privacy policy')}</a> ·
+          <a href="terms.html" target="_blank" rel="noopener">{t('Terms of use')}</a>
+        </p>
         <p class="tiny muted">{t("Version")} {__APP_VERSION__.display}{__APP_VERSION__.stable ? "" : " · " + t("development build")}</p>
       {/if}
     </div>

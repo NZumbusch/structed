@@ -1,5 +1,11 @@
 // German UI strings. Keys are the English originals (see i18n.ts).
 export const de: Record<string, string> = {
+  Homepage: 'Website',
+  About: 'Über',
+  'Privacy policy': 'Datenschutzerklärung',
+  'Terms of use': 'Nutzungsbedingungen',
+  'Your data stays on your device.': 'Deine Daten bleiben auf deinem Gerät.',
+  'Structed only gets access to its own hidden folder in your Drive – never to your other files.': 'Structed erhält nur Zugriff auf seinen eigenen versteckten Ordner in deinem Drive – nie auf deine anderen Dateien.',
   indent: 'einrücken',
   outdent: 'ausrücken',
   'Project menu': 'Projektmenü',

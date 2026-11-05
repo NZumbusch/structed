@@ -3,6 +3,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
 import { execSync } from 'node:child_process';
 import { parseDescribe } from './scripts/version.ts';
+import { legalPages } from './scripts/legal-pages.ts';
 
 function git(cmd: string, fallback = ''): string {
   try {
@@ -24,9 +25,10 @@ export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(versionInfo) },
   plugins: [
     svelte(),
+    legalPages(),
     VitePWA({
       registerType: 'prompt',
-      includeAssets: ['icon.svg', 'csl/*.csl'],
+      includeAssets: ['icon.svg', 'csl/*'],
       manifest: {
         name: 'Structed',
         short_name: 'Structed',
@@ -45,11 +47,19 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2,csl}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2,csl,xml}'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
-        navigateFallback: 'index.html'
+        navigateFallback: 'index.html',
+        // the public pages must load as themselves, never be swapped for the app shell
+        navigateFallbackDenylist: [/\/(about|privacy|terms)\.html$/]
       }
     })
   ],
-  build: { target: 'es2022', chunkSizeWarningLimit: 1500 }
+  build: {
+    target: 'es2022',
+    chunkSizeWarningLimit: 1500,
+    rollupOptions: {
+      input: { app: 'index.html', about: 'about.html', privacy: 'privacy.html', terms: 'terms.html' }
+    }
+  }
 });

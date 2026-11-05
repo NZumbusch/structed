@@ -103,6 +103,18 @@ For a custom domain, build with `BASE=/`.
 
 Browser-only apps get Google access tokens that last about an hour. When a token expires, the sync icon turns amber and one click reconnects. Your data stays local and usable in the meantime.
 
+## Public pages (homepage, privacy policy, terms)
+
+These pages are needed to publish the Google OAuth app (moving it out of "Testing"):
+
+| Page | URL |
+|---|---|
+| Homepage | `https://nzumbusch.github.io/structed/about.html` |
+| Privacy policy | `https://nzumbusch.github.io/structed/privacy.html` |
+| Terms of use | `https://nzumbusch.github.io/structed/terms.html` |
+
+They are in English and German. The name, contact email and date live in `legal.config.json`. For Google branding verification, set the repository variable `GOOGLE_SITE_VERIFICATION` to the token from Search Console's "HTML tag" method; it is injected as a meta tag into every page.
+
 ## Zotero
 
 Create a key at [zotero.org/settings/keys](https://www.zotero.org/settings/keys) with read access to your library, plus notes if you want them. Enter your numeric user ID and the key under **Settings → Zotero**. Only annotations that have been synced to zotero.org are available through the API.
