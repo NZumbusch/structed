@@ -44,7 +44,7 @@ npm run test:e2e   # Playwright only
 
 ## Tests
 
-Tests are the safety net for every change. CI runs them on every push and pull request, and **deploys only happen when everything passes**.
+Tests are the safety net for every change. CI runs them for `main`, release tags and pull requests (browser tests in the official Playwright container, split into two parallel shards), and **deploys only happen when everything passes**. When bumping `@playwright/test`, update the container tag in `.github/workflows/ci.yml` to the same version.
 
 | Layer | Tool | Covers |
 |---|---|---|
