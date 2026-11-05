@@ -151,3 +151,28 @@ test('@layout settings tab bar stays flush while scrolling on phones', async ({ 
   expect(tb.x).toBeGreaterThanOrEqual(nb.x - 1);
   expect(tb.x + tb.width).toBeLessThanOrEqual(nb.x + nb.width + 1);
 });
+
+test('@layout menus always open fully on screen', async ({ page }) => {
+  await open(page);
+  await seedDemo(page);
+  const vp = page.viewportSize()!;
+  const check = async (label: string) => {
+    const m = page.locator('.menu');
+    await expect(m, label).toBeVisible();
+    const b = (await m.boundingBox())!;
+    expect(b.x, `${label} left`).toBeGreaterThanOrEqual(0);
+    expect(b.y, `${label} top`).toBeGreaterThanOrEqual(0);
+    expect(b.x + b.width, `${label} right`).toBeLessThanOrEqual(vp.width);
+    expect(b.y + b.height, `${label} bottom`).toBeLessThanOrEqual(vp.height);
+    await page.keyboard.press('Escape');
+  };
+  // project menu (far left of the top bar)
+  await page.locator('[data-tour="project"]').getByRole('button', { name: /Project menu/ }).click();
+  await check('project menu');
+  // heading menu (far right)
+  await page.locator('.hrow').first().getByRole('button', { name: 'More' }).click();
+  await check('heading menu');
+  // last heading near the bottom
+  await page.locator('.hrow').last().getByRole('button', { name: 'More' }).click();
+  await check('last heading menu');
+});

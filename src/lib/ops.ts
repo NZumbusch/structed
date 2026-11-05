@@ -253,6 +253,28 @@ export function deleteSource(s: Source, withArtifacts: boolean) {
   });
 }
 
+/**
+ * Move every item of `from` to `into` and delete `from` – e.g. to replace a
+ * placeholder source with the real one imported from Zotero. Tags and notes
+ * of the placeholder are kept on the target.
+ */
+export function mergeSource(from: Source, into: Source): number {
+  if (from.id === into.id) return 0;
+  return db.batch('merge source', () => {
+    let n = 0;
+    for (const a of db.all('artifacts'))
+      if (a.sourceId === from.id) {
+        db.update('artifacts', a.id, { sourceId: into.id });
+        n++;
+      }
+    const tags = [...new Set([...into.tags, ...from.tags])];
+    const note = [into.note, from.note].filter((x) => x?.trim()).join('\n\n');
+    db.update('sources', into.id, { tags, note: note || undefined });
+    db.remove('sources', from.id);
+    return n;
+  });
+}
+
 // ---------------- labels ----------------
 export function nameStr(n: CSLName): string {
   return n.literal ?? [n.given, n.family].filter(Boolean).join(' ');

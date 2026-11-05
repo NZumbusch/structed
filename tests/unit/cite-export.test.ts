@@ -3,7 +3,7 @@ import { db } from '../../src/lib/db.svelte';
 import { citeArtifact, parseBibliography, toBibtex } from '../../src/lib/cite';
 import { defaultMd, toMarkdown } from '../../src/lib/export';
 import { children, createProject, place } from '../../src/lib/ops';
-import { findDuplicate } from '../../src/lib/zotero';
+import { canHaveAnnotations, findDuplicate } from '../../src/lib/zotero';
 
 const assmann = {
   id: 'assmann',
@@ -85,5 +85,17 @@ describe('markdown export', () => {
     const md = await toMarkdown(project(), { ...defaultMd, citations: 'short' });
     expect(md).toContain('## References');
     expect(md).toMatch(/Assmann, J\. \(2011\)\. Cultural Memory and Early Civilization/);
+  });
+});
+
+describe('canHaveAnnotations', () => {
+  it('only PDF, EPUB and snapshot attachments', () => {
+    expect(canHaveAnnotations({ itemType: 'attachment', contentType: 'application/pdf', linkMode: 'imported_file' })).toBe(true);
+    expect(canHaveAnnotations({ itemType: 'attachment', contentType: 'application/epub+zip', linkMode: 'linked_file' })).toBe(true);
+    expect(canHaveAnnotations({ itemType: 'attachment', contentType: 'text/html', linkMode: 'imported_url' })).toBe(true);
+    expect(canHaveAnnotations({ itemType: 'attachment', contentType: 'text/html', linkMode: 'linked_url' })).toBe(false);
+    expect(canHaveAnnotations({ itemType: 'attachment', contentType: 'application/pdf', linkMode: 'linked_url' })).toBe(false);
+    expect(canHaveAnnotations({ itemType: 'attachment', contentType: 'image/png', linkMode: 'imported_file' })).toBe(false);
+    expect(canHaveAnnotations({ itemType: 'note' })).toBe(false);
   });
 });

@@ -5,7 +5,7 @@
   import { db } from '../lib/db.svelte';
   import { ui } from '../lib/ui.svelte';
   import { t } from '../lib/i18n';
-  import { deleteSource, nameStr, yearOf } from '../lib/ops';
+  import { deleteSource, mergeSource, sourceLabel, yearOf } from '../lib/ops';
   import { referenceOf } from '../lib/cite';
   import type { CSLItem, CSLName } from '../lib/types';
 
@@ -49,6 +49,22 @@
   let note = $state(existing?.note ?? '');
   let preview = $state('');
   let advanced = $state(false);
+  let mergeOpen = $state(false);
+  let mergeTarget = $state('');
+  const others = $derived(
+    db
+      .all('sources')
+      .filter((x) => x.id !== existing?.id)
+      .sort((a, b) => sourceLabel(a).localeCompare(sourceLabel(b)))
+  );
+  function merge() {
+    const target = db.get('sources', mergeTarget);
+    if (!existing || !target) return;
+    const n = mergeSource(existing, target);
+    ui.editSource = null;
+    ui.collectSourceId = target.id;
+    ui.toast(t('{n} items moved to “{s}”', { n, s: sourceLabel(target) }), { action: { label: t('Undo'), run: () => db.undo() } });
+  }
   let raw = $state(JSON.stringify(c, null, 2));
   let rawErr = $state('');
 
@@ -142,6 +158,23 @@
     <textarea class="textarea mono" rows="10" bind:value={raw}></textarea>
     {#if rawErr}<p class="small" style="color:var(--danger)">{rawErr}</p>{/if}
   {/if}
+  {#if existing && others.length}
+    <div class="merge">
+      <button class="btn ghost sm" onclick={() => (mergeOpen = !mergeOpen)}>
+        <Icon name={mergeOpen ? 'chevron-down' : 'chevron-right'} size={14} />{t('Merge into another source…')}
+      </button>
+      {#if mergeOpen}
+        <p class="small muted">{t('Moves all quotes, paraphrases and notes of this source to the chosen one and removes this source – e.g. to replace a placeholder with the source imported from Zotero.')}</p>
+        <div class="row">
+          <select class="select grow" bind:value={mergeTarget} aria-label={t('Target source')}>
+            <option value="">{t('Choose source…')}</option>
+            {#each others as o (o.id)}<option value={o.id}>{sourceLabel(o)} — {o.csl.title ?? ''}</option>{/each}
+          </select>
+          <button class="btn primary" disabled={!mergeTarget} onclick={merge}>{t('Merge')}</button>
+        </div>
+      {/if}
+    </div>
+  {/if}
   {#snippet footer()}
     {#if existing}<button class="btn danger" onclick={del}><Icon name="trash" size={14} />{t('Delete')}</button>{/if}
     <span class="grow"></span>
@@ -166,6 +199,14 @@
     background: var(--surface-2);
     font-family: var(--font-serif);
     font-size: 0.9rem;
+  }
+  .merge {
+    display: grid;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .merge .btn {
+    justify-self: start;
   }
   .mono {
     font-family: var(--font-mono);

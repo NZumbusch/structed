@@ -8,9 +8,9 @@
   import { t } from '../lib/i18n';
   import { parseBibliography } from '../lib/cite';
   import { cleanText, defaultClean, type CleanOptions } from '../lib/ocr';
-  import { authorsShort, yearOf } from '../lib/ops';
+  import { authorsShort, sourceLabel, yearOf } from '../lib/ops';
   import {
-    annotations,
+    annotationsFor,
     collections,
     findDuplicate,
     items as fetchItems,
@@ -95,12 +95,20 @@
     cols = (await run(t('Loading collections…'), () => collections(lib))) ?? [];
     await loadItems();
   }
-  async function loadItems(more = false) {
-    const r = await run(t('Loading items…'), () => fetchItems(lib, { collection: col || undefined, q: q.trim() || undefined, start: more ? list.length : 0 }));
-    if (!r) return;
-    list = more ? [...list, ...r.items] : r.items;
-    total = r.total;
+  let offset = 0; // raw position in Zotero's list (some top-level entries are hidden)
+  function mergeItems(a: ZItem[], b: ZItem[]) {
+    const seen = new Set(a.map((x) => x.key));
+    return [...a, ...b.filter((x) => !seen.has(x.key))];
   }
+  async function loadItems(more = false) {
+    if (!more) offset = 0;
+    const r = await run(t('Loading items…'), () => fetchItems(lib, { collection: col || undefined, q: q.trim() || undefined, start: offset }));
+    if (!r) return;
+    list = more ? mergeItems(list, r.items) : r.items;
+    total = r.total;
+    offset += r.raw;
+  }
+  const hasMore = $derived(offset < total);
   $effect(() => {
     init();
   });
@@ -126,21 +134,46 @@
     if (withHighlights) await reviewAnnotations(sources);
   }
 
+  let warn = $state('');
+
   async function reviewAnnotations(sources: Source[]) {
     const existingKeys = new Set(db.all('artifacts').map((a) => a.zoteroKey).filter(Boolean));
     const out: Row[] = [];
+    warn = '';
     await run(t('Fetching highlights…'), async () => {
-      let i = 0;
-      for (const s of sources) {
-        busy = `${t('Fetching highlights…')} ${++i}/${sources.length}`;
-        if (!s.zoteroKey || !s.zoteroLibrary) continue;
-        const anns = await annotations(s.zoteroLibrary, s.zoteroKey);
-        for (const a of anns)
+      // group by library (My Library / groups)
+      const byLib = new Map<string, Source[]>();
+      for (const s of sources) if (s.zoteroKey && s.zoteroLibrary) (byLib.get(s.zoteroLibrary) ?? byLib.set(s.zoteroLibrary, []).get(s.zoteroLibrary)!).push(s);
+      const failed: string[] = [];
+      for (const [libId, srcs] of byLib) {
+        const byKey = new Map(srcs.map((s) => [s.zoteroKey!, s]));
+        const res = await annotationsFor(libId, [...byKey.keys()], (m) => (busy = `${t('Fetching highlights…')} ${m}`));
+        for (const a of res.items) {
+          const s = byKey.get(a.parentItem)!;
           out.push({ ...a, sourceId: s.id, sourceLabel: `${authorsShort(s.csl)} ${yearOf(s.csl)}`, include: !existingKeys.has(a.key), exists: existingKeys.has(a.key) });
+        }
+        for (const f of res.failed) failed.push(`${sourceLabel(byKey.get(f.key)!)}: ${f.error}`);
       }
+      if (failed.length) warn = t('{n} sources could not be read and were skipped:', { n: failed.length }) + ' ' + failed.join(' · ');
     });
     rows = out;
     step = 'annots';
+  }
+
+  /** Load every remaining page of the current view, then import all of it. */
+  async function importAll() {
+    await run(t('Loading items…'), async () => {
+      while (offset < total) {
+        busy = `${t('Loading items…')} ${offset}/${total}`;
+        const r = await fetchItems(lib, { collection: col || undefined, q: q.trim() || undefined, start: offset });
+        list = mergeItems(list, r.items);
+        total = r.total;
+        offset += r.raw;
+        if (!r.raw) break;
+      }
+    });
+    for (const it of list) pick.add(it.key);
+    await importSelected();
   }
 
   const usedColors = $derived([...new Set(rows.map((r) => r.color).filter(Boolean))]);
@@ -212,6 +245,7 @@
   {/snippet}
 
   {#if err}<p class="err small">{err}</p>{/if}
+  {#if warn}<p class="warn small" role="status">{warn}</p>{/if}
   {#if busy}<p class="small muted busy"><span class="spin"></span>{busy}</p>{/if}
 
   {#if step === 'api'}
@@ -247,7 +281,7 @@
           </div>
           <div class="row small">
             <label class="row"><input type="checkbox" checked={list.length > 0 && list.every((i) => pick.has(i.key))} onchange={(e) => list.forEach((i) => (e.currentTarget.checked ? pick.add(i.key) : pick.delete(i.key)))} />{t('Select all')}</label>
-            <span class="muted">{list.length}/{total}</span>
+            <span class="muted">{list.length} {t('loaded')}{hasMore ? ` · ${t('more available')}` : ''}</span>
           </div>
           <div class="ilist scroll">
             {#each list as it (it.key)}
@@ -259,7 +293,7 @@
                 </span>
               </label>
             {/each}
-            {#if list.length < total}<button class="btn ghost sm" onclick={() => loadItems(true)}>{t('Load more')}</button>{/if}
+            {#if hasMore}<button class="btn ghost sm" onclick={() => loadItems(true)}>{t('Load more')}</button>{/if}
           </div>
         </div>
       </div>
@@ -357,6 +391,9 @@
   {#snippet footer()}
     {#if step === 'api' && zoteroConfigured()}
       <span class="grow small muted">{pick.size} {t('selected')}</span>
+      <button class="btn" disabled={!total || !!busy} onclick={importAll} title={t('Loads all pages of this view and imports everything')}>
+        {t('Import all ({n})', { n: hasMore ? `${total}` : `${list.length}` })}
+      </button>
       <button class="btn primary" disabled={!pick.size || !!busy} onclick={importSelected}>{t('Import selected')}</button>
     {:else if step === 'annots'}
       <button class="btn" onclick={() => (step = 'api')}>{t('Back')}</button>
@@ -374,6 +411,13 @@
   .err {
     color: var(--danger);
     margin: 0 0 8px;
+  }
+  .warn {
+    margin: 0 0 8px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--warn) 12%, transparent);
+    overflow-wrap: anywhere;
   }
   .busy {
     display: flex;

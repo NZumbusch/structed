@@ -228,3 +228,23 @@ describe('demo content', () => {
     expect(db.all('sources').map((s) => s.id)).toEqual([keep.id]);
   });
 });
+
+import { mergeSource } from '../../src/lib/ops';
+describe('mergeSource', () => {
+  it('moves items, keeps tags/notes, deletes the placeholder, undoable', () => {
+    const ph = db.create('sources', { csl: { id: 'p', type: 'book', title: 'Dürr' }, tags: ['bach'], note: 'placeholder' });
+    const real = db.create('sources', { csl: { id: 'r', type: 'book', title: 'Die Kantaten' }, tags: ['zotero'] });
+    const q = db.create('artifacts', { kind: 'quote', text: 'x', tags: [], sourceId: ph.id, page: '796' });
+    const other = db.create('artifacts', { kind: 'quote', text: 'y', tags: [], sourceId: real.id });
+    expect(mergeSource(ph, real)).toBe(1);
+    expect(db.get('artifacts', q.id)?.sourceId).toBe(real.id);
+    expect(db.get('artifacts', q.id)?.page).toBe('796');
+    expect(db.get('artifacts', other.id)?.sourceId).toBe(real.id);
+    expect(db.get('sources', ph.id)).toBeUndefined();
+    expect(db.get('sources', real.id)?.tags).toEqual(['zotero', 'bach']);
+    expect(db.get('sources', real.id)?.note).toBe('placeholder');
+    db.undo();
+    expect(db.get('sources', ph.id)).toBeDefined();
+    expect(db.get('artifacts', q.id)?.sourceId).toBe(ph.id);
+  });
+});

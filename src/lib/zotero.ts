@@ -50,15 +50,44 @@ export const ZCOLORS: Record<string, string> = {
   '#aaaaaa': 'gray'
 };
 
-async function z(path: string): Promise<{ data: unknown; total: number }> {
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function z(path: string, attempt = 0): Promise<{ data: unknown; total: number }> {
   const r = await fetch(BASE + path, {
     headers: { 'Zotero-API-Key': settings.zoteroApiKey.trim(), 'Zotero-API-Version': '3' }
   });
+  // Zotero asks clients to slow down with 429/503 + Retry-After, or a Backoff header
+  if ((r.status === 429 || r.status === 503) && attempt < 4) {
+    const wait = Number(r.headers.get('Retry-After') ?? r.headers.get('Backoff') ?? 2 ** attempt);
+    await sleep(Math.min(30, wait || 1) * 1000);
+    return z(path, attempt + 1);
+  }
   if (r.status === 403) throw new Error('Zotero: access denied – check user ID and API key permissions.');
   if (r.status === 404) throw new Error('Zotero: library not found – check the user/group ID.');
   if (r.status === 429) throw new Error('Zotero: rate limited, try again in a minute.');
   if (!r.ok) throw new Error(`Zotero ${r.status}: ${await r.text()}`);
-  return { data: await r.json(), total: Number(r.headers.get('Total-Results') ?? 0) };
+  const backoff = Number(r.headers.get('Backoff') ?? 0);
+  if (backoff) await sleep(Math.min(30, backoff) * 1000);
+  const data = await r.json();
+  // If Total-Results is unreadable, a full page means "there may be more".
+  const start = Number(new URLSearchParams(path.split('?')[1] ?? '').get('start') ?? 0);
+  const header = r.headers.get('Total-Results');
+  const n = Array.isArray(data) ? data.length : 1;
+  const total = header !== null ? Number(header) : start + n + (n >= 100 ? 1 : 0);
+  return { data, total };
+}
+
+/** Fetch every page of a list endpoint. */
+async function all<T>(path: string, onPage?: (n: number, total: number) => void): Promise<T[]> {
+  const out: T[] = [];
+  const sep = path.includes('?') ? '&' : '?';
+  for (let start = 0; ; start += 100) {
+    const { data, total } = await z(`${path}${sep}limit=100&start=${start}`);
+    out.push(...(data as T[]));
+    onPage?.(out.length, total);
+    if (start + 100 >= total || !(data as T[]).length) break;
+  }
+  return out;
 }
 
 export function zoteroConfigured() {
@@ -89,11 +118,12 @@ export async function collections(lib: string): Promise<ZCollection[]> {
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function items(lib: string, opts: { collection?: string; q?: string; start?: number }): Promise<{ items: ZItem[]; total: number }> {
+export async function items(lib: string, opts: { collection?: string; q?: string; start?: number }): Promise<{ items: ZItem[]; total: number; raw: number }> {
   const base = opts.collection ? `/${lib}/collections/${opts.collection}/items/top` : `/${lib}/items/top`;
   const qs = new URLSearchParams({ format: 'json', include: 'data,csljson', limit: '100', start: String(opts.start ?? 0), sort: 'creator' });
   if (opts.q) qs.set('q', opts.q);
   const { data, total } = await z(`${base}?${qs}`);
+  const raw = (data as unknown[]).length; // before filtering out standalone attachments/notes
   const list = (data as { key: string; version: number; data: Record<string, unknown>; csljson: CSLItem; meta: { creatorSummary?: string; parsedDate?: string; numChildren?: number } }[])
     .filter((it) => it.data.itemType !== 'attachment' && it.data.itemType !== 'note')
     .map((it) => ({
@@ -108,7 +138,7 @@ export async function items(lib: string, opts: { collection?: string; q?: string
       csl: it.csljson,
       numChildren: it.meta.numChildren ?? 0
     }));
-  return { items: list, total };
+  return { items: list, total, raw };
 }
 
 function htmlToText(html: string): string {
@@ -117,37 +147,89 @@ function htmlToText(html: string): string {
   return (d.body.textContent ?? '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
-/** All highlights/notes for a top-level item (via its PDF/EPUB attachments). */
+type ZRaw = { key: string; data: Record<string, unknown> };
+
+/** Only these attachment types can have annotations (Zotero API restriction). */
+export function canHaveAnnotations(d: Record<string, unknown>): boolean {
+  if (d.itemType !== 'attachment' || d.linkMode === 'linked_url') return false;
+  const ct = String(d.contentType ?? '');
+  if (ct === 'application/pdf' || ct === 'application/epub+zip') return true;
+  return ct === 'text/html' && (d.linkMode === 'imported_url' || d.linkMode === 'imported_file');
+}
+
+function toAnnotation(a: ZRaw, parentItem: string): ZAnnotation {
+  const d = a.data;
+  return {
+    key: a.key,
+    parentItem,
+    type: d.annotationType as ZAnnotation['type'],
+    text: String(d.annotationText ?? ''),
+    comment: String(d.annotationComment ?? ''),
+    color: String(d.annotationColor ?? '').toLowerCase(),
+    page: String(d.annotationPageLabel ?? ''),
+    sort: String(d.annotationSortIndex ?? ''),
+    tags: ((d.tags as { tag: string }[]) ?? []).map((t) => t.tag)
+  };
+}
+function toChildNote(n: ZRaw, parentItem: string): ZAnnotation {
+  return { key: n.key, parentItem, type: 'childnote', text: '', comment: htmlToText(String(n.data.note ?? '')), color: '', page: '', sort: 'zzz', tags: [] };
+}
+
+/** Highlights/notes for one top-level item (via its PDF/EPUB/snapshot attachments). */
 export async function annotations(lib: string, itemKey: string, withNotes = true): Promise<ZAnnotation[]> {
   const out: ZAnnotation[] = [];
-  const { data } = await z(`/${lib}/items/${itemKey}/children?limit=100`);
-  const kids = data as { key: string; data: Record<string, unknown> }[];
+  const kids = await all<ZRaw>(`/${lib}/items/${itemKey}/children`);
   for (const k of kids) {
-    if (k.data.itemType === 'note' && withNotes) {
-      out.push({ key: k.key, parentItem: itemKey, type: 'childnote', text: '', comment: htmlToText(String(k.data.note ?? '')), color: '', page: '', sort: 'zzz', tags: [] });
-    }
-    if (k.data.itemType !== 'attachment') continue;
-    for (let start = 0; ; start += 100) {
-      const res = await z(`/${lib}/items/${k.key}/children?limit=100&start=${start}`);
-      for (const a of res.data as { key: string; data: Record<string, unknown> }[]) {
-        const d = a.data;
-        if (d.itemType !== 'annotation') continue;
-        out.push({
-          key: a.key,
-          parentItem: itemKey,
-          type: d.annotationType as ZAnnotation['type'],
-          text: String(d.annotationText ?? ''),
-          comment: String(d.annotationComment ?? ''),
-          color: String(d.annotationColor ?? '').toLowerCase(),
-          page: String(d.annotationPageLabel ?? ''),
-          sort: String(d.annotationSortIndex ?? ''),
-          tags: ((d.tags as { tag: string }[]) ?? []).map((t) => t.tag)
-        });
-      }
-      if (start + 100 >= res.total) break;
-    }
+    if (k.data.itemType === 'note' && withNotes) out.push(toChildNote(k, itemKey));
+    if (!canHaveAnnotations(k.data)) continue;
+    for (const a of await all<ZRaw>(`/${lib}/items/${k.key}/children`))
+      if (a.data.itemType === 'annotation') out.push(toAnnotation(a, itemKey));
   }
   return out.sort((a, b) => a.sort.localeCompare(b.sort));
+}
+
+/**
+ * Highlights/notes for many items at once. For larger sets this reads all
+ * annotations, attachments and notes of the library in a few paged requests and
+ * matches them locally – far fewer requests than asking item by item.
+ * Errors for single items are collected instead of aborting the whole import.
+ */
+export async function annotationsFor(
+  lib: string,
+  itemKeys: string[],
+  onProgress?: (msg: string) => void,
+  withNotes = true
+): Promise<{ items: ZAnnotation[]; failed: { key: string; error: string }[] }> {
+  const wanted = new Set(itemKeys);
+  const failed: { key: string; error: string }[] = [];
+  const items: ZAnnotation[] = [];
+  if (itemKeys.length <= 8) {
+    let i = 0;
+    for (const key of itemKeys) {
+      onProgress?.(`${++i}/${itemKeys.length}`);
+      try {
+        items.push(...(await annotations(lib, key, withNotes)));
+      } catch (e) {
+        failed.push({ key, error: String((e as Error).message ?? e) });
+      }
+    }
+    return { items, failed };
+  }
+  // library-wide: attachments → parent item, then annotations → attachment
+  const attParent = new Map<string, string>();
+  for (const a of await all<ZRaw>(`/${lib}/items?itemType=attachment`, (n, t) => onProgress?.(`attachments ${n}/${t}`)))
+    if (a.data.parentItem && canHaveAnnotations(a.data)) attParent.set(a.key, String(a.data.parentItem));
+  for (const a of await all<ZRaw>(`/${lib}/items?itemType=annotation`, (n, t) => onProgress?.(`highlights ${n}/${t}`))) {
+    const top = attParent.get(String(a.data.parentItem ?? ''));
+    if (top && wanted.has(top)) items.push(toAnnotation(a, top));
+  }
+  if (withNotes)
+    for (const n of await all<ZRaw>(`/${lib}/items?itemType=note`, (c, t) => onProgress?.(`notes ${c}/${t}`))) {
+      const top = String(n.data.parentItem ?? '');
+      if (wanted.has(top)) items.push(toChildNote(n, top));
+    }
+  items.sort((a, b) => (a.parentItem === b.parentItem ? a.sort.localeCompare(b.sort) : 0));
+  return { items, failed };
 }
 
 /** Create or update a Source from a Zotero item. */

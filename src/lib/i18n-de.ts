@@ -1,5 +1,16 @@
 // German UI strings. Keys are the English originals (see i18n.ts).
 export const de: Record<string, string> = {
+  loaded: 'geladen',
+  'more available': 'weitere verfügbar',
+  '{n} sources could not be read and were skipped:': '{n} Quellen konnten nicht gelesen werden und wurden übersprungen:',
+  'Loads all pages of this view and imports everything': 'Lädt alle Seiten dieser Ansicht und importiert alles',
+  'Import all ({n})': 'Alle importieren ({n})',
+  'Merge into another source…': 'In andere Quelle zusammenführen…',
+  'Moves all quotes, paraphrases and notes of this source to the chosen one and removes this source – e.g. to replace a placeholder with the source imported from Zotero.': 'Verschiebt alle Zitate, Paraphrasen und Notizen dieser Quelle in die gewählte und entfernt diese Quelle – z. B. um einen Platzhalter durch die aus Zotero importierte Quelle zu ersetzen.',
+  'Target source': 'Zielquelle',
+  'Choose source…': 'Quelle wählen…',
+  Merge: 'Zusammenführen',
+  '{n} items moved to “{s}”': '{n} Einträge nach „{s}“ verschoben',
   'Sync paused – resumes automatically on your next click': 'Sync pausiert – läuft bei deinem nächsten Klick automatisch weiter',
   'Stays signed in automatically': 'Bleibt automatisch angemeldet',
   'Paused – resumes on your next click': 'Pausiert – läuft beim nächsten Klick weiter',
