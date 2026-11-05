@@ -30,7 +30,8 @@
     { target: '[data-tour="select"]', stage: 'select', title: 'Select', text: 'Choose what this project needs: whole sources (including their future quotes) or single quotes – everything else stays out of your way in the other stages.' },
     { target: '[data-tour="library"]', stage: 'arrange', panel: true, title: 'Library panel', text: 'Shows the quotes of this project (or, switched, the whole library), grouped by source, author, topic, publication or year. Drag an item onto a heading (long-press on touch). One item can sit under several headings.' },
     { target: '[data-tour="tree"]', stage: 'arrange', title: 'Arrange', text: 'Placed items appear under their heading. Drag them to reorder or move, or drag them back to the panel to remove them.' },
-    { target: '[data-tour="paper"]', stage: 'write', title: 'Write', text: 'The overview: your texts, every placed quote (click to expand), and comments per section. “Cite” copies a quote with a formatted citation.' },
+    { target: '[data-tour="paper"]', stage: 'draft', title: 'Draft', text: 'The overview: your texts, every placed quote (click to expand), and comments per section. “Cite” copies a quote with a formatted citation.' },
+    { target: '[data-tour="compose"]', stage: 'write', title: 'Write', text: 'Write the final text, section by section along your outline. Insert quotes from the panel – they stay linked to the library – add footnotes, and export to Word with your template, table of contents and live Zotero citations.' },
     { target: '[data-tour="search"]', title: 'Search everything', text: 'Press {search} to jump to any heading, quote, source or command.' },
     { target: '[data-tour="sync"]', title: 'Sync & backup', text: 'Connect Google Drive to sync between laptop, tablet and phone. Everything works offline and is stored on your device.' },
     { target: '[data-tour="settings"]', title: 'Make it yours', text: 'Themes, contrast, fonts, citation style, adjustable keyboard shortcuts, backups and this tour live in Settings.' },
@@ -184,7 +185,6 @@
     color: var(--text);
     border: 1px solid var(--border);
     box-shadow: var(--shadow);
-    transition: all 220ms var(--ease);
   }
   h3 {
     font-size: 1rem;

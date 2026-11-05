@@ -1,6 +1,6 @@
 import { SvelteSet } from 'svelte/reactivity';
 
-export type Stage = 'outline' | 'collect' | 'select' | 'arrange' | 'write';
+export type Stage = 'outline' | 'collect' | 'select' | 'arrange' | 'draft' | 'write';
 
 function ls<T>(k: string, d: T): T {
   try {
@@ -28,6 +28,7 @@ export interface Toast {
 class UI {
   projectId: string | null = $state(ls('projectId', null));
   stage: Stage = $state(ls('stage', 'outline'));
+  // (until v0.x the overview was called 'write'; the editor now has that id)
   dialog: null | 'settings' | 'zotero' | 'export' | 'projects' | 'snapshots' | 'search' | 'help' = $state(null);
   settingsTab = $state('appearance');
   editArtifact: { id?: string; sourceId?: string | null; kind?: string; headingId?: string } | null = $state(null);

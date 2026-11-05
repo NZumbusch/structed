@@ -30,7 +30,7 @@ test.describe('@layout no horizontal overflow with very long words and URLs', ()
     await open(page);
     await seedLong(page);
   });
-  for (const s of ['Outline', 'Collect', 'Arrange', 'Write'] as const) {
+  for (const s of ['Outline', 'Collect', 'Select', 'Arrange', 'Draft', 'Write'] as const) {
     test(s, async ({ page }) => {
       await stage(page, s);
       if (s === 'Collect') {
@@ -71,7 +71,7 @@ test.describe('@layout line breaks are preserved', () => {
     await seedLong(page);
   });
   test('quotes keep their line breaks in Write', async ({ page }) => {
-    await stage(page, 'Write');
+    await stage(page, 'Draft');
     const text = page.locator('.paper .art.expanded .text').first();
     await expect(text).toHaveCSS('white-space', 'pre-wrap');
     const lines = await text.evaluate((e) => {
@@ -81,7 +81,7 @@ test.describe('@layout line breaks are preserved', () => {
     expect(lines).toBeGreaterThanOrEqual(3);
   });
   test('section text: single newline → <br>, blank line → paragraph', async ({ page }) => {
-    await stage(page, 'Write');
+    await stage(page, 'Draft');
     const md = page.locator('.sec').first().locator('.md.body');
     await expect(md.locator('p')).toHaveCount(2);
     await expect(md.locator('p').first().locator('br')).toHaveCount(1);
@@ -94,7 +94,7 @@ test.describe('@layout line breaks are preserved', () => {
     expect(await scroller.evaluate((e) => e.scrollWidth - e.clientWidth)).toBeLessThanOrEqual(1);
   });
   test('long headings wrap in Write and TOC truncates with ellipsis', async ({ page }) => {
-    await stage(page, 'Write');
+    await stage(page, 'Draft');
     const h = page.locator('.sec .ht').first();
     const box = (await h.boundingBox())!;
     const paper = (await page.locator('.paper').boundingBox())!;
@@ -104,7 +104,7 @@ test.describe('@layout line breaks are preserved', () => {
     if (await toc.isVisible()) await expect(toc).toHaveCSS('text-overflow', 'ellipsis');
   });
   test('collapsed cards clamp to two lines; expanded cards show everything', async ({ page }) => {
-    await stage(page, 'Write');
+    await stage(page, 'Draft');
     await page.getByRole('button', { name: 'Collapse all' }).click();
     const label = page.locator('.paper .art .label').first();
     await expect(label).toHaveClass(/clamp/);

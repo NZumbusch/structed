@@ -13,6 +13,7 @@
   const TABS = [
     ['appearance', 'Appearance', 'eye'],
     ['writing', 'Citations', 'quote'],
+    ['editor', 'Editor & export', 'edit'],
     ['shortcuts', 'Keyboard shortcuts', 'menu'],
     ['zotero', 'Zotero', 'book'],
     ['sync', 'Sync', 'cloud'],
@@ -123,6 +124,48 @@
           </select>
         </label>
         <p class="small muted">{t('Used for “Copy with citation”, reference previews and exports.')}</p>
+      {:else if ui.settingsTab === 'editor'}
+        <h4 class="sh4">{t('Quotes in the text')}</h4>
+        <label class="field"><span>{t('Insert quotes by default')}</span>
+          <select class="select" bind:value={settings.insertMode}>
+            <option value="inline">{t('In the sentence')}</option>
+            <option value="block">{t('Block quote')}</option>
+            <option value="footnote">{t('In a footnote')}</option>
+            <option value="cite">{t('Citation only')}</option>
+          </select>
+        </label>
+        <label class="chk"><input type="checkbox" bind:checked={settings.quoteItalic} />{t('Quotes in italics')}</label>
+        <div class="f"><span>{t('Quotation marks')}</span>
+          <div class="seg">
+            {#each [['de', '„…“'], ['en', '“…”'], ['ch', '«…»'], ['none', t('none')]] as [v, l] (v)}
+              <button class:on={settings.quoteMarks === v} onclick={() => (settings.quoteMarks = v as typeof settings.quoteMarks)}>{l}</button>
+            {/each}
+          </div>
+        </div>
+        <label class="field"><span>{t('Long quotes become block quotes from … words (0 = never)')}</span>
+          <input class="input num" type="number" min="0" max="500" bind:value={settings.autoBlockWords} />
+        </label>
+        <h4 class="sh4">{t('Writing')}</h4>
+        <label class="chk"><input type="checkbox" bind:checked={settings.editorSpellcheck} />{t('Spell check')}</label>
+        <label class="field"><span>{t('Language of the text (spell check, hyphenation)')}</span>
+          <select class="select" bind:value={settings.editorLang}>
+            {#each [['de', 'Deutsch'], ['de-CH', 'Deutsch (Schweiz)'], ['en', 'English'], ['fr', 'Français'], ['it', 'Italiano']] as [v, l] (v)}<option value={v}>{l}</option>{/each}
+          </select>
+        </label>
+        <div class="f"><span>{t('Page width')}</span>
+          <div class="seg">
+            {#each ['narrow', 'normal', 'wide'] as w (w)}
+              <button class:on={settings.editorWidth === w} onclick={() => (settings.editorWidth = w as typeof settings.editorWidth)}>{t(w)}</button>
+            {/each}
+          </div>
+        </div>
+        <h4 class="sh4">{t('Word export')}</h4>
+        <label class="chk"><input type="checkbox" bind:checked={settings.exportZotero} />{t('Live Zotero citations (refresh in Word)')}</label>
+        <label class="chk"><input type="checkbox" bind:checked={settings.exportCover} />{t('Title page')}</label>
+        <label class="chk"><input type="checkbox" bind:checked={settings.exportToc} />{t('Table of contents')}</label>
+        <label class="chk"><input type="checkbox" bind:checked={settings.exportBibliography} />{t('Bibliography')}</label>
+        <label class="field"><span>{t('Title of the bibliography')}</span><input class="input" bind:value={settings.exportBibTitle} /></label>
+        <p class="small muted">{t('Citations in the app follow the citation style above; in Word, Zotero formats them with the style stored in the template (APA, de-CH) – change it there via Zotero → Document Preferences.')}</p>
       {:else if ui.settingsTab === 'shortcuts'}
         <ShortcutSettings />
       {:else if ui.settingsTab === 'zotero'}
@@ -326,6 +369,16 @@
     padding: 1px 4px;
     border-radius: 4px;
     word-break: break-all;
+  }
+  .sh4 {
+    margin-top: 4px;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+  }
+  .num {
+    width: 110px;
   }
   .tourbtn {
     justify-self: start;

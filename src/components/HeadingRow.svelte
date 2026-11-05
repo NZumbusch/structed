@@ -200,7 +200,7 @@
         <button class="chip" onclick={() => (ui.stage = 'arrange')} title={t('Items placed here')}><Icon name="quote" size={11} />{placements.length}</button>
       {/if}
       {#if comments}
-        <button class="chip" onclick={() => { ui.stage = 'write'; ui.focusHeading = h.id; }} title={t('Open comments')}><Icon name="comment" size={11} />{comments}</button>
+        <button class="chip" onclick={() => { ui.stage = 'draft'; ui.focusHeading = h.id; }} title={t('Open comments')}><Icon name="comment" size={11} />{comments}</button>
       {/if}
       <button class="status s-{h.status ?? 'idea'}" class:hov={(h.status ?? 'idea') === 'idea'} onclick={cycleStatus} title={t('Status') + ': ' + t(h.status ?? 'idea')}>
         <span class="dot"></span><span class="slabel">{t(h.status ?? 'idea')}</span>

@@ -37,6 +37,7 @@
       ['outline', t('Outline')],
       ['collect', t('Collect')],
       ['arrange', t('Arrange')],
+      ['draft', t('Draft')],
       ['write', t('Write')]
     ];
     for (const [s, l] of stages) {

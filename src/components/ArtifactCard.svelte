@@ -9,6 +9,7 @@
   import { copyText } from '../lib/clipboard';
   import { citeArtifact } from '../lib/cite';
   import { settings } from '../lib/settings.svelte';
+  import { editorState, type InsertMode } from '../lib/editorState.svelte';
   import { renderMd } from '../lib/markdown';
   import type { Artifact, Placement } from '../lib/types';
 
@@ -74,7 +75,21 @@
     ui.toast(t('Item deleted'), { action: { label: t('Undo'), run: () => db.undo() } });
   }
 
+  const inserting = $derived(ui.stage === 'write' && !!editorState.active);
+  const insert = (mode: InsertMode) => {
+    editorState.active?.insertArtifact(a.id, mode);
+    ui.toast(t('Inserted'), { kind: 'ok' }, 1000);
+  };
   const menu = $derived([
+    ...(inserting
+      ? [
+          { label: t('Insert in the sentence'), icon: 'quote', run: () => insert('inline') },
+          { label: t('Insert as block quote'), icon: 'paraphrase', run: () => insert('block') },
+          { label: t('Insert in a footnote'), icon: 'note', run: () => insert('footnote') },
+          { label: t('Insert citation only'), icon: 'book', run: () => insert('cite') },
+          null
+        ]
+      : []),
     { label: t('Copy text'), icon: 'copy', run: () => copy('text') },
     a.sourceId ? { label: t('Copy with citation'), icon: 'quote', run: () => copy('both') } : null,
     a.sourceId ? { label: t('Copy citation only'), icon: 'book', run: () => copy('cite') } : null,
@@ -115,6 +130,9 @@
         {:else}{artifactLabel(a, expanded ? 60 : 180)}{/if}
       </span>
     </button>
+    {#if inserting}
+      <button class="icon-btn sm ins" title={t('Insert at cursor')} aria-label={t('Insert at cursor')} onpointerdown={(e) => e.preventDefault()} onclick={() => insert(settings.insertMode)}><Icon name="plus" size={15} /></button>
+    {/if}
     <Menu items={menu} />
   </div>
   {#if !expanded}
@@ -241,6 +259,9 @@
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+  }
+  .ins {
+    color: var(--accent-text);
   }
   .meta {
     display: flex;

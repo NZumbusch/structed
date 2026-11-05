@@ -27,6 +27,21 @@ export interface Settings {
   showAllProjectsInPanel: boolean;
   snapshotOnBigChange: boolean;
   shortcuts: Record<string, string | null>;
+  // editor & Word export
+  quoteItalic: boolean;
+  quoteMarks: 'de' | 'en' | 'ch' | 'none';
+  insertMode: 'inline' | 'block' | 'footnote' | 'cite';
+  autoBlockWords: number; // inline quotes with at least this many words become block quotes (0 = off)
+  editorSpellcheck: boolean;
+  editorLang: string;
+  editorWidth: 'narrow' | 'normal' | 'wide';
+  exportTemplate: 'seminararbeit' | 'plain';
+  exportZotero: boolean;
+  exportCover: boolean;
+  exportToc: boolean;
+  exportBibliography: boolean;
+  exportBibTitle: string;
+  coverDefaults: Record<string, string>;
   tourDone: boolean;
 }
 
@@ -58,6 +73,20 @@ const defaults: Settings = {
   showAllProjectsInPanel: true,
   snapshotOnBigChange: true,
   shortcuts: {},
+  quoteItalic: true,
+  quoteMarks: 'de',
+  insertMode: 'inline',
+  autoBlockWords: 40,
+  editorSpellcheck: true,
+  editorLang: 'de',
+  editorWidth: 'normal',
+  exportTemplate: 'seminararbeit',
+  exportZotero: true,
+  exportCover: true,
+  exportToc: true,
+  exportBibliography: true,
+  exportBibTitle: 'Quellenverzeichnis',
+  coverDefaults: {},
   tourDone: false
 };
 

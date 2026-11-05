@@ -15,7 +15,7 @@ const row = (page: import('@playwright/test').Page, id: string) => page.locator(
 test('lists defaults and unassigned extras', async ({ page }) => {
   await openShortcuts(page);
   await expect(row(page, 'search').locator('.key')).toHaveText('Ctrl+K');
-  await expect(row(page, 'stageWrite').locator('.key')).toHaveText('Alt+5');
+  await expect(row(page, 'stageWrite').locator('.key')).toHaveText('Alt+6');
   await expect(row(page, 'newQuote').locator('.key')).toHaveText('Not set');
 });
 

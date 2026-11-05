@@ -80,7 +80,7 @@ test('library groups by author, tag, kind, year; filters unused and kinds', asyn
 });
 
 test('write view: edit text inline, comments, expand all, copy with citation', async ({ page }) => {
-  await stage(page, 'Write');
+  await stage(page, 'Draft');
   const intro = page.locator('.sec').first();
   await expect(intro.locator('.md strong')).toHaveText('thesis');
   await intro.getByRole('button', { name: 'Edit' }).click();
@@ -107,7 +107,7 @@ test('write view: edit text inline, comments, expand all, copy with citation', a
 });
 
 test('table of contents navigates and marks the current section', async ({ page }) => {
-  await stage(page, 'Write');
+  await stage(page, 'Draft');
   await page.locator('.toc .ti', { hasText: 'Conclusion' }).click();
   await expect(page.locator('.sec[data-sec]').last()).toBeInViewport();
 });

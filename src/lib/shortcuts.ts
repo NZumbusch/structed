@@ -2,7 +2,7 @@
 // Mod = Ctrl (Windows/Linux) or ⌘ (macOS). User overrides live in settings.shortcuts.
 import { settings } from './settings.svelte';
 
-export type ShortcutGroup = 'General' | 'Stages' | 'Create' | 'Outline editing';
+export type ShortcutGroup = 'General' | 'Stages' | 'Create' | 'Outline editing' | 'Writing';
 
 export interface ShortcutDef {
   id: string;
@@ -29,7 +29,9 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'stageCollect', label: 'Go to Collect', group: 'Stages', default: 'Alt+2' },
   { id: 'stageSelect', label: 'Go to Select', group: 'Stages', default: 'Alt+3' },
   { id: 'stageArrange', label: 'Go to Arrange', group: 'Stages', default: 'Alt+4' },
-  { id: 'stageWrite', label: 'Go to Write', group: 'Stages', default: 'Alt+5' },
+  { id: 'stageDraft', label: 'Go to Draft', group: 'Stages', default: 'Alt+5' },
+  { id: 'stageWrite', label: 'Go to Write', group: 'Stages', default: 'Alt+6' },
+  { id: 'write.footnote', label: 'Insert footnote', group: 'Writing', default: 'Mod+Alt+F' },
   { id: 'newQuote', label: 'New quote', group: 'Create', default: null },
   { id: 'newParaphrase', label: 'New paraphrase', group: 'Create', default: null },
   { id: 'newNote', label: 'New note', group: 'Create', default: null },

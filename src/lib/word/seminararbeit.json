@@ -1,0 +1,131 @@
+{
+ "name": "seminararbeit",
+ "documentHead": "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document xmlns:wpc=\"http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas\" xmlns:cx=\"http://schemas.microsoft.com/office/drawing/2014/chartex\" xmlns:cx1=\"http://schemas.microsoft.com/office/drawing/2015/9/8/chartex\" xmlns:cx2=\"http://schemas.microsoft.com/office/drawing/2015/10/21/chartex\" xmlns:cx3=\"http://schemas.microsoft.com/office/drawing/2016/5/9/chartex\" xmlns:cx4=\"http://schemas.microsoft.com/office/drawing/2016/5/10/chartex\" xmlns:cx5=\"http://schemas.microsoft.com/office/drawing/2016/5/11/chartex\" xmlns:cx6=\"http://schemas.microsoft.com/office/drawing/2016/5/12/chartex\" xmlns:cx7=\"http://schemas.microsoft.com/office/drawing/2016/5/13/chartex\" xmlns:cx8=\"http://schemas.microsoft.com/office/drawing/2016/5/14/chartex\" xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" xmlns:aink=\"http://schemas.microsoft.com/office/drawing/2016/ink\" xmlns:am3d=\"http://schemas.microsoft.com/office/drawing/2017/model3d\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:oel=\"http://schemas.microsoft.com/office/2019/extlst\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:wp14=\"http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing\" xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\" xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\" xmlns:w15=\"http://schemas.microsoft.com/office/word/2012/wordml\" xmlns:w16cex=\"http://schemas.microsoft.com/office/word/2018/wordml/cex\" xmlns:w16cid=\"http://schemas.microsoft.com/office/word/2016/wordml/cid\" xmlns:w16=\"http://schemas.microsoft.com/office/word/2018/wordml\" xmlns:w16du=\"http://schemas.microsoft.com/office/word/2023/wordml/word16du\" xmlns:w16sdtdh=\"http://schemas.microsoft.com/office/word/2020/wordml/sdtdatahash\" xmlns:w16sdtfl=\"http://schemas.microsoft.com/office/word/2024/wordml/sdtformatlock\" xmlns:w16se=\"http://schemas.microsoft.com/office/word/2015/wordml/symex\" xmlns:wpg=\"http://schemas.microsoft.com/office/word/2010/wordprocessingGroup\" xmlns:wpi=\"http://schemas.microsoft.com/office/word/2010/wordprocessingInk\" xmlns:wne=\"http://schemas.microsoft.com/office/word/2006/wordml\" xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\" mc:Ignorable=\"w14 w15 w16se w16cid w16 w16cex w16sdtdh w16sdtfl w16du wp14\"><w:body>",
+ "finalSectPr": "<w:sectPr><w:pgSz w:w=\"11907\" w:h=\"16840\" w:code=\"9\"/><w:pgMar w:top=\"1418\" w:right=\"1418\" w:bottom=\"1134\" w:left=\"1418\" w:header=\"142\" w:footer=\"771\" w:gutter=\"0\"/><w:pgNumType w:start=\"1\"/><w:cols w:space=\"708\"/><w:titlePg/><w:docGrid w:linePitch=\"360\"/></w:sectPr>",
+ "cover": [
+  {
+   "pPr": "<w:pPr><w:spacing w:after=\"0\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:b/><w:sz w:val=\"24\"/><w:szCs w:val=\"24\"/></w:rPr></w:pPr>",
+   "rPr": "<w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:b/><w:sz w:val=\"24\"/><w:szCs w:val=\"24\"/></w:rPr>",
+   "key": "workType"
+  },
+  {
+   "pPr": "<w:pPr><w:spacing w:after=\"0\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:i/><w:sz w:val=\"24\"/><w:szCs w:val=\"24\"/></w:rPr></w:pPr>",
+   "rPr": "<w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:sz w:val=\"24\"/><w:szCs w:val=\"24\"/></w:rPr>",
+   "key": "module"
+  },
+  {
+   "pPr": "<w:pPr><w:spacing w:after=\"0\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:sz w:val=\"24\"/><w:szCs w:val=\"24\"/></w:rPr></w:pPr>",
+   "rPr": "<w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:sz w:val=\"24\"/><w:szCs w:val=\"24\"/></w:rPr>",
+   "key": "institution"
+  },
+  {
+   "pPr": "<w:pPr><w:spacing w:after=\"0\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:sz w:val=\"24\"/><w:szCs w:val=\"24\"/></w:rPr></w:pPr>",
+   "rPr": "<w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:sz w:val=\"24\"/><w:szCs w:val=\"24\"/></w:rPr>",
+   "key": "supervisor"
+  },
+  {
+   "pPr": "<w:pPr><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:b/><w:sz w:val=\"44\"/><w:szCs w:val=\"44\"/></w:rPr></w:pPr>",
+   "rPr": "",
+   "key": ""
+  },
+  {
+   "pPr": "<w:pPr><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:b/><w:sz w:val=\"44\"/><w:szCs w:val=\"44\"/></w:rPr></w:pPr>",
+   "rPr": "",
+   "key": ""
+  },
+  {
+   "pPr": "<w:pPr><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:b/><w:sz w:val=\"44\"/><w:szCs w:val=\"44\"/></w:rPr></w:pPr>",
+   "rPr": "",
+   "key": ""
+  },
+  {
+   "pPr": "<w:pPr><w:jc w:val=\"center\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:b/><w:sz w:val=\"56\"/><w:szCs w:val=\"56\"/></w:rPr></w:pPr>",
+   "rPr": "<w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:b/><w:sz w:val=\"56\"/><w:szCs w:val=\"56\"/></w:rPr>",
+   "key": "title"
+  },
+  {
+   "pPr": "<w:pPr><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/></w:rPr></w:pPr>",
+   "rPr": "",
+   "key": ""
+  },
+  {
+   "pPr": "<w:pPr><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/></w:rPr></w:pPr>",
+   "rPr": "",
+   "key": ""
+  },
+  {
+   "pPr": "<w:pPr><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/></w:rPr></w:pPr>",
+   "rPr": "",
+   "key": ""
+  },
+  {
+   "pPr": "<w:pPr><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/></w:rPr></w:pPr>",
+   "rPr": "",
+   "key": ""
+  },
+  {
+   "pPr": "<w:pPr><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/></w:rPr></w:pPr>",
+   "rPr": "",
+   "key": ""
+  },
+  {
+   "pPr": "<w:pPr><w:spacing w:after=\"0\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:sz w:val=\"24\"/><w:szCs w:val=\"21\"/></w:rPr></w:pPr>",
+   "rPr": "<w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:sz w:val=\"24\"/><w:szCs w:val=\"21\"/></w:rPr>",
+   "key": "author"
+  },
+  {
+   "pPr": "<w:pPr><w:spacing w:after=\"0\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:sz w:val=\"24\"/><w:szCs w:val=\"21\"/></w:rPr></w:pPr>",
+   "rPr": "",
+   "key": ""
+  },
+  {
+   "pPr": "<w:pPr><w:spacing w:after=\"0\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:sz w:val=\"24\"/><w:szCs w:val=\"21\"/></w:rPr></w:pPr>",
+   "rPr": "<w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:sz w:val=\"24\"/><w:szCs w:val=\"21\"/></w:rPr>",
+   "key": "placeDate"
+  }
+ ],
+ "coverEnd": "<w:p><w:pPr><w:spacing w:after=\"0\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/><w:sz w:val=\"24\"/><w:szCs w:val=\"21\"/></w:rPr><w:sectPr><w:headerReference w:type=\"default\" r:id=\"rId8\"/><w:footerReference w:type=\"even\" r:id=\"rId9\"/><w:footerReference w:type=\"default\" r:id=\"rId10\"/><w:type w:val=\"continuous\"/><w:pgSz w:w=\"11907\" w:h=\"16840\" w:code=\"9\"/><w:pgMar w:top=\"1418\" w:right=\"1418\" w:bottom=\"1134\" w:left=\"1418\" w:header=\"142\" w:footer=\"771\" w:gutter=\"0\"/><w:pgNumType w:start=\"1\"/><w:cols w:space=\"708\"/><w:vAlign w:val=\"center\"/><w:titlePg/><w:docGrid w:linePitch=\"360\"/></w:sectPr></w:pPr></w:p>",
+ "motto": {
+  "quotePPr": "<w:pPr><w:pStyle w:val=\"Quote\"/><w:ind w:left=\"0\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/></w:rPr></w:pPr>",
+  "quoteRPr": "<w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/></w:rPr>",
+  "citePPr": "<w:pPr><w:jc w:val=\"center\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/></w:rPr></w:pPr>",
+  "citeRPr": "<w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/></w:rPr>",
+  "sectEnd": "<w:p><w:pPr><w:spacing w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/></w:rPr><w:sectPr><w:type w:val=\"continuous\"/><w:pgSz w:w=\"11907\" w:h=\"16840\" w:code=\"9\"/><w:pgMar w:top=\"1418\" w:right=\"1418\" w:bottom=\"1134\" w:left=\"1418\" w:header=\"142\" w:footer=\"771\" w:gutter=\"0\"/><w:pgNumType w:start=\"1\"/><w:cols w:space=\"708\"/><w:vAlign w:val=\"center\"/><w:titlePg/><w:docGrid w:linePitch=\"360\"/></w:sectPr></w:pPr></w:p>"
+ },
+ "tocBefore": [
+  "<w:p><w:pPr><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/></w:rPr></w:pPr></w:p>"
+ ],
+ "tocHeading": {
+  "pPr": "<w:pPr><w:pStyle w:val=\"Flietext\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/><w:b/><w:bCs/><w:sz w:val=\"28\"/><w:szCs w:val=\"28\"/></w:rPr></w:pPr>",
+  "rPr": "<w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/><w:b/><w:bCs/><w:sz w:val=\"28\"/><w:szCs w:val=\"28\"/></w:rPr>"
+ },
+ "toc1PPr": "<w:pPr><w:pStyle w:val=\"TOC1\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:eastAsiaTheme=\"minorEastAsia\" w:hAnsi=\"STIX Two Text\" w:cstheme=\"minorBidi\"/><w:b w:val=\"0\"/><w:bCs w:val=\"0\"/><w:noProof/><w:kern w:val=\"2\"/><w:sz w:val=\"24\"/><w:szCs w:val=\"24\"/><w:lang w:eastAsia=\"de-DE\"/><w14:ligatures w14:val=\"standardContextual\"/></w:rPr></w:pPr>",
+ "toc2PPr": "<w:pPr><w:pStyle w:val=\"TOC2\"/><w:tabs><w:tab w:val=\"left\" w:pos=\"880\"/><w:tab w:val=\"right\" w:leader=\"dot\" w:pos=\"9061\"/></w:tabs><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:eastAsiaTheme=\"minorEastAsia\" w:hAnsi=\"STIX Two Text\" w:cstheme=\"minorBidi\"/><w:i w:val=\"0\"/><w:iCs w:val=\"0\"/><w:noProof/><w:kern w:val=\"2\"/><w:sz w:val=\"24\"/><w:szCs w:val=\"24\"/><w:lang w:eastAsia=\"de-DE\"/><w14:ligatures w14:val=\"standardContextual\"/></w:rPr></w:pPr>",
+ "tocRPr": "<w:rPr><w:rStyle w:val=\"Hyperlink\"/><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/><w:noProof/></w:rPr>",
+ "tocAfter": [
+  "<w:p><w:pPr><w:pStyle w:val=\"Flietext\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/></w:rPr></w:pPr></w:p>",
+  "<w:p><w:pPr><w:pStyle w:val=\"Flietext\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/></w:rPr></w:pPr></w:p>",
+  "<w:p><w:pPr><w:spacing w:after=\"0\" w:line=\"240\" w:lineRule=\"auto\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\" w:cs=\"Arial\"/></w:rPr></w:pPr><w:r><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/></w:rPr><w:br w:type=\"page\"/></w:r></w:p>"
+ ],
+ "heading": [
+  "<w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr>",
+  "<w:pPr><w:pStyle w:val=\"Heading2\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/></w:rPr></w:pPr>",
+  "<w:pPr><w:pStyle w:val=\"Heading3\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/></w:rPr></w:pPr>"
+ ],
+ "headingRPr": [
+  "",
+  "<w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/></w:rPr>",
+  "<w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/></w:rPr>"
+ ],
+ "bodyPPr": "<w:pPr><w:spacing w:line=\"360\" w:lineRule=\"auto\"/><w:jc w:val=\"both\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/><w:lang w:eastAsia=\"de-DE\"/></w:rPr></w:pPr>",
+ "bodyRPr": "<w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/><w:lang w:eastAsia=\"de-DE\"/></w:rPr>",
+ "quotePPr": "<w:pPr><w:pStyle w:val=\"Quote\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/><w:lang w:eastAsia=\"de-DE\"/></w:rPr></w:pPr>",
+ "quoteRPr": "<w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/><w:lang w:eastAsia=\"de-DE\"/></w:rPr>",
+ "quoteCitePPr": "<w:pPr><w:jc w:val=\"center\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/><w:lang w:eastAsia=\"de-DE\"/></w:rPr></w:pPr>",
+ "footnoteRefRPr": "<w:rPr><w:rStyle w:val=\"FootnoteReference\"/><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/><w:lang w:eastAsia=\"de-DE\"/></w:rPr>",
+ "footnotePPr": "<w:pPr><w:pStyle w:val=\"FootnoteText\"/><w:rPr><w:lang w:val=\"en-GB\"/></w:rPr></w:pPr>",
+ "footnoteRefRun": "<w:r><w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr><w:footnoteRef/></w:r>",
+ "bibHeadingPPr": "<w:pPr><w:pStyle w:val=\"Heading1\"/><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"0\"/></w:numPr><w:ind w:left=\"600\"/></w:pPr>",
+ "bibPPr": "<w:pPr><w:pStyle w:val=\"Bibliography\"/><w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/></w:rPr></w:pPr>",
+ "bibRPr": "<w:rPr><w:rFonts w:ascii=\"STIX Two Text\" w:hAnsi=\"STIX Two Text\"/></w:rPr>"
+}

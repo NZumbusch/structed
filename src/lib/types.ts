@@ -18,6 +18,10 @@ export interface Project extends EntityBase {
   citationStyle?: string;
   citationLocale?: string;
   targetWords?: number;
+  /** Word export: title page fields (workType, module, institution, supervisor, title, author, placeDate) */
+  cover?: Record<string, string>;
+  /** optional motto quote on its own page after the title page */
+  mottoId?: string | null;
 }
 
 export interface Heading extends EntityBase {
@@ -25,7 +29,9 @@ export interface Heading extends EntityBase {
   parentId: string | null;
   order: number;
   title: string;
-  body: string; // markdown
+  body: string; // markdown notes / gist
+  /** final text of this section (ProseMirror JSON), written in the "Write" stage */
+  draft?: string;
   status?: HeadingStatus;
   targetWords?: number;
 }

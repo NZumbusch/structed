@@ -47,7 +47,7 @@ export default defineConfig({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2,csl,xml}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2,csl,xml,docx}'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         navigateFallback: 'index.html',
         // the public pages must load as themselves, never be swapped for the app shell
