@@ -176,3 +176,20 @@ test('@layout menus always open fully on screen', async ({ page }) => {
   await page.locator('.hrow').last().getByRole('button', { name: 'More' }).click();
   await check('last heading menu');
 });
+
+test('@layout every stage tab is reachable (not covered) on every screen size', async ({ page }) => {
+  await open(page);
+  await seedDemo(page);
+  const tabs = page.locator('nav.stages button');
+  await expect(tabs).toHaveCount(6);
+  for (let i = 0; i < 6; i++) {
+    const free = await tabs.nth(i).evaluate((b) => {
+      const r = b.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return !!hit && b.contains(hit) && r.right <= window.innerWidth && r.left >= 0;
+    });
+    expect(free, `stage tab ${i + 1}`).toBe(true);
+  }
+  await tabs.nth(5).click();
+  await expect(tabs.nth(5)).toHaveClass(/on/);
+});

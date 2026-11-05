@@ -450,16 +450,35 @@
     }
   }
   @media (max-width: 600px) {
+    /* two rows on phones: project + icons on top, the six stages full width below */
     .top {
-      grid-template-columns: auto 1fr auto;
-      gap: 4px;
-      padding: 0 6px;
+      grid-template-columns: minmax(0, 1fr) auto;
+      grid-template-areas: 'left right' 'stages stages';
+      row-gap: 4px;
+      column-gap: 4px;
+      height: auto;
+      padding: 4px 6px 6px;
+      padding-top: calc(4px + env(safe-area-inset-top));
+    }
+    .left {
+      grid-area: left;
+    }
+    .right {
+      grid-area: right;
     }
     .stages {
-      justify-self: center;
+      grid-area: stages;
+      display: flex;
+      width: 100%;
+    }
+    .stages button {
+      flex: 1;
+      justify-content: center;
+      padding: 0 4px;
+      height: 32px;
     }
     .pname {
-      display: none;
+      max-width: 48vw;
     }
     .logo {
       display: none;
