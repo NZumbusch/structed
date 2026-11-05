@@ -55,7 +55,13 @@
   <div class="set">
     <nav>
       {#each TABS as [id, label, icon] (id)}
-        <button class:on={ui.settingsTab === id} onclick={() => (ui.settingsTab = id)}><Icon name={icon} size={16} />{t(label)}</button>
+        <button
+          class:on={ui.settingsTab === id}
+          onclick={(e) => {
+            ui.settingsTab = id;
+            e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+          }}
+        ><Icon name={icon} size={16} />{t(label)}</button>
       {/each}
     </nav>
     <div class="pane">
@@ -334,12 +340,24 @@
       grid-template-columns: 1fr;
     }
     nav {
+      /* full-bleed sticky tab bar: covers the dialog body's padding so nothing peeks through */
+      top: -4px;
+      z-index: 2;
       display: flex;
+      gap: 4px;
+      margin: -4px -20px 0;
+      padding: 8px 20px;
       overflow-x: auto;
+      scrollbar-width: none;
       background: var(--surface);
-      z-index: 1;
+      border-bottom: 1px solid var(--border);
+      scroll-padding-inline: 20px;
+    }
+    nav::-webkit-scrollbar {
+      display: none;
     }
     nav button {
+      flex: none;
       white-space: nowrap;
     }
   }

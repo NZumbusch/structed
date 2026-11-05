@@ -127,3 +127,27 @@ test('@layout touch targets are large enough on phones', async ({ page }) => {
   );
   expect(small).toBe(0);
 });
+
+test('@layout settings tab bar stays flush while scrolling on phones', async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 1000) > 700, 'phone layout only');
+  await open(page);
+  await page.getByTitle('Settings').click();
+  await page.locator('.modal nav button', { hasText: 'Keyboard shortcuts' }).click();
+  const body = page.locator('.modal .body');
+  await body.evaluate((el) => (el.scrollTop = 600));
+  await page.waitForTimeout(100);
+  const r = await page.evaluate(() => {
+    const b = document.querySelector('.modal .body')!.getBoundingClientRect();
+    const n = document.querySelector('.modal nav')!.getBoundingClientRect();
+    return { bodyTop: b.top, navTop: n.top, bodyLeft: b.left, navLeft: n.left, bodyW: b.width, navW: n.width };
+  });
+  expect(r.navTop).toBeLessThanOrEqual(r.bodyTop + 0.5); // no gap above the bar
+  expect(Math.abs(r.navLeft - r.bodyLeft)).toBeLessThanOrEqual(1); // full width
+  expect(r.navW).toBeGreaterThanOrEqual(r.bodyW - 1);
+  // the active tab is fully visible
+  const tab = page.locator('.modal nav button.on');
+  const tb = (await tab.boundingBox())!;
+  const nb = (await page.locator('.modal nav').boundingBox())!;
+  expect(tb.x).toBeGreaterThanOrEqual(nb.x - 1);
+  expect(tb.x + tb.width).toBeLessThanOrEqual(nb.x + nb.width + 1);
+});
