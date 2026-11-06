@@ -1,5 +1,7 @@
 // German UI strings. Keys are the English originals (see i18n.ts).
 export const de: Record<string, string> = {
+  'Paste or type a quote…': 'Zitat einfügen oder tippen…',
+  'All settings': 'Alle Einstellungen',
   'Filter & grouping': 'Filter & Gruppierung',
   'Filter': 'Filter',
   'Reset filters': 'Filter zurücksetzen',

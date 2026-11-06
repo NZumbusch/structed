@@ -243,6 +243,12 @@
     { id: 'cite', label: 'Citation only', icon: 'book' }
   ];
 
+  const moreMenu = $derived([
+    ...MODES.map((m) => ({ label: `${t('Insert quotes as')}: ${t(m.label)}`, icon: settings.insertMode === m.id ? 'check' : m.icon, run: () => (settings.insertMode = m.id) })),
+    null,
+    { label: t('Undo'), icon: 'undo', run: () => cmd((e) => e.chain().focus().undo().run()) }
+  ]);
+
   // quick insert from the items placed under the current section
   const here = $derived(editorState.active ? placementsOf(editorState.active.headingId).map((p) => db.get('artifacts', p.artifactId)).filter((a) => !!a) : []);
   const quickMenu = $derived(
@@ -296,7 +302,7 @@
     <span class="sep"></span>
     <button class="icon-btn" class:active={is('bulletList')} title="{t('Bullet list')}{hint('write.bulletList')}" aria-label={t('Bullet list')} onclick={() => cmd((e) => e.chain().focus().toggleBulletList().run())}><Icon name="menu" size={16} /></button>
     <button class="icon-btn" class:active={is('blockquote')} title="{t('Block quote (own text)')}{hint('write.blockquote')}" aria-label={t('Block quote (own text)')} onclick={() => cmd((e) => e.chain().focus().toggleBlockquote().run())}><Icon name="quote" size={16} /></button>
-    <button class="btn sm" title="{t('Footnote')}{hint('write.footnote')}" onclick={footnote}><sup>1</sup> {t('Footnote')}</button>
+    <button class="btn sm" title="{t('Footnote')}{hint('write.footnote')}" onclick={footnote}><sup>1</sup><span class="wide-only"> {t('Footnote')}</span></button>
     {#if quoteSelected()}
       <button class="btn sm" title="{t('Turn the selected quote into editable text to shorten or adapt it; the citation stays linked')}{hint('write.editQuote')}" onclick={() => cmd((e) => { const p = selectedQuotePos(e); if (p != null) makeEditable(e, p); })}>
         <Icon name="edit" size={14} />{t('Edit quote text')}
@@ -306,15 +312,23 @@
     <Menu items={quickMenu} label="{t('Insert a quote placed here')}{hint('write.insertQuote')}" bind:open={quoteOpen}>
       {#snippet trigger()}<Icon name="plus" size={14} />{t('Insert quote')}{/snippet}
     </Menu>
-    <select class="select mode" bind:value={settings.insertMode} aria-label={t('Insert quotes as')} title="{t('Insert quotes as')}{hint('write.insertMode')}">
-      {#each MODES as m (m.id)}<option value={m.id}>{t(m.label)}</option>{/each}
-    </select>
+    {#if !ui.narrow}
+      <select class="select mode" bind:value={settings.insertMode} aria-label={t('Insert quotes as')} title="{t('Insert quotes as')}{hint('write.insertMode')}">
+        {#each MODES as m (m.id)}<option value={m.id}>{t(m.label)}</option>{/each}
+      </select>
+    {/if}
     <span class="grow"></span>
     <span class="tiny muted wc">{total.toLocaleString()} {t('words')}</span>
     <button class="icon-btn" class:active={settings.writeNotes} aria-pressed={settings.writeNotes} title="{settings.writeNotes ? t('Hide notes') : t('Show notes')}{hint('write.notes')}" aria-label={t('Notes')} onclick={() => (settings.writeNotes = !settings.writeNotes)}><Icon name="note" size={16} /></button>
-    <button class="icon-btn" title="{t('Undo')}" aria-label={t('Undo')} onclick={() => cmd((e) => e.chain().focus().undo().run())}><Icon name="undo" size={16} /></button>
+    {#if !ui.narrow}
+      <button class="icon-btn" title="{t('Undo')}" aria-label={t('Undo')} onclick={() => cmd((e) => e.chain().focus().undo().run())}><Icon name="undo" size={16} /></button>
+    {/if}
     <button class="icon-btn" title="{t('Focus mode')}{hint('write.focus')}" aria-label={t('Focus mode')} onclick={enterFocus}><Icon name="focus" size={16} /></button>
-    <button class="btn sm primary" title="{t('Word export')}{hint('write.export')}" onclick={() => (ui.wordExport = true)}><Icon name="file" size={14} />{t('Word export')}</button>
+    <button class="btn sm primary" title="{t('Word export')}{hint('write.export')}" onclick={() => (ui.wordExport = true)}><Icon name="file" size={14} /><span class="wide-only">{t('Word export')}</span></button>
+    {#if ui.narrow}
+      <!-- phones: the rarely used controls live in one menu, so the toolbar stays one row -->
+      <Menu items={moreMenu} label={t('More')} />
+    {/if}
   </div>
   {/if}
 
@@ -602,12 +616,28 @@
     .compose :global(.prose) {
       text-align: left;
     }
+    /* one row that scrolls sideways instead of three wrapped rows */
     .bar {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
       padding: 6px 8px;
+    }
+    .bar > :global(*) {
+      flex: none;
     }
     .wc,
     .hide-xs {
       display: none;
+    }
+    /* button text stays for screen readers, the icon alone is shown */
+    .wide-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
     }
     .fstat {
       right: 8px;

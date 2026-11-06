@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { open, seedDemo, stage } from './helpers';
+import { open, seedDemo, stage, settingsTab } from './helpers';
 
 const THEMES = [
   { theme: 'light', contrast: 'normal' },
@@ -59,7 +59,7 @@ for (const th of THEMES) {
       await seedDemo(page);
       await page.getByTitle('Settings').click();
       for (const tab of ['Appearance', 'Citations', 'Keyboard shortcuts', 'Zotero', 'Sync', 'Backup & data', 'About & help']) {
-        await page.locator('.modal nav button', { hasText: tab }).click();
+        await settingsTab(page, tab);
         await audit(page, `settings/${tab}`);
       }
       await page.keyboard.press('Escape');

@@ -147,6 +147,9 @@
     { label: t('Add subheading'), icon: 'plus', run: () => { const n = addChildHeading(h); ui.collapsed.delete(h.id); ui.focusHeading = n.id; } },
     { label: t('Add heading below'), icon: 'plus', run: () => (ui.focusHeading = addHeading(h.projectId, h.parentId, h.id).id) },
     { label: bodyOpen ? t('Hide notes') : t('Write notes / gist'), icon: 'note', run: () => ui.toggle(ui.openBodies, h.id) },
+    ...(ui.narrow
+      ? STATUSES.map((st) => ({ label: `${t('Status')}: ${t(st)}`, icon: (h.status ?? 'idea') === st ? 'check' : 'target', run: () => db.update('headings', h.id, { status: st }) }))
+      : []),
     { label: t('New item here'), icon: 'quote', run: () => (ui.editArtifact = { kind: 'quote', headingId: h.id }) },
     { label: t('Add comment'), icon: 'comment', run: startComment },
     null,
@@ -218,12 +221,17 @@
       {#if mode === 'outline' && placements.length}
         <button class="chip" onclick={() => (ui.stage = 'arrange')} title={t('Items placed here')}><Icon name="quote" size={11} />{placements.length}</button>
       {/if}
-      <button class="status s-{h.status ?? 'idea'}" class:hov={(h.status ?? 'idea') === 'idea'} onclick={cycleStatus} title={t('Status') + ': ' + t(h.status ?? 'idea')}>
-        <span class="dot"></span><span class="slabel">{t(h.status ?? 'idea')}</span>
-      </button>
-      <button class="icon-btn sm hov" class:active={bodyOpen} onclick={() => ui.toggle(ui.openBodies, h.id)} title={t('Notes / gist')}>
-        <Icon name="note" size={15} />
-      </button>
+      {#if ui.narrow}
+        <!-- phones: status and notes are in the menu; a dot still shows a status other than "idea" -->
+        {#if (h.status ?? 'idea') !== 'idea'}<span class="status s-{h.status}" title={t('Status') + ': ' + t(h.status ?? 'idea')}><span class="dot"></span></span>{/if}
+      {:else}
+        <button class="status s-{h.status ?? 'idea'}" class:hov={(h.status ?? 'idea') === 'idea'} onclick={cycleStatus} title={t('Status') + ': ' + t(h.status ?? 'idea')}>
+          <span class="dot"></span><span class="slabel">{t(h.status ?? 'idea')}</span>
+        </button>
+        <button class="icon-btn sm hov" class:active={bodyOpen} onclick={() => ui.toggle(ui.openBodies, h.id)} title={t('Notes / gist')}>
+          <Icon name="note" size={15} />
+        </button>
+      {/if}
       <span class="hov"><Menu items={menu} /></span>
     </div>
   </div>

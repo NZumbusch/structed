@@ -396,10 +396,10 @@
               <span class="grow"></span>
               <button class="btn ghost sm" onclick={() => (ui.editArtifact = { kind: 'image', sourceId: source?.id ?? null })}><Icon name="image" size={14} />{t('Image')}</button>
             </div>
-            <textarea class="textarea" rows="3" bind:value={qText} placeholder={qKind === 'quote' ? t('Paste or type a quote… (Ctrl+Enter to add)') : t('Write… (Ctrl+Enter to add)')}></textarea>
-            <div class="row">
+            <textarea class="textarea" rows="3" bind:value={qText} placeholder={ui.narrow ? (qKind === 'quote' ? t('Paste or type a quote…') : t('Write…')) : qKind === 'quote' ? t('Paste or type a quote… (Ctrl+Enter to add)') : t('Write… (Ctrl+Enter to add)')}></textarea>
+            <div class="row crow">
               <input class="input page" bind:value={qPage} placeholder={t('Page')} />
-              <input class="input grow" bind:value={qTags} placeholder={t('#tags, comma separated')} />
+              <input class="input grow tags" bind:value={qTags} placeholder={t('#tags, comma separated')} />
               <button class="btn primary" onclick={capture} disabled={!qText.trim()}><Icon name="plus" size={14} />{t('Add')}</button>
             </div>
           </div>
@@ -669,6 +669,17 @@
     }
     .collect.detail .srcs {
       display: none;
+    }
+    /* tags get their own full line; page and Add share the next one */
+    .crow {
+      flex-wrap: wrap;
+    }
+    .crow .tags {
+      order: -1;
+      flex-basis: 100%;
+    }
+    .crow .page {
+      flex: 1;
     }
     .collect.detail .main {
       display: block;

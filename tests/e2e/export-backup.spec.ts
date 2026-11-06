@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
-import { open, seedDemo } from './helpers';
+import { open, seedDemo, settingsTab } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await open(page);
@@ -34,7 +34,7 @@ test('exports Markdown, Word and BibTeX', async ({ page }) => {
 
 test('full backup round-trip: download, wipe, restore', async ({ page }) => {
   await page.getByTitle('Settings').click();
-  await page.locator('.modal nav button', { hasText: 'Backup & data' }).click();
+  await settingsTab(page, 'Backup & data');
   const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Download full backup (.json)' }).click()]);
   const path = (await dl.path())!;
   const data = JSON.parse(readFileSync(path, 'utf8'));

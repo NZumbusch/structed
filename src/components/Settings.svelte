@@ -11,6 +11,8 @@
   import ShortcutSettings from './ShortcutSettings.svelte';
   import ZoteroSyncSettings from './ZoteroSyncSettings.svelte';
 
+  /** a section was chosen (or the dialog was opened at one, e.g. Sync) */
+  let picked = $state(ui.settingsTab !== 'appearance');
   const TABS = [
     ['appearance', 'Appearance', 'eye'],
     ['writing', 'Citations', 'quote'],
@@ -54,19 +56,24 @@
 </script>
 
 <Modal title={t('Settings')} onclose={() => (ui.dialog = null)} width="820px">
-  <div class="set">
+  <!-- phones: first the list of sections, then one section with a way back -->
+  <div class="set" class:list={ui.narrow && !picked} class:one={ui.narrow && picked}>
     <nav>
       {#each TABS as [id, label, icon] (id)}
         <button
           class:on={ui.settingsTab === id}
-          onclick={(e) => {
+          onclick={() => {
             ui.settingsTab = id;
-            e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            picked = true;
           }}
-        ><Icon name={icon} size={16} />{t(label)}</button>
+        ><Icon name={icon} size={16} /><span class="grow">{t(label)}</span>{#if ui.narrow}<Icon name="chevron-right" size={16} />{/if}</button>
       {/each}
     </nav>
     <div class="pane">
+      {#if ui.narrow}
+        <button class="btn ghost sm back" onclick={() => (picked = false)}><Icon name="chevron-left" size={14} />{t('All settings')}</button>
+        <h3 class="ptitle">{t(TABS.find(([id]) => id === ui.settingsTab)?.[1] ?? '')}</h3>
+      {/if}
       {#if ui.settingsTab === 'appearance'}
         <div class="f"><span>{t('Theme')}</span>
           <div class="seg">
@@ -391,26 +398,30 @@
     .set {
       grid-template-columns: 1fr;
     }
-    nav {
-      /* full-bleed sticky tab bar: covers the dialog body's padding so nothing peeks through */
-      top: -4px;
-      z-index: 2;
-      display: flex;
-      gap: 4px;
-      margin: -4px -20px 0;
-      padding: 8px 20px;
-      overflow-x: auto;
-      scrollbar-width: none;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      scroll-padding-inline: 20px;
-    }
-    nav::-webkit-scrollbar {
+    .set.list .pane,
+    .set.one nav {
       display: none;
     }
-    nav button {
-      flex: none;
-      white-space: nowrap;
+    .set.list nav {
+      position: static;
+      display: grid;
+      gap: 2px;
+    }
+    .set.list nav button {
+      min-height: 46px;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+    .set.list nav button.on {
+      background: none;
+      color: inherit;
+    }
+    .back {
+      margin: -4px 0 4px -6px;
+    }
+    .ptitle {
+      margin: 0 0 12px;
+      font-size: 1.05rem;
     }
   }
 </style>

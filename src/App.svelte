@@ -493,15 +493,21 @@
     }
   }
   @media (max-width: 900px) {
+    /* icons only – except the current stage, which shows its name */
     .sl {
       display: none;
+    }
+    .stages button.on .sl {
+      display: inline;
+      font-size: 0.8rem;
+      font-weight: 600;
     }
     .stages button {
       padding: 0 12px;
     }
   }
   @media (max-width: 600px) {
-    /* two rows on phones: project + icons on top, the six stages full width below */
+    /* two rows on phones: project + icons on top, the five stages full width below */
     .top {
       grid-template-columns: minmax(0, 1fr) auto;
       grid-template-areas: 'left right' 'stages stages';
@@ -527,6 +533,9 @@
       justify-content: center;
       padding: 0 4px;
       height: 32px;
+    }
+    .stages button.on {
+      flex: 2.4;
     }
     .pname {
       max-width: 48vw;

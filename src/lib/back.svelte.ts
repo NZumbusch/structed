@@ -27,30 +27,38 @@ const LAYERS: Layer[] = [
 ];
 
 export function startBackHandling() {
-  let depth = 0; // history entries we pushed
+  // Each history entry we push carries its position (1, 2, …) in `history.state.structed`.
+  // We always read the real position from there instead of counting, so the mirror
+  // corrects itself and a back step can never leave the app.
+  const pos = () => (history.state?.structed as number | undefined) ?? 0;
   let skip = 0; // our own history.go() calls to ignore
   const count = () => LAYERS.filter((l) => l.open()).length;
+
+  function sync(n = count()) {
+    const at = pos();
+    if (n > at) {
+      for (let i = at + 1; i <= n; i++) history.pushState({ structed: i }, '');
+    } else if (n < at && !skip) {
+      // closed with a button: take back the history entries it had (never more than ours)
+      skip++;
+      history.go(-(at - n));
+    }
+  }
 
   addEventListener('popstate', () => {
     if (skip) {
       skip--;
+      sync(); // something may have opened meanwhile
       return;
     }
-    depth = Math.max(0, depth - 1);
-    LAYERS.find((l) => l.open())?.close();
+    // a back step: close the innermost open thing, if the history now has fewer entries than open layers
+    if (count() > pos()) LAYERS.find((l) => l.open())?.close();
+    queueMicrotask(() => sync());
   });
 
   $effect.root(() => {
     $effect(() => {
-      const n = count();
-      if (n > depth) {
-        for (; depth < n; depth++) history.pushState({ structed: depth + 1 }, '');
-      } else if (n < depth) {
-        // closed with a button: take back the history entries it had
-        skip++;
-        history.go(n - depth);
-        depth = n;
-      }
+      sync(count());
     });
   });
 }

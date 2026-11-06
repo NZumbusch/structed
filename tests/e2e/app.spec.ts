@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { newProject, open, seedDemo, stage } from './helpers';
+import { newProject, open, seedDemo, stage, settingsTab } from './helpers';
 
 test('PWA: manifest, icons and service worker; works offline after first load', async ({ page, context }) => {
   await open(page);
@@ -26,9 +26,9 @@ test('German UI translates all visible texts', async ({ page }) => {
   await expect(page.locator('.lib .search input')).toHaveAttribute('placeholder', 'Zitate, Notizen, Quellen suchen…');
   await page.getByTitle('Einstellungen').click();
   for (const tab of ['Darstellung', 'Zitation', 'Tastenkürzel', 'Synchronisation', 'Backup & Daten', 'Info & Hilfe']) {
-    await page.locator('.modal nav button', { hasText: tab }).click();
+    await settingsTab(page, tab);
   }
-  await page.locator('.modal nav button', { hasText: 'Tastenkürzel' }).click();
+  await settingsTab(page, 'Tastenkürzel');
   await expect(page.locator('[data-shortcut="search"]')).toContainText('Suche & Befehle');
 });
 
@@ -51,7 +51,7 @@ test('settings: theme, contrast, accent, font size are applied and remembered', 
 test('version is shown in About', async ({ page }) => {
   await open(page);
   await page.getByTitle('Settings').click();
-  await page.locator('.modal nav button', { hasText: 'About & help' }).click();
+  await settingsTab(page, 'About & help');
   await expect(page.locator('.modal')).toContainText(/Version \d+\.\d+/);
 });
 

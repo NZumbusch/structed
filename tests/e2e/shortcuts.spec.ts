@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { headingTitles, numbers, open, seedDemo } from './helpers';
+import { headingTitles, numbers, open, seedDemo, settingsTab } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await open(page);
@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
 
 async function openShortcuts(page: import('@playwright/test').Page) {
   await page.getByTitle('Settings').click();
-  await page.locator('.modal nav button', { hasText: 'Keyboard shortcuts' }).click();
+  await settingsTab(page, 'Keyboard shortcuts');
 }
 const row = (page: import('@playwright/test').Page, id: string) => page.locator(`[data-shortcut="${id}"]`);
 

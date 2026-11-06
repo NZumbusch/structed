@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { noHorizontalOverflow, open, seedDemo, stage } from './helpers';
+import { noHorizontalOverflow, open, seedDemo, stage, settingsTab } from './helpers';
 
 const LONG_WORD = 'Donaudampfschifffahrtsgesellschaftskapitänswitwenrentenversicherungsanstalt'.repeat(2);
 const LONG_URL = 'https://example.org/' + 'very-long-path-segment/'.repeat(8);
@@ -50,7 +50,7 @@ test.describe('@layout no horizontal overflow with very long words and URLs', ()
   test('dialogs', async ({ page }) => {
     await page.getByTitle('Settings').click();
     for (const tab of ['Appearance', 'Keyboard shortcuts', 'Sync', 'Backup & data']) {
-      await page.locator('.modal nav button', { hasText: tab }).click();
+      await settingsTab(page, tab);
       await noHorizontalOverflow(page);
     }
     await page.keyboard.press('Escape');
@@ -131,28 +131,19 @@ test('@layout touch targets are large enough on phones', async ({ page }) => {
   expect(small).toBe(0);
 });
 
-test('@layout settings tab bar stays flush while scrolling on phones', async ({ page }) => {
+test('@layout settings on phones: a list of sections, each with a way back', async ({ page }) => {
   test.skip((page.viewportSize()?.width ?? 1000) > 700, 'phone layout only');
   await open(page);
   await page.getByTitle('Settings').click();
-  await page.locator('.modal nav button', { hasText: 'Keyboard shortcuts' }).click();
-  const body = page.locator('.modal .body');
-  await body.evaluate((el) => (el.scrollTop = 600));
-  await page.waitForTimeout(100);
-  const r = await page.evaluate(() => {
-    const b = document.querySelector('.modal .body')!.getBoundingClientRect();
-    const n = document.querySelector('.modal nav')!.getBoundingClientRect();
-    return { bodyTop: b.top, navTop: n.top, bodyLeft: b.left, navLeft: n.left, bodyW: b.width, navW: n.width };
-  });
-  expect(r.navTop).toBeLessThanOrEqual(r.bodyTop + 0.5); // no gap above the bar
-  expect(Math.abs(r.navLeft - r.bodyLeft)).toBeLessThanOrEqual(1); // full width
-  expect(r.navW).toBeGreaterThanOrEqual(r.bodyW - 1);
-  // the active tab is fully visible
-  const tab = page.locator('.modal nav button.on');
-  const tb = (await tab.boundingBox())!;
-  const nb = (await page.locator('.modal nav').boundingBox())!;
-  expect(tb.x).toBeGreaterThanOrEqual(nb.x - 1);
-  expect(tb.x + tb.width).toBeLessThanOrEqual(nb.x + nb.width + 1);
+  const nav = page.locator('.modal nav');
+  // every section is visible at once – nothing hidden in a sideways scroll
+  for (const b of await nav.locator('button').all()) await expect(b).toBeInViewport();
+  await nav.locator('button', { hasText: 'Keyboard shortcuts' }).click();
+  await expect(nav).toBeHidden();
+  await expect(page.locator('.modal .pane .ptitle')).toHaveText('Keyboard shortcuts');
+  await page.locator('.modal .pane .back').click();
+  await expect(nav).toBeVisible();
+  await expect(page.locator('.modal .pane')).toBeHidden();
 });
 
 test('@layout menus always open fully on screen', async ({ page }) => {

@@ -36,6 +36,13 @@ export async function newProject(page: Page, title = 'Test project', template = 
 export const stage = (page: Page, name: 'Outline' | 'Collect' | 'Select' | 'Arrange' | 'Write') =>
   page.locator('nav.stages button', { hasText: name }).click();
 
+/** Open a settings section (on phones the sections are a list: go back to it first). */
+export async function settingsTab(page: Page, name: string) {
+  const back = page.locator('.modal .pane .back');
+  if (await back.isVisible()) await back.click();
+  await page.locator('.modal nav button', { hasText: name }).click();
+}
+
 /** The library panel is closed in Write by default: open it. */
 export async function openPanel(page: Page) {
   if (!(await page.locator('.app .panel').isVisible())) await page.getByRole('button', { name: /^Library panel/ }).click();

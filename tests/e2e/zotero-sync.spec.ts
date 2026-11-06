@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { open } from './helpers';
+import { open, settingsTab } from './helpers';
 
 const book = (key: string, title: string, version: number, family = 'Nora') => ({
   key,
@@ -40,7 +40,7 @@ test('Zotero sources stay in sync automatically, fetching only what changed', as
 
   // switch it on in the settings
   await page.getByTitle('Settings').click();
-  await page.locator('.modal nav button', { hasText: 'Zotero' }).click();
+  await settingsTab(page, 'Zotero');
   await page.getByLabel(/Sync automatically/).check();
   await expect(page.locator('.zs').getByRole('combobox', { name: 'Library', exact: true })).toHaveValue('users/1');
   // the first run takes over the whole library (attachments are skipped)
@@ -102,7 +102,7 @@ test('Zotero sources stay in sync automatically, fetching only what changed', as
   expect(await titles()).not.toContain('Das kulturelle Gedächtnis (2. Aufl.)');
   // back to the whole library
   await page.getByTitle('Settings').click();
-  await page.locator('.modal nav button', { hasText: 'Zotero' }).click();
+  await settingsTab(page, 'Zotero');
   await expect(page.locator('.zs').getByLabel('Only these collections')).toBeChecked();
   await page.locator('.zs').getByLabel('Whole library').check();
   expect(await page.evaluate(() => (window as any).__structed.settings.zoteroSyncCollections)).toEqual([]);
