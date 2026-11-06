@@ -157,3 +157,88 @@ test('editable quotes: shorten with […], citation stays linked; convert a link
   await expect(ed.locator('blockquote')).toContainText('The past is not simply');
   await expect(ed.locator('blockquote .qref.cite-only')).toHaveCount(1);
 });
+
+test('@layout no line of the text starts with a space', async ({ page }) => {
+  const ed = page.locator('.compose .ProseMirror').first();
+  await ed.click();
+  const txt = 'Erinnerung ist kein Archiv sondern ein Prozess und wer sich erinnert rekonstruiert die Vergangenheit aus der Gegenwart heraus, immer wieder neu und anders als gedacht. ';
+  await page.keyboard.insertText(txt.repeat(5));
+  const leading = () =>
+    page.evaluate(() => {
+      const root = document.querySelector('.compose .ProseMirror')!;
+      const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      const rng = document.createRange();
+      let n: Node | null;
+      let last: number | null = null;
+      let bad = 0;
+      while ((n = w.nextNode())) {
+        const s = (n as Text).data;
+        for (let i = 0; i < s.length; i++) {
+          rng.setStart(n, i);
+          rng.setEnd(n, i + 1);
+          const r = rng.getClientRects()[0];
+          if (!r) continue;
+          if (last !== null && r.top > last + 5 && s[i] === ' ') bad++;
+          last = r.top;
+        }
+      }
+      return bad;
+    });
+  // several widths, so that lines break at many different places
+  const vp = page.viewportSize()!;
+  for (let d = 0; d < 120; d += 12) {
+    await page.setViewportSize({ width: vp.width - d, height: vp.height });
+    expect(await leading(), `width ${vp.width - d}`).toBe(0);
+  }
+});
+
+test('" - " becomes an en dash once the next word is finished, like in Word', async ({ page }) => {
+  const ed = page.locator('.compose .ProseMirror').first();
+  await ed.click();
+  await page.keyboard.type('Erinnerung - so Assmann - ist ein Prozess. E-Mail, S. 12-14 und 3 - 4 ');
+  await expect(ed).toHaveText('Erinnerung – so Assmann – ist ein Prozess. E-Mail, S. 12-14 und 3 – 4 ');
+  // Backspace right after the change brings the hyphen back
+  await page.keyboard.type('Nur - das');
+  await page.keyboard.press(' ');
+  await page.keyboard.press('Backspace');
+  await expect(ed).toContainText('Nur - das');
+  // can be switched off
+  await page.evaluate(() => ((window as any).__structed.settings.editorAutoDash = false));
+  await page.keyboard.type(' mit - Strich ');
+  await expect(ed).toContainText('mit - Strich');
+});
+
+test('the quote in a footnote can be shortened; the citation stays linked', async ({ page }) => {
+  const ed = page.locator('.compose .ProseMirror').first();
+  await ed.click();
+  await page.keyboard.type('A sentence');
+  await page.locator('.bar').getByRole('button', { name: /Footnote/ }).click();
+  const dlg = page.locator('.modal');
+  const sel = dlg.getByLabel('Quote (optional, stays linked)');
+  const val = await sel.locator('option', { hasText: 'The past is not simply' }).getAttribute('value');
+  await sel.selectOption(val!);
+  const wording = dlg.getByLabel(/Wording of the quote/);
+  await expect(wording).toHaveValue('The past is not simply preserved but reconstructed.');
+  // select "simply preserved but " and replace it with […]
+  await wording.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(16, 37));
+  await dlg.getByRole('button', { name: /Omission/ }).click();
+  await expect(wording).toHaveValue('The past is not […]reconstructed.');
+  await wording.fill('The past is not […] reconstructed.');
+  await expect(dlg).toContainText('Edited – the citation stays linked');
+  await dlg.getByRole('button', { name: 'Save' }).click();
+  const fn = ed.locator('sup.fn');
+  await expect(fn).toHaveAttribute('title', /„The past is not \[…\] reconstructed\.“ \(Assmann, 2011, p\. 18\)/);
+  // the page number still follows the library
+  await page.evaluate(() => {
+    const { db } = (window as any).__structed;
+    const a = db.all('artifacts').find((x: any) => x.text.startsWith('The past'));
+    db.update('artifacts', a.id, { page: '19' });
+  });
+  await expect(fn).toHaveAttribute('title', /\[…\] reconstructed\.“ \(Assmann, 2011, p\. 19\)/);
+  // reopen: the edited wording is kept, and can be reset
+  await fn.click();
+  await expect(wording).toHaveValue('The past is not […] reconstructed.');
+  await dlg.getByRole('button', { name: 'Back to the library text' }).click();
+  await dlg.getByRole('button', { name: 'Save' }).click();
+  await expect(fn).toHaveAttribute('title', /„The past is not simply preserved but reconstructed\.“/);
+});

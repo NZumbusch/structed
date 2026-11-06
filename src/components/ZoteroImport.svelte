@@ -12,6 +12,7 @@
   import {
     annotationsFor,
     collections,
+    deletedZoteroKeys,
     findDuplicate,
     items as fetchItems,
     libraries,
@@ -64,6 +65,8 @@
   let pasted = $state('');
 
   const imported = $derived(new Set(db.all('sources').filter((s) => s.zoteroKey).map((s) => `${s.zoteroLibrary}/${s.zoteroKey}`)));
+  /** deleted here after an earlier import: skipped by “Import all”, shown greyed out */
+  const deleted = $derived(deletedZoteroKeys());
 
   async function run<T>(label: string, fn: () => Promise<T>): Promise<T | undefined> {
     busy = label;
@@ -172,7 +175,7 @@
         if (!r.raw) break;
       }
     });
-    for (const it of list) pick.add(it.key);
+    for (const it of list) if (!deleted.has(`${it.library}/${it.key}`)) pick.add(it.key);
     await importSelected();
   }
 
@@ -285,11 +288,11 @@
           </div>
           <div class="ilist scroll">
             {#each list as it (it.key)}
-              <label class="it" class:done={imported.has(`${it.library}/${it.key}`)}>
+              <label class="it" class:done={imported.has(`${it.library}/${it.key}`) || deleted.has(`${it.library}/${it.key}`)}>
                 <input type="checkbox" checked={pick.has(it.key)} onchange={(e) => (e.currentTarget.checked ? pick.add(it.key) : pick.delete(it.key))} />
                 <span class="grow">
                   <span class="ellipsis it-t">{it.title || '—'}</span>
-                  <span class="tiny muted">{it.creators} {it.year} · {it.itemType}{imported.has(`${it.library}/${it.key}`) ? ' · ' + t('already imported') : ''}</span>
+                  <span class="tiny muted">{it.creators} {it.year} · {it.itemType}{imported.has(`${it.library}/${it.key}`) ? ' · ' + t('already imported') : deleted.has(`${it.library}/${it.key}`) ? ' · ' + t('deleted here – tick to import again') : ''}</span>
                 </span>
               </label>
             {/each}

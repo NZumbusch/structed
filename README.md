@@ -16,7 +16,7 @@ The **library panel** is available in every stage. It groups items by source, au
 
 ## Features
 
-- **Zotero**: imports through the Web API (your library, groups and collections, plus PDF highlights and notes, which you review before importing), or from a file or pasted text (CSL-JSON, BibTeX/BibLaTeX, RIS, DOIs). When importing highlights you can filter by color and type, set a minimum length, and apply OCR/PDF cleanup (hyphenation, line breaks, ligatures, spacing, outer quotes). Highlights that were already imported are skipped.
+- **Zotero**: imports through the Web API (your library, groups and collections, plus PDF highlights and notes, which you review before importing), or from a file or pasted text (CSL-JSON, BibTeX/BibLaTeX, RIS, DOIs). When importing highlights you can filter by color and type, set a minimum length, and apply OCR/PDF cleanup (hyphenation, line breaks, ligatures, spacing, outer quotes). Highlights that were already imported are skipped. **Automatic sync** (Settings → Zotero) keeps the sources of a library or collection up to date. It runs when the app starts, when you return to it and every 10 minutes, and asks Zotero only for changes. Sources you deleted here are not imported again unless you pick them explicitly.
 - **Citations** use citation-js and CSL: APA, Chicago (author-date and notes), Harvard, MLA, DIN 1505-2 and Vancouver, in several languages.
 - **Export**:
   - Markdown, with optional Obsidian callouts, footnotes, YAML front matter and a bibliography

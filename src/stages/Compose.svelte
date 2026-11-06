@@ -35,6 +35,7 @@
     });
     e.on('transaction', () => tick++);
     e.on('update', () => typewriter(e));
+    e.on('focus', () => navTarget === id && (navTarget = null));
   }
 
   // ---- focus mode ----
@@ -171,14 +172,18 @@
   const onOff = (label: string, on: boolean) => ui.toast(`${t(label)}: ${on ? t('on') : t('off')}`, {}, 1500);
 
   /** Jump to the start of the next / previous section (like moving between cells). */
+  /** section we are jumping to; the editor gets focus only on the next frame */
+  let navTarget: string | null = null;
   function gotoSection(dir: 1 | -1) {
     const ids = flat.map((f) => f.h.id);
     if (!ids.length) return;
-    const cur = editorState.active ? ids.indexOf(editorState.active.headingId) : -1;
+    const from = navTarget ?? editorState.active?.headingId;
+    const cur = from ? ids.indexOf(from) : -1;
     const i = cur < 0 ? (dir > 0 ? 0 : ids.length - 1) : cur + dir;
     if (i < 0 || i >= ids.length) return;
     const e = editors.get(ids[i]);
     if (!e) return;
+    navTarget = ids[i];
     e.chain().focus('start').run();
     if (!(focus && settings.focusTypewriter)) {
       const sec = scroller?.querySelector<HTMLElement>(`[data-sec="${ids[i]}"]`);
@@ -531,7 +536,10 @@
     font-family: var(--font-text);
     line-height: 1.7;
     text-align: justify;
-    hyphens: auto;
+    /* no automatic hyphenation: together with the editor's pre-wrap white space,
+       Chrome then wraps the space between two words to the start of the next line.
+       Soft hyphens (Ctrl+-) still work; Word hyphenates the exported text itself. */
+    hyphens: manual;
     overflow-wrap: break-word;
     min-height: 2em;
   }

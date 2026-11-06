@@ -1,7 +1,7 @@
 // TipTap editor for the final text. Quotes are *linked* nodes: they store only the
 // artifact id and render text + citation live from the library, so edits to a quote
 // or its page number update every place it is used.
-import { Editor, Extension, Node, mergeAttributes } from '@tiptap/core';
+import { Editor, Extension, InputRule, Node, mergeAttributes } from '@tiptap/core';
 import { Plugin } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import StarterKit from '@tiptap/starter-kit';
@@ -137,7 +137,11 @@ export const QuoteBlock = Node.create({
   }
 });
 
-/** Footnote: text before, an optional linked quote, text after. Numbered automatically. */
+/**
+ * Footnote: text before, an optional linked quote, text after. Numbered automatically.
+ * `quoteText` holds a shortened/adapted wording of the quote ([…], [sic]); null = the
+ * library text, live. The citation stays linked either way.
+ */
 export const Footnote = Node.create({
   name: 'footnote',
   group: 'inline',
@@ -145,7 +149,7 @@ export const Footnote = Node.create({
   atom: true,
   selectable: true,
   addAttributes() {
-    return { before: { default: '' }, quoteId: { default: null }, after: { default: '' } };
+    return { before: { default: '' }, quoteId: { default: null }, quoteText: { default: null }, after: { default: '' } };
   },
   parseHTML() {
     return [{ tag: 'sup[data-footnote]' }];
@@ -163,7 +167,7 @@ export const Footnote = Node.create({
       const stop = live(() => {
         const q = attrs.quoteId ? quoteParts(attrs.quoteId) : null;
         const [l, r] = marks();
-        dom.title = [attrs.before, q ? `${l}${q.text}${r} ${q.cite}` : '', attrs.after].filter(Boolean).join(' ');
+        dom.title = [attrs.before, q ? `${l}${attrs.quoteText ?? q.text}${r} ${q.cite}` : '', attrs.after].filter(Boolean).join(' ');
       });
       const open = () => {
         const pos = typeof getPos === 'function' ? getPos() : null;
@@ -172,6 +176,7 @@ export const Footnote = Node.create({
           text: dom.title,
           before: attrs.before,
           quoteId: attrs.quoteId,
+          quoteText: attrs.quoteText ?? null,
           after: attrs.after,
           save: (v) => editor.chain().command(({ tr }) => (tr.setNodeMarkup(pos, undefined, { ...v }), true)).run(),
           remove: () => editor.chain().deleteRange({ from: pos, to: pos + 1 }).run()
@@ -189,6 +194,28 @@ export const Footnote = Node.create({
         destroy: stop
       };
     };
+  }
+});
+
+/**
+ * Like Word: "word - word" becomes "word – word" (en dash) as soon as the word after
+ * the hyphen is finished. Hyphens inside words (E-Mail, 12-14) stay. Backspace right
+ * after the change brings the hyphen back.
+ */
+export const AutoDash = Extension.create({
+  name: 'autoDash',
+  addInputRules() {
+    return [
+      new InputRule({
+        find: /(?:^|[^\s-])( -) [^\s-][^\s]*?([\s.,;:!?)\]»«“”"'…])$/,
+        handler: ({ state, range, match }) => {
+          if (!settings.editorAutoDash) return null;
+          const dash = range.from + match[0].indexOf(' -') + 1;
+          const typed = match[2];
+          state.tr.insertText('–', dash, dash + 1).insertText(typed, range.to);
+        }
+      })
+    ];
   }
 });
 
@@ -244,7 +271,8 @@ export function createEditor(opts: {
       QuoteRef,
       QuoteBlock,
       Footnote,
-      CurrentBlock
+      CurrentBlock,
+      AutoDash
     ],
     editorProps: {
       attributes: {

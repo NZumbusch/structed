@@ -17,6 +17,11 @@ export interface Settings {
   zoteroUserId: string;
   zoteroApiKey: string;
   zoteroGroups: string; // comma-separated group ids, optional
+  zoteroAutoSync: boolean; // keep the sources in sync with Zotero automatically
+  zoteroSyncLibrary: string; // "users/123" | "groups/456"
+  zoteroSyncCollection: string; // '' = the whole library
+  zoteroSyncTags: boolean; // also take over Zotero tags
+  zoteroSyncVersions: Record<string, number>; // last library version seen, per scope
   citationStyle: string;
   citationLocale: string;
   panelGroupBy: GroupBy;
@@ -33,6 +38,7 @@ export interface Settings {
   insertMode: 'inline' | 'editable' | 'block' | 'footnote' | 'cite';
   autoBlockWords: number; // inline quotes with at least this many words become block quotes (0 = off)
   editorSpellcheck: boolean;
+  editorAutoDash: boolean; // " - " becomes " – " while typing
   editorLang: string;
   editorWidth: 'narrow' | 'normal' | 'wide';
   // Write stage: notes (gist) under the headings, and focus mode
@@ -71,6 +77,11 @@ const defaults: Settings = {
   zoteroUserId: '',
   zoteroApiKey: '',
   zoteroGroups: '',
+  zoteroAutoSync: false,
+  zoteroSyncLibrary: '',
+  zoteroSyncCollection: '',
+  zoteroSyncTags: false,
+  zoteroSyncVersions: {},
   citationStyle: 'apa',
   citationLocale: 'en-US',
   panelGroupBy: 'source',
@@ -86,6 +97,7 @@ const defaults: Settings = {
   insertMode: 'inline',
   autoBlockWords: 40,
   editorSpellcheck: true,
+  editorAutoDash: true,
   editorLang: 'de',
   editorWidth: 'normal',
   writeNotes: true,

@@ -52,7 +52,7 @@ export const ZCOLORS: Record<string, string> = {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function z(path: string, attempt = 0): Promise<{ data: unknown; total: number }> {
+async function z(path: string, attempt = 0): Promise<{ data: unknown; total: number; version: number }> {
   const r = await fetch(BASE + path, {
     headers: { 'Zotero-API-Key': settings.zoteroApiKey.trim(), 'Zotero-API-Version': '3' }
   });
@@ -74,7 +74,9 @@ async function z(path: string, attempt = 0): Promise<{ data: unknown; total: num
   const header = r.headers.get('Total-Results');
   const n = Array.isArray(data) ? data.length : 1;
   const total = header !== null ? Number(header) : start + n + (n >= 100 ? 1 : 0);
-  return { data, total };
+  // library version of this answer (for incremental sync); 0 if the header is not readable
+  const version = Number(r.headers.get('Last-Modified-Version') ?? 0) || 0;
+  return { data, total, version };
 }
 
 /** Fetch every page of a list endpoint. */
@@ -118,11 +120,16 @@ export async function collections(lib: string): Promise<ZCollection[]> {
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function items(lib: string, opts: { collection?: string; q?: string; start?: number }): Promise<{ items: ZItem[]; total: number; raw: number }> {
+export async function items(
+  lib: string,
+  opts: { collection?: string; q?: string; start?: number; since?: number }
+): Promise<{ items: ZItem[]; total: number; raw: number; version: number }> {
   const base = opts.collection ? `/${lib}/collections/${opts.collection}/items/top` : `/${lib}/items/top`;
   const qs = new URLSearchParams({ format: 'json', include: 'data,csljson', limit: '100', start: String(opts.start ?? 0), sort: 'creator' });
   if (opts.q) qs.set('q', opts.q);
-  const { data, total } = await z(`${base}?${qs}`);
+  // only items changed after this library version (incremental sync)
+  if (opts.since) qs.set('since', String(opts.since));
+  const { data, total, version } = await z(`${base}?${qs}`);
   const raw = (data as unknown[]).length; // before filtering out standalone attachments/notes
   const list = (data as { key: string; version: number; data: Record<string, unknown>; csljson: CSLItem; meta: { creatorSummary?: string; parsedDate?: string; numChildren?: number } }[])
     .filter((it) => it.data.itemType !== 'attachment' && it.data.itemType !== 'note')
@@ -138,7 +145,7 @@ export async function items(lib: string, opts: { collection?: string; q?: string
       csl: it.csljson,
       numChildren: it.meta.numChildren ?? 0
     }));
-  return { items: list, total, raw };
+  return { items: list, total, raw, version };
 }
 
 function htmlToText(html: string): string {
@@ -230,6 +237,21 @@ export async function annotationsFor(
     }
   items.sort((a, b) => (a.parentItem === b.parentItem ? a.sort.localeCompare(b.sort) : 0));
   return { items, failed };
+}
+
+/**
+ * Zotero items whose source was deleted here ("library/key"). They are not imported
+ * again automatically – only when picked explicitly in the import dialog.
+ */
+export function deletedZoteroKeys(): Set<string> {
+  const live = new Set(db.all('sources').filter((s) => s.zoteroKey).map((s) => `${s.zoteroLibrary}/${s.zoteroKey}`));
+  return new Set(
+    db
+      .deletedOf('sources')
+      .filter((s) => s.zoteroKey)
+      .map((s) => `${s.zoteroLibrary}/${s.zoteroKey}`)
+      .filter((k) => !live.has(k))
+  );
 }
 
 /** Create or update a Source from a Zotero item. */
