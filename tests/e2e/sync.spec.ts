@@ -310,3 +310,29 @@ test('browser only: auto-renew can be turned off, and a blocked popup is not ret
   await page.locator('[data-tour="sync"]').click(); // explicit reconnect still works
   await expect(page.locator('[data-tour="sync"]')).toHaveAttribute('title', /^Synced/);
 });
+
+test('connecting Drive for the first time offers to remove the demo first', async ({ browser }) => {
+  const drive = fakeDrive();
+  const A = await browser.newContext();
+  await drive.attach(A);
+  const a = await device(A);
+  await a.evaluate(() => {
+    const s = (window as any).__structed;
+    s.ui.projectId = s.createDemo('en');
+    s.db.create('projects', { title: 'Real work', kind: 'thesis' });
+  });
+  await a.getByTitle('Settings').click();
+  await a.locator('.modal nav button', { hasText: 'Sync' }).click();
+  await a.getByRole('button', { name: 'Connect Google Drive' }).click();
+  const ask = a.locator('.modal', { hasText: 'Remove the demo project?' });
+  await expect(ask).toContainText('Remove it before the first sync');
+  await expect(ask.getByRole('button', { name: 'Remove demo' })).toBeFocused();
+  await ask.getByRole('button', { name: 'Remove demo' }).click();
+  await expect(a.locator('.modal')).toContainText('Last sync');
+  // what reached Drive: the real project, the demo only as a deletion
+  const main = [...drive.files.values()].find((f) => f.name.endsWith('.json'))!;
+  const tables = JSON.parse(main.body.toString()).tables;
+  const live = Object.values(tables.projects as Record<string, any>).filter((p) => !p.deleted).map((p) => p.title);
+  expect(live).toEqual(['Real work']);
+  await A.close();
+});

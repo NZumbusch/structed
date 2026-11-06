@@ -55,6 +55,15 @@ class UI {
     e.stopPropagation();
     this.contextMenu = { x: e.clientX, y: e.clientY, items, title };
   }
+  /** a question in a dialog (see ask) */
+  question: { title: string; text: string; ok: string; cancel: string; danger?: boolean; answer: (v: boolean) => void } | null = $state(null);
+  /** Ask in a dialog instead of window.confirm; resolves with the answer. */
+  ask(q: { title: string; text: string; ok: string; cancel: string; danger?: boolean }): Promise<boolean> {
+    this.question?.answer(false);
+    return new Promise((resolve) => {
+      this.question = { ...q, answer: (v) => ((this.question = null), resolve(v)) };
+    });
+  }
   recordingShortcut = $state(false);
   toasts: Toast[] = $state([]);
   collapsed = new SvelteSet<string>(ls<string[]>('collapsed', []));

@@ -10,6 +10,8 @@
 import { db } from './db.svelte';
 import { clientId, settings, workerUrl } from './settings.svelte';
 import { isDragging } from './dnd';
+import { askRemoveDemo, hasDemo } from './demo';
+import { t } from './i18n';
 
 const SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
 const API = 'https://www.googleapis.com/drive/v3';
@@ -129,6 +131,8 @@ class Sync {
         /* optional */
       }
       this.status = 'idle';
+      // first sync of this device: the demo would otherwise spread to Drive and every device
+      if (!this.p.lastSync && hasDemo()) await askRemoveDemo(t('This device still has the demo. Remove it before the first sync, so it doesn’t end up in your Drive and on your other devices?'));
       await this.syncNow();
     } catch (e) {
       this.status = this.p.connected ? 'auth' : 'error';
