@@ -64,6 +64,7 @@
   $effect(() => {
     editor?.view.dom.setAttribute('spellcheck', String(settings.editorSpellcheck));
     editor?.view.dom.setAttribute('lang', settings.editorLang);
+    editor?.view.dom.setAttribute('aria-label', t('Text for “{h}”', { h: h.title || t('Untitled') }));
   });
 </script>
 

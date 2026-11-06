@@ -35,6 +35,14 @@ export interface Settings {
   editorSpellcheck: boolean;
   editorLang: string;
   editorWidth: 'narrow' | 'normal' | 'wide';
+  // Write stage: notes (gist) under the headings, and focus mode
+  writeNotes: boolean;
+  focusNotes: boolean; // show the notes in focus mode
+  focusQuotes: boolean; // show the library panel (quotes) in focus mode
+  focusDim: boolean; // dim everything but the current paragraph
+  focusTypewriter: boolean; // keep the line being written in the middle of the screen
+  focusGoal: number; // words to write per session (0 = no goal)
+  focusSprint: number; // minutes of a writing sprint
   exportTemplate: 'seminararbeit' | 'plain';
   exportZotero: boolean;
   exportCover: boolean;
@@ -80,6 +88,13 @@ const defaults: Settings = {
   editorSpellcheck: true,
   editorLang: 'de',
   editorWidth: 'normal',
+  writeNotes: true,
+  focusNotes: false,
+  focusQuotes: false,
+  focusDim: true,
+  focusTypewriter: false,
+  focusGoal: 0,
+  focusSprint: 25,
   exportTemplate: 'seminararbeit',
   exportZotero: true,
   exportCover: true,

@@ -31,6 +31,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'stageArrange', label: 'Go to Arrange', group: 'Stages', default: 'Alt+4' },
   { id: 'stageDraft', label: 'Go to Draft', group: 'Stages', default: 'Alt+5' },
   { id: 'stageWrite', label: 'Go to Write', group: 'Stages', default: 'Alt+6' },
+  { id: 'write.focus', label: 'Focus mode', group: 'Writing', default: 'Mod+Shift+F' },
   { id: 'write.footnote', label: 'Insert footnote', group: 'Writing', default: 'Mod+Alt+F' },
   { id: 'newQuote', label: 'New quote', group: 'Create', default: null },
   { id: 'newParaphrase', label: 'New paraphrase', group: 'Create', default: null },

@@ -1,7 +1,9 @@
 // TipTap editor for the final text. Quotes are *linked* nodes: they store only the
 // artifact id and render text + citation live from the library, so edits to a quote
 // or its page number update every place it is used.
-import { Editor, Node, mergeAttributes } from '@tiptap/core';
+import { Editor, Extension, Node, mergeAttributes } from '@tiptap/core';
+import { Plugin } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { db } from './db.svelte';
@@ -190,6 +192,29 @@ export const Footnote = Node.create({
   }
 });
 
+/** Marks the top-level block holding the caret with `.focus-cur` (focus mode dims the rest). */
+export const CurrentBlock = Extension.create({
+  name: 'currentBlock',
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        props: {
+          decorations(state) {
+            const head = state.selection.$head;
+            if (head.depth < 1) {
+              // a selected top-level node (e.g. a block quote)
+              const n = state.doc.nodeAt(head.pos);
+              return n ? DecorationSet.create(state.doc, [Decoration.node(head.pos, head.pos + n.nodeSize, { class: 'focus-cur' })]) : null;
+            }
+            const start = head.before(1);
+            return DecorationSet.create(state.doc, [Decoration.node(start, start + head.node(1).nodeSize, { class: 'focus-cur' })]);
+          }
+        }
+      })
+    ];
+  }
+});
+
 export function createEditor(opts: {
   element: HTMLElement;
   content: string | undefined;
@@ -218,7 +243,8 @@ export function createEditor(opts: {
       Placeholder.configure({ placeholder: opts.placeholder }),
       QuoteRef,
       QuoteBlock,
-      Footnote
+      Footnote,
+      CurrentBlock
     ],
     editorProps: {
       attributes: {
