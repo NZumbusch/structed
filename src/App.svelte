@@ -14,7 +14,6 @@
   import Menu from './components/Menu.svelte';
   import Outline from './stages/Outline.svelte';
   import Collect from './stages/Collect.svelte';
-  import Write from './stages/Write.svelte';
   import Select from './stages/Select.svelte';
   import { db } from './lib/db.svelte';
   import { ui, type Stage } from './lib/ui.svelte';
@@ -33,7 +32,6 @@
     { id: 'collect', label: 'Collect', icon: 'book', tourKey: 'stageCollect' },
     { id: 'select', label: 'Select', icon: 'check', tourKey: 'stageSelect' },
     { id: 'arrange', label: 'Arrange', icon: 'layers', tourKey: 'stageArrange' },
-    { id: 'draft', label: 'Draft', icon: 'note', tourKey: 'stageDraft' },
     { id: 'write', label: 'Write', icon: 'edit', tourKey: 'stageWrite' }
   ];
   const panelStage = $derived(ui.stage !== 'collect' && ui.stage !== 'select');
@@ -116,7 +114,6 @@
     stageCollect: { run: () => (ui.stage = 'collect'), inFields: true, needsProject: true },
     stageSelect: { run: () => (ui.stage = 'select'), inFields: true, needsProject: true },
     stageArrange: { run: () => (ui.stage = 'arrange'), inFields: true, needsProject: true },
-    stageDraft: { run: () => (ui.stage = 'draft'), inFields: true, needsProject: true },
     stageWrite: { run: () => (ui.stage = 'write'), inFields: true, needsProject: true },
     newQuote: { run: () => (ui.editArtifact = { kind: 'quote' }), inFields: true },
     newParaphrase: { run: () => (ui.editArtifact = { kind: 'paraphrase' }), inFields: true },
@@ -267,8 +264,6 @@
         <Collect />
       {:else if ui.stage === 'select'}
         <Select {project} />
-      {:else if ui.stage === 'draft'}
-        <Write {project} />
       {:else if ui.stage === 'write'}
         {#await import('./stages/Compose.svelte') then m}
           <m.default {project} />

@@ -38,7 +38,25 @@
   let dropPos = $state<null | 'before' | 'after' | 'inside'>(null);
   const bodyOpen = $derived(ui.openBodies.has(h.id));
   const placements = $derived(placementsOf(h.id));
-  const comments = $derived(db.all('comments').filter((c) => c.targetId === h.id && !c.resolved).length);
+  /** open comments on this section (resolved ones are done and leave the view) */
+  const openComments = $derived(db.all('comments').filter((c) => c.targetId === h.id && !c.resolved).sort((a, b) => a.createdAt - b.createdAt));
+  let commenting = $state(false);
+  let commentText = $state('');
+  let commentInput = $state<HTMLInputElement>();
+  function startComment() {
+    commenting = true;
+    tick().then(() => commentInput?.focus());
+  }
+  function addComment() {
+    const text = commentText.trim();
+    if (text) db.create('comments', { projectId: h.projectId, targetId: h.id, text });
+    commentText = '';
+    commenting = false;
+  }
+  function resolve(id: string) {
+    db.update('comments', id, { resolved: true });
+    ui.toast(t('Comment resolved'), { action: { label: t('Undo'), run: () => db.undo() } }, 3000);
+  }
   const words = $derived(wordCount(h.body));
   const collapsed = $derived(ui.collapsed.has(h.id));
 
@@ -130,6 +148,7 @@
     { label: t('Add heading below'), icon: 'plus', run: () => (ui.focusHeading = addHeading(h.projectId, h.parentId, h.id).id) },
     { label: bodyOpen ? t('Hide notes') : t('Write notes / gist'), icon: 'note', run: () => ui.toggle(ui.openBodies, h.id) },
     { label: t('New item here'), icon: 'quote', run: () => (ui.editArtifact = { kind: 'quote', headingId: h.id }) },
+    { label: t('Add comment'), icon: 'comment', run: startComment },
     null,
     { label: t('Indent'), icon: 'indent', run: () => indent(h) },
     { label: t('Outdent'), icon: 'outdent', run: () => outdent(h) },
@@ -199,9 +218,6 @@
       {#if mode === 'outline' && placements.length}
         <button class="chip" onclick={() => (ui.stage = 'arrange')} title={t('Items placed here')}><Icon name="quote" size={11} />{placements.length}</button>
       {/if}
-      {#if comments}
-        <button class="chip" onclick={() => { ui.stage = 'draft'; ui.focusHeading = h.id; }} title={t('Open comments')}><Icon name="comment" size={11} />{comments}</button>
-      {/if}
       <button class="status s-{h.status ?? 'idea'}" class:hov={(h.status ?? 'idea') === 'idea'} onclick={cycleStatus} title={t('Status') + ': ' + t(h.status ?? 'idea')}>
         <span class="dot"></span><span class="slabel">{t(h.status ?? 'idea')}</span>
       </button>
@@ -227,6 +243,35 @@
     </div>
   {:else if h.body && mode === 'outline'}
     <button class="preview" onclick={() => { ui.openBodies.add(h.id); ui.focusBody = h.id; }}>{plain(h.body)}</button>
+  {/if}
+
+  {#if openComments.length || commenting}
+    <div class="comments">
+      {#each openComments as c (c.id)}
+        <div class="cm">
+          <Icon name="comment" size={13} />
+          <span class="grow">{c.text}</span>
+          <button class="icon-btn sm" title={t('Resolve')} aria-label={t('Resolve')} onclick={() => resolve(c.id)}><Icon name="check" size={14} /></button>
+          <button class="icon-btn sm" title={t('Delete')} aria-label={t('Delete')} onclick={() => db.remove('comments', c.id)}><Icon name="x" size={14} /></button>
+        </div>
+      {/each}
+      {#if commenting}
+        <input
+          bind:this={commentInput}
+          class="cin"
+          aria-label={t('Add a comment…')}
+          placeholder={t('Add a comment… (Enter to save)')}
+          bind:value={commentText}
+          onkeydown={(e) => {
+            if (e.key === 'Enter') addComment();
+            else if (e.key === 'Escape') ((commenting = false), (commentText = ''));
+          }}
+          onblur={addComment}
+        />
+      {:else}
+        <button class="addc tiny" onclick={startComment}><Icon name="plus" size={12} />{t('Comment')}</button>
+      {/if}
+    </div>
   {/if}
 
   {#if mode === 'arrange'}
@@ -455,6 +500,42 @@
     right: 4px;
     bottom: 2px;
   }
+  .comments {
+    display: grid;
+    gap: 4px;
+    margin: 0 0 8px var(--textx);
+  }
+  .cm {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 4px 3px 10px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--warn) 12%, transparent);
+    font-size: 0.85rem;
+  }
+  .cin {
+    width: 100%;
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    font-size: 0.85rem;
+  }
+  .addc {
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .addc:hover {
+    color: var(--text);
+  }
   .preview {
     display: block;
     max-width: calc(100% - var(--textx));
@@ -509,7 +590,8 @@
     .body,
     .placed,
     .mini,
-    .preview {
+    .preview,
+    .comments {
       margin-left: 24px;
     }
     .slabel {

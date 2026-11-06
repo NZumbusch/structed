@@ -43,8 +43,6 @@ for (const th of THEMES) {
       await stage(page, 'Arrange');
       if (await page.locator('.lib .gh').first().isVisible()) await page.locator('.lib .gh').first().click();
       await audit(page, 'arrange');
-      await stage(page, 'Draft');
-      await audit(page, 'write');
       await stage(page, 'Write');
       await expect(page.locator('.compose .ProseMirror').first()).toBeVisible();
       await audit(page, 'compose');

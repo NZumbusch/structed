@@ -260,7 +260,6 @@
           <li><b>{t('Collect')}</b> – {t('sources (Zotero) and quotes, paraphrases, notes, images.')}</li>
           <li><b>{t('Select')}</b> – {t('choose the sources and quotes this project needs.')}</li>
           <li><b>{t('Arrange')}</b> – {t('drag items from the library onto headings.')}</li>
-          <li><b>{t('Draft')}</b> – {t('overview with texts, quotes, comments; copy with citation.')}</li>
           <li><b>{t('Write')}</b> – {t('the final text with linked quotes and footnotes; Word export.')}</li>
         </ul>
         <p class="small muted">{t('All data is stored locally in your browser (IndexedDB) and works offline. Install it via your browser’s “Install app” / “Add to Home Screen”.')}</p>

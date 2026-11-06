@@ -33,7 +33,7 @@ export async function newProject(page: Page, title = 'Test project', template = 
   await expect(page.locator('textarea.ptitle')).toHaveValue(title);
 }
 
-export const stage = (page: Page, name: 'Outline' | 'Collect' | 'Select' | 'Arrange' | 'Draft' | 'Write') =>
+export const stage = (page: Page, name: 'Outline' | 'Collect' | 'Select' | 'Arrange' | 'Write') =>
   page.locator('nav.stages button', { hasText: name }).click();
 
 export async function stageByIndex(page: Page, i: number) {

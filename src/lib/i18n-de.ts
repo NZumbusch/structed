@@ -1,12 +1,15 @@
 // German UI strings. Keys are the English originals (see i18n.ts).
 export const de: Record<string, string> = {
+  'Five stages': 'Fünf Phasen',
+  'Work in stages, like tabs: Outline the structure, Collect quotes, Select what this project needs, Arrange it under headings, then Write. Shortcuts: {a}–{b}.': 'Arbeite in Phasen wie in Tabs: Gliederung bauen, Zitate sammeln, fürs Projekt auswählen, unter Überschriften zuordnen, dann schreiben. Kürzel: {a}–{b}.',
+  'Comment resolved': 'Kommentar erledigt',
+  'Add comment': 'Kommentar hinzufügen',
+  'Add a comment… (Enter to save)': 'Kommentar… (Enter zum Speichern)',
   'item placed': 'Eintrag zugeordnet',
   'Language of the text (spell check)': 'Sprache des Textes (Rechtschreibung)',
   'Works offline: the app is stored on this device.': 'Funktioniert offline: die App ist auf diesem Gerät gespeichert.',
   'choose the sources and quotes this project needs.': 'Quellen und Zitate wählen, die dieses Projekt braucht.',
   'the final text with linked quotes and footnotes; Word export.': 'der fertige Text mit verknüpften Zitaten und Fußnoten; Word-Export.',
-  'Six stages': 'Sechs Phasen',
-  'Work in stages, like tabs: Outline the structure, Collect quotes, Select what this project needs, Arrange it under headings, review the Draft, then Write. Shortcuts: {a}–{b}.': 'Arbeite in Phasen wie in Tabs: Gliederung bauen, Zitate sammeln, fürs Projekt auswählen, unter Überschriften zuordnen, den Entwurf durchsehen, dann schreiben. Kürzel: {a}–{b}.',
   'Selected items': 'Ausgewählte Einträge',
   'hold one to select': 'zum Auswählen gedrückt halten',
   'Remove the demo project?': 'Demo-Projekt entfernen?',

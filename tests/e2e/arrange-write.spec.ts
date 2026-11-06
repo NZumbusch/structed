@@ -79,37 +79,38 @@ test('library groups by author, tag, kind, year; filters unused and kinds', asyn
   await expect(page.locator('.lib .empty')).toContainText('Nothing matches');
 });
 
-test('write view: edit text inline, comments, expand all, copy with citation', async ({ page }) => {
-  await stage(page, 'Draft');
-  const intro = page.locator('.sec').first();
-  await expect(intro.locator('.md strong')).toHaveText('thesis');
-  await intro.getByRole('button', { name: 'Edit' }).click();
-  await page.keyboard.press('End');
-  await page.keyboard.type('\nNew line here.');
-  await intro.getByRole('button', { name: 'Done' }).click();
-  await expect(intro.locator('.md br')).toHaveCount(1); // single newline = line break
-  // comment add + resolve
-  await intro.locator('.cin').fill('Check this');
-  await intro.locator('.cin').press('Enter');
+test('comments sit right at their heading: add, resolve with undo, delete', async ({ page }) => {
+  const intro = page.locator('.hrow').first();
+  await intro.hover();
+  await intro.getByRole('button', { name: 'More' }).click();
+  await page.getByRole('menuitem', { name: 'Add comment' }).click();
+  await intro.getByLabel('Add a comment…').fill('Check this');
+  await intro.getByLabel('Add a comment…').press('Enter');
   await expect(intro.locator('.cm')).toHaveText(/Check this/);
+  // also visible while arranging
+  await stage(page, 'Arrange');
+  await expect(page.locator('.hrow').first().locator('.cm')).toHaveText(/Check this/);
+  await stage(page, 'Outline');
   await intro.locator('.cm').getByTitle('Resolve').click();
   await expect(intro.locator('.cm')).toHaveCount(0);
-  await page.getByLabel('Resolved').check();
-  await expect(intro.locator('.cm.resolved')).toHaveCount(1);
-  // expand all
-  await page.getByRole('button', { name: 'Expand all' }).click();
-  await expect(page.locator('.paper .art.expanded')).toHaveCount(2);
-  // copy with citation
-  await page.locator('.paper .art').first().getByRole('button', { name: 'Cite' }).click();
-  await expect(page.locator('.toast', { hasText: 'Copied' })).toBeVisible();
-  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('“The past is not simply preserved but reconstructed.” (Assmann, 2011, p. 18)');
-  // comment count badge appears in outline after reopen
+  await page.locator('.toast').getByRole('button', { name: 'Undo' }).click();
+  await expect(intro.locator('.cm')).toHaveCount(1);
+  // a second one from the small "+ Comment" button, then delete
+  await intro.getByRole('button', { name: 'Comment', exact: true }).click();
+  await intro.getByLabel('Add a comment…').fill('Another');
+  await intro.getByLabel('Add a comment…').press('Enter');
+  await expect(intro.locator('.cm')).toHaveCount(2);
+  await intro.locator('.cm', { hasText: 'Another' }).getByTitle('Delete').click();
+  await expect(intro.locator('.cm')).toHaveCount(1);
 });
 
-test('table of contents navigates and marks the current section', async ({ page }) => {
-  await stage(page, 'Draft');
-  await page.locator('.toc .ti', { hasText: 'Conclusion' }).click();
-  await expect(page.locator('.sec[data-sec]').last()).toBeInViewport();
+test('copy a placed quote with its citation', async ({ page }) => {
+  await stage(page, 'Arrange');
+  const card = page.locator('.hrow .art').first();
+  await card.locator('.toggle').click();
+  await card.getByRole('button', { name: 'Cite' }).click();
+  await expect(page.locator('.toast', { hasText: 'Copied' })).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toBe('“The past is not simply preserved but reconstructed.” (Assmann, 2011, p. 18)');
 });
 
 test('search palette finds headings, quotes, sources and commands', async ({ page }) => {

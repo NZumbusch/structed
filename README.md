@@ -3,15 +3,14 @@
 A minimalist, local-first web app and PWA for structuring essays, seminar papers, theses and journal articles.
 You build the outline, collect quotes from your sources, place them under headings, and then write with everything at hand.
 
-## Workflow: six stages (switch with Alt+1…6)
+## Workflow: five stages (switch with Alt+1…5)
 
 | Stage | What you do |
 |---|---|
-| **Outline** | Build headings and subheadings to any depth, like an outliner (Enter, Tab, Shift+Tab, Alt+↑/↓, Ctrl+.). Each heading can hold markdown notes for its gist, a status (idea, draft, revise, done) and a word target. |
+| **Outline** | Build headings and subheadings to any depth, like an outliner (Enter, Tab, Shift+Tab, Alt+↑/↓, Ctrl+.). Each heading can hold markdown notes for its gist, a status (idea, draft, revise, done), a word target and comments (resolve them with the check mark). |
 | **Collect** | Manage sources (Zotero or manual) and quickly capture quotes, paraphrases, notes and images with page numbers, comments and tags. Select several items (long-press on phones, Ctrl/⌘-click on a laptop) to retag, clean up OCR text, change type or delete them. |
 | **Select** | Choose what the project needs: whole sources (including their future quotes) or single quotes. Everything else stays out of the way in the other stages. |
-| **Arrange** | Drag items from the library panel onto headings with a mouse, or long-press on touch. One item can sit under several headings, and each placement can carry a "why here" note. Dragging an item back onto the panel removes it from the heading. |
-| **Draft** | A document-style overview with a table of contents: your notes per section, the placed quotes (expandable), comments per section, and one-click **Copy with citation**. |
+| **Arrange** | Drag items from the library panel onto headings with a mouse, or long-press on touch. One item can sit under several headings, and each placement can carry a "why here" note. Expand a card to read it in full or **copy it with citation**. |
 | **Write** | The final text, one editor per section along the outline. Quotes stay linked to the library; footnotes, focus mode and Word export with your template. |
 
 The **library panel** is available in every stage. It groups items by source, author, tag/topic, kind, publication or year, and it can search and filter (for example "unused in this project").

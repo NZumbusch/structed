@@ -30,7 +30,7 @@ test.describe('@layout no horizontal overflow with very long words and URLs', ()
     await open(page);
     await seedLong(page);
   });
-  for (const s of ['Outline', 'Collect', 'Select', 'Arrange', 'Draft', 'Write'] as const) {
+  for (const s of ['Outline', 'Collect', 'Select', 'Arrange', 'Write'] as const) {
     test(s, async ({ page }) => {
       await stage(page, s);
       if (s === 'Collect') {
@@ -70,9 +70,9 @@ test.describe('@layout line breaks are preserved', () => {
     await open(page);
     await seedLong(page);
   });
-  test('quotes keep their line breaks in Write', async ({ page }) => {
-    await stage(page, 'Draft');
-    const text = page.locator('.paper .art.expanded .text').first();
+  test('quotes keep their line breaks under their heading', async ({ page }) => {
+    await stage(page, 'Arrange');
+    const text = page.locator('.hrow .art.expanded .text').first();
     await expect(text).toHaveCSS('white-space', 'pre-wrap');
     const lines = await text.evaluate((e) => {
       const lh = parseFloat(getComputedStyle(e).lineHeight);
@@ -80,9 +80,9 @@ test.describe('@layout line breaks are preserved', () => {
     });
     expect(lines).toBeGreaterThanOrEqual(3);
   });
-  test('section text: single newline → <br>, blank line → paragraph', async ({ page }) => {
-    await stage(page, 'Draft');
-    const md = page.locator('.sec').first().locator('.md.body');
+  test('section notes: single newline → <br>, blank line → paragraph', async ({ page }) => {
+    await stage(page, 'Write');
+    const md = page.locator('.compose .gist').first();
     await expect(md.locator('p')).toHaveCount(2);
     await expect(md.locator('p').first().locator('br')).toHaveCount(1);
   });
@@ -93,25 +93,28 @@ test.describe('@layout line breaks are preserved', () => {
     const scroller = page.locator('.hrow .cm-scroller').first();
     expect(await scroller.evaluate((e) => e.scrollWidth - e.clientWidth)).toBeLessThanOrEqual(1);
   });
-  test('long headings wrap in Write and TOC truncates with ellipsis', async ({ page }) => {
-    await stage(page, 'Draft');
-    const h = page.locator('.sec .ht').first();
+  test('long headings wrap in the outline and in Write', async ({ page }) => {
+    await stage(page, 'Outline');
+    const h = page.locator('.hrow .title').first();
+    const page_ = (await page.locator('.page').boundingBox())!;
     const box = (await h.boundingBox())!;
-    const paper = (await page.locator('.paper').boundingBox())!;
-    expect(box.x + box.width).toBeLessThanOrEqual(paper.x + paper.width + 1);
+    expect(box.x + box.width).toBeLessThanOrEqual(page_.x + page_.width + 1);
     expect(box.height).toBeGreaterThan(40); // wrapped onto several lines
-    const toc = page.locator('.toc .tt').first();
-    if (await toc.isVisible()) await expect(toc).toHaveCSS('text-overflow', 'ellipsis');
+    await stage(page, 'Write');
+    const wh = (await page.locator('.compose .sec .ht').first().boundingBox())!;
+    const paper = (await page.locator('.compose .paper').boundingBox())!;
+    expect(wh.x + wh.width).toBeLessThanOrEqual(paper.x + paper.width + 1);
+    expect(wh.height).toBeGreaterThan(40);
   });
   test('collapsed cards clamp to two lines; expanded cards show everything', async ({ page }) => {
-    await stage(page, 'Draft');
-    await page.getByRole('button', { name: 'Collapse all' }).click();
-    const label = page.locator('.paper .art .label').first();
+    await stage(page, 'Arrange');
+    const card = page.locator('.hrow .art').first();
+    await expect(card.locator('.text')).toContainText('Second line of quote');
+    await card.locator('.toggle').click(); // collapse
+    const label = card.locator('.label');
     await expect(label).toHaveClass(/clamp/);
     const lh = await label.evaluate((e) => parseFloat(getComputedStyle(e).lineHeight));
     expect((await label.boundingBox())!.height).toBeLessThanOrEqual(lh * 2 + 2);
-    await page.getByRole('button', { name: 'Expand all' }).click();
-    await expect(page.locator('.paper .art.expanded .text').first()).toContainText('Second line of quote');
   });
 });
 
@@ -181,8 +184,8 @@ test('@layout every stage tab is reachable (not covered) on every screen size', 
   await open(page);
   await seedDemo(page);
   const tabs = page.locator('nav.stages button');
-  await expect(tabs).toHaveCount(6);
-  for (let i = 0; i < 6; i++) {
+  await expect(tabs).toHaveCount(5);
+  for (let i = 0; i < 5; i++) {
     const free = await tabs.nth(i).evaluate((b) => {
       const r = b.getBoundingClientRect();
       const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
@@ -190,6 +193,6 @@ test('@layout every stage tab is reachable (not covered) on every screen size', 
     });
     expect(free, `stage tab ${i + 1}`).toBe(true);
   }
-  await tabs.nth(5).click();
-  await expect(tabs.nth(5)).toHaveClass(/on/);
+  await tabs.nth(4).click();
+  await expect(tabs.nth(4)).toHaveClass(/on/);
 });
