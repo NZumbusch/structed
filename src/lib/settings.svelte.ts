@@ -42,7 +42,8 @@ export interface Settings {
   editorSpellcheck: boolean;
   editorAutoDash: boolean; // " - " becomes " – " while typing
   editorLang: string;
-  editorWidth: 'narrow' | 'normal' | 'wide';
+  /** @deprecated merged into lineWidth (one width for every view) */
+  editorWidth?: 'narrow' | 'normal' | 'wide';
   // Write stage: notes (gist) under the headings, and focus mode
   writeNotes: boolean;
   focusNotes: boolean; // show the notes in focus mode
@@ -101,7 +102,6 @@ const defaults: Settings = {
   editorSpellcheck: true,
   editorAutoDash: true,
   editorLang: 'de',
-  editorWidth: 'normal',
   writeNotes: true,
   focusNotes: false,
   focusQuotes: false,
@@ -127,6 +127,9 @@ function load(): Settings {
     // one collection → several
     if (s.zoteroSyncCollection) s.zoteroSyncCollections = [...new Set([...(s.zoteroSyncCollections ?? []), s.zoteroSyncCollection])];
     delete s.zoteroSyncCollection;
+    // the editor's own page width became the one line width
+    if (s.editorWidth && s.editorWidth !== 'normal' && s.lineWidth === 'normal') s.lineWidth = s.editorWidth;
+    delete s.editorWidth;
     return s;
   } catch {
     return { ...defaults };

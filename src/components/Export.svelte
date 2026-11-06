@@ -5,13 +5,12 @@
   import { ui } from '../lib/ui.svelte';
   import { t } from '../lib/i18n';
   import { copyText, download, safeName } from '../lib/clipboard';
-  import { defaultMd, exportBib, toDocx, toMarkdown, usedSources, type MdOptions } from '../lib/export';
+  import { defaultMd, exportBib, toMarkdown, usedSources, type MdOptions } from '../lib/export';
 
   const project = db.get('projects', ui.projectId!)!;
   let o: MdOptions = $state(JSON.parse(localStorage.getItem('structed.exportOpts') || 'null') ?? { ...defaultMd });
   $effect(() => localStorage.setItem('structed.exportOpts', JSON.stringify(o)));
   let preview = $state('');
-  let busy = $state(false);
   let bibScope = $state<'project' | 'all'>('project');
 
   $effect(() => {
@@ -27,13 +26,10 @@
       if (await copyText(m)) ui.toast(t('Copied'), { kind: 'ok' });
     } else download(`${name}.md`, m, 'text/markdown');
   }
-  async function docx() {
-    busy = true;
-    try {
-      download(`${name}.docx`, await toDocx(project, $state.snapshot(o)), 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-    } finally {
-      busy = false;
-    }
+  /** Word is the real text from Write, put into the template – one Word export, not two */
+  function word() {
+    ui.dialog = null;
+    ui.wordExport = true;
   }
   async function bib(fmt: 'bibtex' | 'csljson') {
     const s = await exportBib(bibScope === 'project' ? project.id : null, fmt);
@@ -77,7 +73,7 @@
       <div class="actions">
         <button class="btn primary" onclick={() => md()}><Icon name="download" size={15} />Markdown (.md)</button>
         <button class="btn" onclick={() => md(true)}><Icon name="copy" size={15} />{t('Copy Markdown')}</button>
-        <button class="btn" onclick={docx} disabled={busy}><Icon name="file" size={15} />Word (.docx)</button>
+        <button class="btn" onclick={word} title={t('Your text from Write, in the Word template')}><Icon name="file" size={15} />{t('Word export…')}</button>
       </div>
       <h4>{t('Bibliography data')}</h4>
       <div class="seg">

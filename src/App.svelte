@@ -24,6 +24,7 @@
   import Tour from './components/Tour.svelte';
   import ContextMenu from './components/ContextMenu.svelte';
   import AskDialog from './components/AskDialog.svelte';
+  import WordExport from './components/WordExport.svelte';
   import { askRemoveDemo, hasDemo } from './lib/demo';
 
   const project = $derived(db.get('projects', ui.projectId));
@@ -297,6 +298,7 @@
   {#if ui.tour}<Tour />{/if}
   <ContextMenu />
   {#if ui.question}<AskDialog />{/if}
+  {#if ui.wordExport && project}<WordExport {project} onclose={() => (ui.wordExport = false)} />{/if}
 
   <div class="toasts" aria-live="polite">
     {#each ui.toasts as tt (tt.id)}

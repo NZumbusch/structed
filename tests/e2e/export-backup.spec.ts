@@ -21,8 +21,12 @@ test('exports Markdown, Word and BibTeX', async ({ page }) => {
   const mdText = readFileSync((await md.path())!, 'utf8');
   expect(mdText).toContain('# Demo: Memory & Media');
 
-  const [docx] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Word (.docx)' }).click()]);
-  expect(readFileSync((await docx.path())!).subarray(0, 2).toString()).toBe('PK');
+  // Word means the real text with the template: the button opens that export
+  await page.getByRole('button', { name: 'Word export…' }).click();
+  await expect(page.locator('.modal h2')).toHaveText('Word export');
+  await page.keyboard.press('Escape');
+  await page.getByRole('button', { name: /Project menu/ }).click();
+  await page.getByRole('menuitem', { name: 'Export…' }).click();
 
   const [bib] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'BibTeX (.bib)' }).click()]);
   expect(readFileSync((await bib.path())!, 'utf8')).toMatch(/@book\{.*\n[\s\S]*Assmann/);

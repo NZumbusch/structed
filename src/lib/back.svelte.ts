@@ -18,6 +18,7 @@ const LAYERS: Layer[] = [
   { open: () => !!ui.editArtifact, close: () => (ui.editArtifact = null) },
   { open: () => !!ui.editSource, close: () => (ui.editSource = null) },
   { open: () => !!ui.dialog, close: () => (ui.dialog = null) },
+  { open: () => ui.wordExport, close: () => (ui.wordExport = false) },
   { open: () => !!ui.selection, close: () => ui.selection?.() },
   { open: () => ui.panelMobileOpen && ui.narrow, close: () => (ui.panelMobileOpen = false) },
   // an open source on a phone (the list and the source are separate screens there)

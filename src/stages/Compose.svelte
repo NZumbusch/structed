@@ -6,7 +6,6 @@
   import Menu from '../components/Menu.svelte';
   import SectionEditor from '../components/SectionEditor.svelte';
   import FootnoteDialog from '../components/FootnoteDialog.svelte';
-  import WordExport from '../components/WordExport.svelte';
   import { db } from '../lib/db.svelte';
   import { ui } from '../lib/ui.svelte';
   import { settings } from '../lib/settings.svelte';
@@ -22,7 +21,6 @@
   const flat = $derived(flatten(project.id));
   const editors = new Map<string, Editor>();
   let tick = $state(0); // re-render toolbar state on selection changes
-  let exportOpen = $state(false);
 
   const total = $derived(flat.reduce((n, f) => n + wordCount(draftText(f.h.draft)), 0));
   const activeEditor = () => (editorState.active ? editors.get(editorState.active.headingId) : undefined);
@@ -222,13 +220,13 @@
     'write.editQuote': () => cmd((e) => { const p = selectedQuotePos(e); if (p != null) makeEditable(e, p); }),
     'write.bulletList': () => cmd((e) => e.chain().focus().toggleBulletList().run()),
     'write.blockquote': () => cmd((e) => e.chain().focus().toggleBlockquote().run()),
-    'write.export': () => (exportOpen = true)
+    'write.export': () => (ui.wordExport = true)
   };
 
   function keys(e: KeyboardEvent) {
     if (focus && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace')) typing = true;
     // the editor already handled it, or a dialog is open
-    if (e.defaultPrevented || ui.recordingShortcut || ui.dialog || ui.editArtifact || ui.editSource || ui.placeTarget || editorState.footnote || exportOpen) return;
+    if (e.defaultPrevented || ui.recordingShortcut || ui.dialog || ui.editArtifact || ui.editSource || ui.placeTarget || editorState.footnote || ui.wordExport) return;
     for (const id in KEYS) {
       if (!matches(e, id)) continue;
       e.preventDefault();
@@ -316,11 +314,11 @@
     <button class="icon-btn" class:active={settings.writeNotes} aria-pressed={settings.writeNotes} title="{settings.writeNotes ? t('Hide notes') : t('Show notes')}{hint('write.notes')}" aria-label={t('Notes')} onclick={() => (settings.writeNotes = !settings.writeNotes)}><Icon name="note" size={16} /></button>
     <button class="icon-btn" title="{t('Undo')}" aria-label={t('Undo')} onclick={() => cmd((e) => e.chain().focus().undo().run())}><Icon name="undo" size={16} /></button>
     <button class="icon-btn" title="{t('Focus mode')}{hint('write.focus')}" aria-label={t('Focus mode')} onclick={enterFocus}><Icon name="focus" size={16} /></button>
-    <button class="btn sm primary" title="{t('Word export')}{hint('write.export')}" onclick={() => (exportOpen = true)}><Icon name="file" size={14} />{t('Word export')}</button>
+    <button class="btn sm primary" title="{t('Word export')}{hint('write.export')}" onclick={() => (ui.wordExport = true)}><Icon name="file" size={14} />{t('Word export')}</button>
   </div>
   {/if}
 
-  <article class="paper w-{settings.editorWidth}">
+  <article class="paper">
     <h1 class="dtitle">{project.title || t('Untitled project')}</h1>
     {#if project.subtitle}<p class="dsub">{project.subtitle}</p>{/if}
     {#each flat as f (f.h.id)}
@@ -353,7 +351,6 @@
 {/if}
 
 {#if editorState.footnote}<FootnoteDialog />{/if}
-{#if exportOpen}<WordExport {project} onclose={() => (exportOpen = false)} />{/if}
 
 <style>
   .compose {
@@ -397,12 +394,6 @@
     max-width: var(--measure);
     margin: 0 auto;
     padding: 28px 24px 200px;
-  }
-  .paper.w-narrow {
-    max-width: 640px;
-  }
-  .paper.w-wide {
-    max-width: 1000px;
   }
   .dtitle {
     font-size: 1.9em;

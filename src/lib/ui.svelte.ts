@@ -67,6 +67,8 @@ class UI {
   }
   /** ends the current multi-selection (set by the view that has one) */
   selection: (() => void) | null = $state(null);
+  /** the Word export dialog (template, title page…) */
+  wordExport = $state(false);
   /** the app is cached for offline use (service worker ready) */
   offlineReady = $state(false);
   recordingShortcut = $state(false);

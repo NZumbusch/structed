@@ -155,13 +155,6 @@
             {#each [['de', 'Deutsch'], ['de-CH', 'Deutsch (Schweiz)'], ['en', 'English'], ['fr', 'Français'], ['it', 'Italiano']] as [v, l] (v)}<option value={v}>{l}</option>{/each}
           </select>
         </label>
-        <div class="f"><span>{t('Page width')}</span>
-          <div class="seg">
-            {#each ['narrow', 'normal', 'wide'] as w (w)}
-              <button class:on={settings.editorWidth === w} onclick={() => (settings.editorWidth = w as typeof settings.editorWidth)}>{t(w)}</button>
-            {/each}
-          </div>
-        </div>
         <h4 class="sh4">{t('Word export')}</h4>
         <label class="chk"><input type="checkbox" bind:checked={settings.exportZotero} />{t('Live Zotero citations (refresh in Word)')}</label>
         <label class="chk"><input type="checkbox" bind:checked={settings.exportCover} />{t('Title page')}</label>

@@ -1,5 +1,7 @@
 // German UI strings. Keys are the English originals (see i18n.ts).
 export const de: Record<string, string> = {
+  'Word export…': 'Word-Export…',
+  'Your text from Write, in the Word template': 'Dein Text aus „Schreiben“, in der Word-Vorlage',
   'Five stages': 'Fünf Phasen',
   'Work in stages, like tabs: Outline the structure, Collect quotes, Select what this project needs, Arrange it under headings, then Write. Shortcuts: {a}–{b}.': 'Arbeite in Phasen wie in Tabs: Gliederung bauen, Zitate sammeln, fürs Projekt auswählen, unter Überschriften zuordnen, dann schreiben. Kürzel: {a}–{b}.',
   'Comment resolved': 'Kommentar erledigt',
