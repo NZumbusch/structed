@@ -36,6 +36,18 @@ export async function newProject(page: Page, title = 'Test project', template = 
 export const stage = (page: Page, name: 'Outline' | 'Collect' | 'Select' | 'Arrange' | 'Write') =>
   page.locator('nav.stages button', { hasText: name }).click();
 
+/** The library panel is closed in Write by default: open it. */
+export async function openPanel(page: Page) {
+  if (!(await page.locator('.app .panel').isVisible())) await page.getByRole('button', { name: /^Library panel/ }).click();
+  await expect(page.locator('.app .panel .lib')).toBeVisible();
+}
+/** Filters and grouping of the library panel sit behind one button. */
+export async function openFilters(page: Page) {
+  const pop = page.locator('.lib .fpop');
+  if (!(await pop.isVisible())) await page.locator('.lib').getByRole('button', { name: 'Filter & grouping' }).click();
+  await expect(pop).toBeVisible();
+}
+
 export async function stageByIndex(page: Page, i: number) {
   await page.locator('nav.stages button').nth(i).click();
 }

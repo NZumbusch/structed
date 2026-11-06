@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { center, headingTitles, mouseDrag, open, seedDemo, stage } from './helpers';
+import { center, headingTitles, mouseDrag, open, seedDemo, stage, openFilters } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await open(page);
@@ -62,6 +62,7 @@ test('“Place under heading…” picker places under several headings', async 
 
 test('library groups by author, tag, kind, year; filters unused and kinds', async ({ page }) => {
   await stage(page, 'Arrange');
+  await openFilters(page);
   const sel = page.locator('.lib select');
   await sel.selectOption('tag');
   await expect(page.locator('.lib .gh', { hasText: '#memory' })).toBeVisible();
@@ -75,6 +76,16 @@ test('library groups by author, tag, kind, year; filters unused and kinds', asyn
   await expect(page.locator('.lib .art')).toHaveCount(2);
   await page.locator('.lib .filters').getByTitle('note').click();
   await expect(page.locator('.lib .art')).toHaveCount(1);
+  // the filter button shows how many filters are on; reset clears them
+  await page.locator('.lib .fpop').getByRole('button', { name: 'Done' }).click();
+  await expect(page.locator('.lib .fpop')).toHaveCount(0);
+  await expect(page.locator('.lib .fbtn .badge')).toHaveText('2');
+  await openFilters(page);
+  await page.getByRole('button', { name: 'Reset filters' }).click();
+  await expect(page.locator('.lib .art')).toHaveCount(3);
+  await expect(page.locator('.lib .fbtn .badge')).toHaveCount(0);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.lib .fpop')).toHaveCount(0);
   await page.locator('.lib .search input').fill('nothing-matches-this');
   await expect(page.locator('.lib .empty')).toContainText('Nothing matches');
 });

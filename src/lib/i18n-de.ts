@@ -1,5 +1,8 @@
 // German UI strings. Keys are the English originals (see i18n.ts).
 export const de: Record<string, string> = {
+  'Filter & grouping': 'Filter & Gruppierung',
+  'Filter': 'Filter',
+  'Reset filters': 'Filter zurücksetzen',
   'Word export…': 'Word-Export…',
   'Your text from Write, in the Word template': 'Dein Text aus „Schreiben“, in der Word-Vorlage',
   'Five stages': 'Fünf Phasen',

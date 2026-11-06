@@ -30,7 +30,10 @@ export interface Settings {
   panelScope: 'project' | 'library';
   panelUsage: 'unused' | 'all' | 'used';
   panelWidth: number;
-  panelOpen: boolean;
+  panelOpen: boolean; // (before panels were remembered per stage)
+  /** library panel open per stage; unset = open, except in Write where it starts closed */
+  panelOpenIn: Record<string, boolean>;
+  outlineVisits: number; // the shortcut hints under the outline show for the first few visits
   showAllProjectsInPanel: boolean;
   snapshotOnBigChange: boolean;
   shortcuts: Record<string, string | null>;
@@ -92,6 +95,8 @@ const defaults: Settings = {
   panelUsage: 'all',
   panelWidth: 360,
   panelOpen: true,
+  panelOpenIn: {},
+  outlineVisits: 0,
   showAllProjectsInPanel: true,
   snapshotOnBigChange: true,
   shortcuts: {},
@@ -137,6 +142,12 @@ function load(): Settings {
 }
 
 export const settings: Settings = $state(load());
+
+/** Is the library panel open in this stage? (each stage remembers its own choice) */
+export const panelOpenIn = (stage: string) => settings.panelOpenIn?.[stage] ?? (stage === 'write' ? false : settings.panelOpen);
+export function setPanelOpen(stage: string, open: boolean) {
+  settings.panelOpenIn = { ...settings.panelOpenIn, [stage]: open };
+}
 
 export const BUILD_CLIENT_ID: string = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 export const clientId = () => settings.googleClientId.trim() || BUILD_CLIENT_ID;

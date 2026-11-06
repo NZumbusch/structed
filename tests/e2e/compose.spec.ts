@@ -1,13 +1,14 @@
 import { expect, test } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
-import { open, seedDemo, stage } from './helpers';
+import { open, openPanel, seedDemo, stage } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await open(page, { settings: { language: 'en' } });
   await seedDemo(page);
   await stage(page, 'Write');
   await expect(page.locator('.compose .ProseMirror').first()).toBeVisible();
+  if (page.viewportSize()!.width > 700) await openPanel(page);
 });
 
 test('write text with formatting; sections follow the outline', async ({ page }) => {

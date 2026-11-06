@@ -3,7 +3,7 @@
   import Icon from './Icon.svelte';
   import { db } from '../lib/db.svelte';
   import { ui, type Stage } from '../lib/ui.svelte';
-  import { settings } from '../lib/settings.svelte';
+  import { setPanelOpen, settings } from '../lib/settings.svelte';
   import { t } from '../lib/i18n';
   import { comboFor, displayCombo } from '../lib/shortcuts';
   import { askRemoveDemo, createDemo, hasDemo } from '../lib/demo';
@@ -76,7 +76,7 @@
     s.before?.();
     if (s.panel) {
       if (ui.narrow) ui.panelMobileOpen = true;
-      else settings.panelOpen = true;
+      else setPanelOpen(ui.stage, true);
     } else if (ui.narrow) ui.panelMobileOpen = false;
     await tick();
     document.querySelector(s.target ?? '')?.scrollIntoView({ block: 'nearest' });

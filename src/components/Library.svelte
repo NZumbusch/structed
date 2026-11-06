@@ -18,6 +18,13 @@
   let openGroups = new SvelteSet<string>();
 
   const GROUPS: GroupBy[] = ['source', 'author', 'tag', 'kind', 'publication', 'year', 'none'];
+  /** filters and grouping live behind one button, so the panel shows only search and the list */
+  let filterOpen = $state(false);
+  const activeFilters = $derived(kinds.size + (ui.projectId && settings.panelUsage !== 'all' ? 1 : 0));
+  function resetFilters() {
+    kinds.clear();
+    settings.panelUsage = 'all';
+  }
 
   function pageNum(p?: string) {
     const m = p?.match(/\d+/);
@@ -105,6 +112,8 @@
   ];
 </script>
 
+<svelte:window onpointerdown={() => (filterOpen = false)} onkeydown={(e) => e.key === 'Escape' && filterOpen && ((filterOpen = false), e.stopPropagation())} />
+
 <aside
   class="lib"
   data-tour="library"
@@ -123,39 +132,62 @@
         <input placeholder={t('Search quotes, notes, sources…')} bind:value={ui.panelQuery} />
         {#if ui.panelQuery}<button class="icon-btn sm" onclick={() => (ui.panelQuery = '')}><Icon name="x" size={14} /></button>{/if}
       </div>
+      <button class="icon-btn fbtn" class:active={filterOpen || activeFilters > 0} aria-expanded={filterOpen} title={t('Filter & grouping')} aria-label={t('Filter & grouping')} onclick={(e) => { e.stopPropagation(); filterOpen = !filterOpen; }}>
+        <Icon name="filter" size={16} />{#if activeFilters}<span class="badge">{activeFilters}</span>{/if}
+      </button>
       <Menu items={newMenu} icon="plus" label={t('Add')} />
       {#if ui.narrow}
         <button class="icon-btn" onclick={() => (ui.panelMobileOpen = false)} aria-label={t('Close')}><Icon name="x" /></button>
       {/if}
     </div>
     {#if ui.projectId}
-      <div class="row scopes">
-        <div class="seg" role="group" aria-label={t('Show')}>
-          <button class:on={settings.panelScope === 'project'} onclick={() => (settings.panelScope = 'project')} title={t('Only quotes selected for or placed in this project')}>
-            {t('Project')} <span class="n">{projectCount}</span>
-          </button>
-          <button class:on={settings.panelScope === 'library'} onclick={() => (settings.panelScope = 'library')} title={t('All sources and quotes')}>{t('Library')}</button>
+      <div class="seg scopes" role="group" aria-label={t('Show')}>
+        <button class:on={settings.panelScope === 'project'} onclick={() => (settings.panelScope = 'project')} title={t('Only quotes selected for or placed in this project')}>
+          {t('Project')} <span class="n">{projectCount}</span>
+        </button>
+        <button class:on={settings.panelScope === 'library'} onclick={() => (settings.panelScope = 'library')} title={t('All sources and quotes')}>{t('Library')}</button>
+      </div>
+    {/if}
+    {#if filterOpen}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="fpop" role="dialog" aria-label={t('Filter')} tabindex="-1" onpointerdown={(e) => e.stopPropagation()}>
+        {#if ui.projectId}
+          <div class="fsec">
+            <span class="flabel">{t('Placed under headings')}</span>
+            <div class="seg usage" role="group" aria-label={t('Placed under headings')}>
+              {#each [['unused', 'Unused'], ['all', 'All'], ['used', 'Used']] as [v, l] (v)}
+                <button class:on={settings.panelUsage === v} onclick={() => (settings.panelUsage = v as typeof settings.panelUsage)} title={v === 'unused' ? t('Not yet placed under a heading') : v === 'used' ? t('Already placed under a heading') : ''}>{t(l)}</button>
+              {/each}
+            </div>
+          </div>
+        {/if}
+        <div class="fsec">
+          <span class="flabel">{t('Type')}</span>
+          <div class="row filters">
+            {#each ['quote', 'paraphrase', 'note', 'image'] as k (k)}
+              <button
+                class="btn sm kind"
+                class:active={kinds.has(k as ArtifactKind)}
+                aria-pressed={kinds.has(k as ArtifactKind)}
+                title={t(k)}
+                onclick={() => (kinds.has(k as ArtifactKind) ? kinds.delete(k as ArtifactKind) : kinds.add(k as ArtifactKind))}
+              ><Icon name={k} size={14} />{t(k)}</button>
+            {/each}
+          </div>
         </div>
-        <div class="seg usage" role="group" aria-label={t('Placed under headings')}>
-          {#each [['unused', 'Unused'], ['all', 'All'], ['used', 'Used']] as [v, l] (v)}
-            <button class:on={settings.panelUsage === v} onclick={() => (settings.panelUsage = v as typeof settings.panelUsage)} title={v === 'unused' ? t('Not yet placed under a heading') : v === 'used' ? t('Already placed under a heading') : ''}>{t(l)}</button>
-          {/each}
+        <label class="fsec">
+          <span class="flabel">{t('Group by')}</span>
+          <select class="select gsel" bind:value={settings.panelGroupBy} aria-label={t('Group by')}>
+            {#each GROUPS as g (g)}<option value={g}>{t('By ' + g)}</option>{/each}
+          </select>
+        </label>
+        <div class="row factions">
+          {#if activeFilters}<button class="btn ghost sm" onclick={resetFilters}>{t('Reset filters')}</button>{/if}
+          <span class="grow"></span>
+          <button class="btn sm" onclick={() => (filterOpen = false)}>{t('Done')}</button>
         </div>
       </div>
     {/if}
-    <div class="row filters">
-      <select class="select gsel" bind:value={settings.panelGroupBy} aria-label={t('Group by')}>
-        {#each GROUPS as g (g)}<option value={g}>{t('By ' + g)}</option>{/each}
-      </select>
-      {#each ['quote', 'paraphrase', 'note', 'image'] as k (k)}
-        <button
-          class="icon-btn sm"
-          class:active={kinds.has(k as ArtifactKind)}
-          title={t(k)}
-          onclick={() => (kinds.has(k as ArtifactKind) ? kinds.delete(k as ArtifactKind) : kinds.add(k as ArtifactKind))}
-        ><Icon name={k} size={15} /></button>
-      {/each}
-    </div>
   </div>
 
   <div class="list scroll">
@@ -209,6 +241,7 @@
     background: var(--surface);
   }
   .top {
+    position: relative;
     display: grid;
     gap: 8px;
     padding: 10px 10px 8px;
@@ -233,15 +266,58 @@
     color: var(--text);
     font-size: 0.875rem;
   }
-  .filters {
-    gap: 2px;
+  .fbtn {
+    position: relative;
   }
-  .scopes {
-    justify-content: space-between;
-    flex-wrap: wrap;
+  .badge {
+    position: absolute;
+    top: 1px;
+    right: 1px;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 3px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 0.65rem;
+    line-height: 15px;
+    font-weight: 600;
+  }
+  .fpop {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% - 4px);
+    left: 10px;
+    right: 10px;
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+  .fsec {
+    display: grid;
     gap: 6px;
   }
-  .scopes .seg button {
+  .flabel {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--muted);
+  }
+  .filters {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .kind.active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .scopes {
+    justify-self: start;
+  }
+  .scopes button {
     padding: 0 9px;
   }
   .n {
@@ -250,12 +326,7 @@
     color: var(--muted);
   }
   .gsel {
-    width: auto;
-    min-height: 28px;
-    height: 28px;
-    padding: 0 6px;
-    font-size: 0.8rem;
-    margin-right: 6px;
+    width: 100%;
   }
   .list {
     flex: 1;

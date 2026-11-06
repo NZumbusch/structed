@@ -17,7 +17,7 @@
   import Select from './stages/Select.svelte';
   import { db } from './lib/db.svelte';
   import { ui, type Stage } from './lib/ui.svelte';
-  import { settings } from './lib/settings.svelte';
+  import { panelOpenIn, setPanelOpen, settings } from './lib/settings.svelte';
   import { sync } from './lib/sync.svelte';
   import { t } from './lib/i18n';
   import { matches, comboFor, displayCombo } from './lib/shortcuts';
@@ -38,7 +38,7 @@
   const panelStage = $derived(ui.stage !== 'collect' && ui.stage !== 'select');
   /** distraction-free writing: no header, library panel only on request */
   const focusOn = $derived(ui.focus && ui.stage === 'write' && !!project);
-  const panelVisible = $derived((focusOn ? settings.focusQuotes : settings.panelOpen) && panelStage && !!project);
+  const panelVisible = $derived((focusOn ? settings.focusQuotes : panelOpenIn(ui.stage)) && panelStage && !!project);
   $effect(() => {
     // leaving focus mode (button, Esc or another stage) also leaves full screen
     if (!focusOn && document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
@@ -66,7 +66,7 @@
           ? (ui.panelMobileOpen = !ui.panelMobileOpen)
           : focusOn
             ? (settings.focusQuotes = !settings.focusQuotes)
-            : (settings.panelOpen = !settings.panelOpen),
+            : setPanelOpen(ui.stage, !panelOpenIn(ui.stage)),
       inFields: true
     },
     'write.focus': {
@@ -103,7 +103,7 @@
     toggleContrast: { run: () => (settings.contrast = settings.contrast === 'high' ? 'normal' : 'high'), inFields: true },
     focusLibrary: {
       run: () => {
-        settings.panelOpen = true;
+        setPanelOpen(ui.stage, true);
         if (ui.narrow) ui.panelMobileOpen = true;
         setTimeout(() => document.querySelector<HTMLInputElement>('[data-tour="library"] .search input')?.focus(), 30);
       },
@@ -233,8 +233,8 @@
         {#if project && panelStage}
           <button
             class="icon-btn"
-            class:active={ui.narrow ? ui.panelMobileOpen : settings.panelOpen}
-            onclick={() => (ui.narrow ? (ui.panelMobileOpen = !ui.panelMobileOpen) : (settings.panelOpen = !settings.panelOpen))}
+            class:active={ui.narrow ? ui.panelMobileOpen : panelOpenIn(ui.stage)}
+            onclick={() => (ui.narrow ? (ui.panelMobileOpen = !ui.panelMobileOpen) : setPanelOpen(ui.stage, !panelOpenIn(ui.stage)))}
             title="{t('Library panel')} ({displayCombo(comboFor('togglePanel'))})"
           ><Icon name="panel" /></button>
         {/if}

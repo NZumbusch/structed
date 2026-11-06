@@ -19,6 +19,7 @@ test('notes under the headings can be toggled in the Write stage', async ({ page
 });
 
 test('focus mode hides everything but the text; notes and quotes can be toggled', async ({ page }) => {
+  await page.getByRole('button', { name: /^Library panel/ }).click(); // closed in Write by default
   await expect(page.locator('.app .panel')).toBeVisible();
   await page.locator('.bar').getByRole('button', { name: 'Focus mode' }).click();
 
