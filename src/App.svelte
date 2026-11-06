@@ -60,7 +60,12 @@
   const ACTIONS: Record<string, { run: () => void; inFields?: boolean; needsProject?: boolean }> = {
     search: { run: () => (ui.dialog = ui.dialog === 'search' ? null : 'search'), inFields: true },
     togglePanel: {
-      run: () => (focusOn ? (settings.focusQuotes = !settings.focusQuotes) : (settings.panelOpen = !settings.panelOpen)),
+      run: () =>
+        ui.narrow
+          ? (ui.panelMobileOpen = !ui.panelMobileOpen)
+          : focusOn
+            ? (settings.focusQuotes = !settings.focusQuotes)
+            : (settings.panelOpen = !settings.panelOpen),
       inFields: true
     },
     'write.focus': {

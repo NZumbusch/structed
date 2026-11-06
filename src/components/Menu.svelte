@@ -5,14 +5,16 @@
     items,
     icon = 'more',
     label = 'More',
-    trigger
+    trigger,
+    open = $bindable(false)
   }: {
     items: ({ label: string; icon?: string; run: () => void; danger?: boolean } | null)[];
     icon?: string;
     label?: string;
     trigger?: Snippet;
+    /** bind to open the menu from outside (e.g. a keyboard shortcut) */
+    open?: boolean;
   } = $props();
-  let open = $state(false);
   let btn: HTMLButtonElement;
   let menuEl = $state<HTMLDivElement>();
   let pos = $state<{ x: number; y: number } | null>(null);
@@ -42,6 +44,14 @@
   $effect(() => {
     if (open && menuEl) place();
   });
+  /** arrow keys move between the items, Enter runs one */
+  function nav(e: KeyboardEvent) {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const items = [...(menuEl?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? [])];
+    const i = items.indexOf(document.activeElement as HTMLButtonElement);
+    items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
+  }
 </script>
 
 <svelte:window onpointerdown={() => (open = false)} onkeydown={(e) => e.key === 'Escape' && (open = false)} onresize={() => open && place()} />
@@ -57,6 +67,7 @@
     tabindex="-1"
     style="left:{pos?.x ?? 0}px; top:{pos?.y ?? 0}px; visibility:{pos ? 'visible' : 'hidden'}; max-height:calc(100vh - {2 * M}px)"
     onpointerdown={(e) => e.stopPropagation()}
+    onkeydown={nav}
   >
     {#each items as it, i (i)}
       {#if it}
