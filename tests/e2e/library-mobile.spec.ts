@@ -31,6 +31,7 @@ test('@phone hold a quote to select it, tap more, then act on all of them', asyn
   const cards = page.locator('.items .art');
   await expect(cards).toHaveCount(3);
   await expect(page.locator('.bulk')).toContainText('hold one to select');
+  await expect(page.locator('.inner .ref')).toBeVisible(); // rendered a moment later; would shift the cards
 
   await hold(page, context, cards.nth(0).locator('.toggle'));
   const bar = page.getByRole('toolbar', { name: 'Selected items' });

@@ -80,8 +80,8 @@ test('library is reachable without a project and offers cleanup views', async ({
   await expect(page.locator('.items .art')).toHaveCount(0); // demo paraphrase has a page, own note excluded
   // bulk add to a project from the library
   await page.locator('.src', { hasText: 'In no project' }).click();
-  await page.locator('.bulk input[type=checkbox]').check();
-  await page.locator('.bulk').getByRole('button', { name: 'Bulk actions' }).click();
+  await page.locator('.bulk input[type=checkbox]').click();
+  await page.locator('.selbar').getByRole('button', { name: 'Bulk actions' }).click();
   await page.getByRole('menuitem', { name: /Add to “Demo/ }).click();
   await expect(page.locator('.items .art')).toHaveCount(0);
   // every item shows which projects it belongs to
