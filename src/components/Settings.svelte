@@ -9,6 +9,7 @@
   import { LOCALES, STYLES } from '../lib/cite';
   import { exportBackup, importBackup } from '../lib/backup';
   import ShortcutSettings from './ShortcutSettings.svelte';
+  import ZoteroSyncSettings from './ZoteroSyncSettings.svelte';
 
   const TABS = [
     ['appearance', 'Appearance', 'eye'],
@@ -178,6 +179,7 @@
           {t('Find both at')} <a href="https://www.zotero.org/settings/keys" target="_blank" rel="noopener">zotero.org/settings/keys</a>
           — {t('“Your userID for use in API calls”, then “Create new private key” with read access to the library (and notes).')}
         </p>
+        <ZoteroSyncSettings />
         <button class="btn" onclick={() => (ui.dialog = 'zotero')}><Icon name="download" size={15} />{t('Open Zotero import')}</button>
       {:else if ui.settingsTab === 'sync'}
         <p class="small">{t('Sync all projects, sources and quotes between devices through a hidden app folder in your Google Drive. Works offline; changes merge per item.')}</p>

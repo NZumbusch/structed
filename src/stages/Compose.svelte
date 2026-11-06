@@ -531,7 +531,10 @@
     font-family: var(--font-text);
     line-height: 1.7;
     text-align: justify;
-    hyphens: auto;
+    /* no automatic hyphenation: together with the editor's pre-wrap white space,
+       Chrome then wraps the space between two words to the start of the next line.
+       Soft hyphens (Ctrl+-) still work; Word hyphenates the exported text itself. */
+    hyphens: manual;
     overflow-wrap: break-word;
     min-height: 2em;
   }

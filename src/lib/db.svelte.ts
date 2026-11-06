@@ -303,6 +303,11 @@ class Database {
     this.rev++;
   }
 
+  /** Deleted records of a table (tombstones). */
+  deletedOf<K extends TableName>(table: K): Tables[K][] {
+    return Object.values(this.t[table]).filter((e) => e.deleted);
+  }
+
   /** Physically drop tombstones older than `ms` (keeps sync safe for that window). */
   async compact(ms = 1000 * 60 * 60 * 24 * 60) {
     const cut = Date.now() - ms;
@@ -310,6 +315,8 @@ class Database {
     for (const t of TABLES) {
       const rec = this.t[t] as Record<string, EntityBase>;
       for (const id in rec) {
+        // deleted Zotero sources are kept: they remember not to import that item again
+        if (t === 'sources' && (rec[id] as unknown as { zoteroKey?: string }).zoteroKey) continue;
         if (rec[id].deleted && rec[id].updatedAt < cut) {
           delete rec[id];
           tx.objectStore(t).delete(id);

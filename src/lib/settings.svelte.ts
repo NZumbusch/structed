@@ -17,6 +17,11 @@ export interface Settings {
   zoteroUserId: string;
   zoteroApiKey: string;
   zoteroGroups: string; // comma-separated group ids, optional
+  zoteroAutoSync: boolean; // keep the sources in sync with Zotero automatically
+  zoteroSyncLibrary: string; // "users/123" | "groups/456"
+  zoteroSyncCollection: string; // '' = the whole library
+  zoteroSyncTags: boolean; // also take over Zotero tags
+  zoteroSyncVersions: Record<string, number>; // last library version seen, per scope
   citationStyle: string;
   citationLocale: string;
   panelGroupBy: GroupBy;
@@ -71,6 +76,11 @@ const defaults: Settings = {
   zoteroUserId: '',
   zoteroApiKey: '',
   zoteroGroups: '',
+  zoteroAutoSync: false,
+  zoteroSyncLibrary: '',
+  zoteroSyncCollection: '',
+  zoteroSyncTags: false,
+  zoteroSyncVersions: {},
   citationStyle: 'apa',
   citationLocale: 'en-US',
   panelGroupBy: 'source',

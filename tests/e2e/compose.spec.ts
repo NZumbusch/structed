@@ -157,3 +157,37 @@ test('editable quotes: shorten with […], citation stays linked; convert a link
   await expect(ed.locator('blockquote')).toContainText('The past is not simply');
   await expect(ed.locator('blockquote .qref.cite-only')).toHaveCount(1);
 });
+
+test('@layout no line of the text starts with a space', async ({ page }) => {
+  const ed = page.locator('.compose .ProseMirror').first();
+  await ed.click();
+  const txt = 'Erinnerung ist kein Archiv sondern ein Prozess und wer sich erinnert rekonstruiert die Vergangenheit aus der Gegenwart heraus, immer wieder neu und anders als gedacht. ';
+  await page.keyboard.insertText(txt.repeat(5));
+  const leading = () =>
+    page.evaluate(() => {
+      const root = document.querySelector('.compose .ProseMirror')!;
+      const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      const rng = document.createRange();
+      let n: Node | null;
+      let last: number | null = null;
+      let bad = 0;
+      while ((n = w.nextNode())) {
+        const s = (n as Text).data;
+        for (let i = 0; i < s.length; i++) {
+          rng.setStart(n, i);
+          rng.setEnd(n, i + 1);
+          const r = rng.getClientRects()[0];
+          if (!r) continue;
+          if (last !== null && r.top > last + 5 && s[i] === ' ') bad++;
+          last = r.top;
+        }
+      }
+      return bad;
+    });
+  // several widths, so that lines break at many different places
+  const vp = page.viewportSize()!;
+  for (let d = 0; d < 120; d += 12) {
+    await page.setViewportSize({ width: vp.width - d, height: vp.height });
+    expect(await leading(), `width ${vp.width - d}`).toBe(0);
+  }
+});
