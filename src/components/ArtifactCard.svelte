@@ -5,6 +5,7 @@
   import { ui } from '../lib/ui.svelte';
   import { t } from '../lib/i18n';
   import { draggable } from '../lib/dnd';
+  import { longpress } from '../lib/longpress';
   import { addToProject, artifactLabel, deleteArtifact, membership, projectsOf, removeFromProject, shortCite, sourceLabel, tagColor, usageCount } from '../lib/ops';
   import { copyText } from '../lib/clipboard';
   import { citeArtifact } from '../lib/cite';
@@ -19,6 +20,7 @@
     context = 'panel',
     selectable = false,
     selected = false,
+    selecting = false,
     onselect
   }: {
     a: Artifact;
@@ -27,7 +29,15 @@
     selectable?: boolean;
     selected?: boolean;
     onselect?: (v: boolean) => void;
+    /** a selection is in progress: a tap ticks the card instead of opening it */
+    selecting?: boolean;
   } = $props();
+
+  /** tap: open/close – or, while selecting (or with Ctrl/⌘), tick */
+  function tap(e: MouseEvent) {
+    if (selectable && (selecting || e.ctrlKey || e.metaKey)) onselect?.(!selected);
+    else ui.toggle(ui.expandedArtifacts, key);
+  }
 
   const key = $derived(`${placement?.id ?? context}:${a.id}`);
   const expanded = $derived(ui.expandedArtifacts.has(key));
@@ -117,17 +127,25 @@
   class="card art k-{a.kind}"
   class:expanded
   class:selected
+  class:selecting
   style:--tag={a.color || (a.tags[0] && tagColor(a.tags[0])) || undefined}
   use:draggable={{ payload, disabled: context === 'collect' }}
+  use:longpress={{ run: () => onselect?.(!selected), disabled: !selectable }}
   role="group"
   aria-label={artifactLabel(a, 60)}
   oncontextmenu={(e) => ui.openContext(e, menu, artifactLabel(a, 50))}
 >
   <div class="head">
-    {#if selectable}
-      <input type="checkbox" checked={selected} onchange={(e) => onselect?.(e.currentTarget.checked)} aria-label="select" />
+    {#if selectable && ui.narrow}
+      {#if selecting}
+        <button class="tick" class:on={selected} role="checkbox" aria-checked={selected} aria-label={t('Select')} onclick={() => onselect?.(!selected)}>
+          {#if selected}<Icon name="check" size={14} stroke={2.5} />{/if}
+        </button>
+      {/if}
+    {:else if selectable}
+      <input type="checkbox" checked={selected} onchange={(e) => onselect?.(e.currentTarget.checked)} aria-label={t('Select')} />
     {/if}
-    <button class="toggle" onclick={() => ui.toggle(ui.expandedArtifacts, key)} aria-expanded={expanded}>
+    <button class="toggle" onclick={tap} aria-expanded={selecting ? undefined : expanded} aria-pressed={selecting ? selected : undefined}>
       <span class="kind" title={t(a.kind)}><Icon name={KIND_ICON[a.kind]} size={14} /></span>
       <span class="label" class:clamp={!expanded}>
         {#if a.title}<strong>{a.title}</strong>{#if !expanded && a.text} — <span class="muted">{artifactLabel({ ...a, title: '' }, 120)}</span>{/if}
@@ -190,6 +208,33 @@
 </div>
 
 <style>
+  .tick {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    margin: 2px 2px 0 0;
+    border: 2px solid var(--muted);
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--on-accent);
+    cursor: pointer;
+    animation: pop 140ms var(--ease);
+  }
+  .tick.on {
+    border-color: var(--accent);
+    background: var(--accent);
+  }
+  @keyframes pop {
+    from {
+      transform: scale(0.6);
+    }
+  }
+  .art.selecting {
+    -webkit-user-select: none;
+    user-select: none;
+  }
   .art {
     --k: var(--k-quote);
     position: relative;
@@ -217,6 +262,7 @@
   .art.selected {
     border-color: var(--accent);
     background: var(--accent-soft);
+    box-shadow: 0 0 0 1px var(--accent);
   }
   .k-paraphrase {
     --k: var(--k-paraphrase);
