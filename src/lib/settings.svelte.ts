@@ -38,6 +38,7 @@ export interface Settings {
   insertMode: 'inline' | 'editable' | 'block' | 'footnote' | 'cite';
   autoBlockWords: number; // inline quotes with at least this many words become block quotes (0 = off)
   editorSpellcheck: boolean;
+  editorAutoDash: boolean; // " - " becomes " – " while typing
   editorLang: string;
   editorWidth: 'narrow' | 'normal' | 'wide';
   // Write stage: notes (gist) under the headings, and focus mode
@@ -96,6 +97,7 @@ const defaults: Settings = {
   insertMode: 'inline',
   autoBlockWords: 40,
   editorSpellcheck: true,
+  editorAutoDash: true,
   editorLang: 'de',
   editorWidth: 'normal',
   writeNotes: true,

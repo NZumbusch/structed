@@ -149,6 +149,7 @@
         </label>
         <h4 class="sh4">{t('Writing')}</h4>
         <label class="chk"><input type="checkbox" bind:checked={settings.editorSpellcheck} />{t('Spell check')}</label>
+        <label class="chk"><input type="checkbox" bind:checked={settings.editorAutoDash} />{t('Turn “ - ” into a dash “ – ” while typing')}</label>
         <label class="field"><span>{t('Language of the text (spell check, hyphenation)')}</span>
           <select class="select" bind:value={settings.editorLang}>
             {#each [['de', 'Deutsch'], ['de-CH', 'Deutsch (Schweiz)'], ['en', 'English'], ['fr', 'Français'], ['it', 'Italiano']] as [v, l] (v)}<option value={v}>{l}</option>{/each}

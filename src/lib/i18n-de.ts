@@ -1,5 +1,11 @@
 // German UI strings. Keys are the English originals (see i18n.ts).
 export const de: Record<string, string> = {
+  'Turn “ - ” into a dash “ – ” while typing': '„ - “ beim Tippen in einen Gedankenstrich „ – “ umwandeln',
+  'Wording of the quote (shorten with […], adapt with [ ])': 'Wortlaut des Zitats (kürzen mit […], anpassen mit [ ])',
+  'Replaces the selected passage with […]': 'Ersetzt die markierte Stelle durch […]',
+  'Omission': 'Auslassung',
+  'Edited – the citation stays linked': 'Bearbeitet – der Beleg bleibt verknüpft',
+  'Back to the library text': 'Zurück zum Text aus der Bibliothek',
   'deleted here – tick to import again': 'hier gelöscht – zum erneuten Import ankreuzen',
   'Sync automatically': 'Automatisch abgleichen',
   'new and changed items in Zotero show up as sources without importing again': 'neue und geänderte Einträge aus Zotero erscheinen als Quellen, ohne erneuten Import',

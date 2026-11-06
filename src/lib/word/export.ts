@@ -141,7 +141,7 @@ async function inline(nodes: PMNode[] | undefined, ctx: Ctx, base: string, noteI
         const src = db.get('sources', a.sourceId);
         if (src) ctx.cited.set(src.id, src);
         const [l, r] = marks();
-        inner += run((n.attrs?.before ? ' ' : '') + l, fb) + run(oneLine(a.text), fb, { i: settings.quoteItalic }) + run(r + ' ', fb);
+        inner += run((n.attrs?.before ? ' ' : '') + l, fb) + run(oneLine(n.attrs?.quoteText ? String(n.attrs.quoteText) : a.text), fb, { i: settings.quoteItalic }) + run(r + ' ', fb);
         if (src) inner += citationField(a, await ctx.citeFormat(a), id, fb);
       }
       if (n.attrs?.after) inner += run(' ' + String(n.attrs.after).trim(), fb);
