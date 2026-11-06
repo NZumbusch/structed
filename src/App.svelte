@@ -35,7 +35,13 @@
     { id: 'write', label: 'Write', icon: 'edit', tourKey: 'stageWrite' }
   ];
   const panelStage = $derived(ui.stage !== 'collect' && ui.stage !== 'select');
-  const panelVisible = $derived(settings.panelOpen && panelStage && !!project);
+  /** distraction-free writing: no header, library panel only on request */
+  const focusOn = $derived(ui.focus && ui.stage === 'write' && !!project);
+  const panelVisible = $derived((focusOn ? settings.focusQuotes : settings.panelOpen) && panelStage && !!project);
+  $effect(() => {
+    // leaving focus mode (button, Esc or another stage) also leaves full screen
+    if (!focusOn && document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  });
 
   $effect(() => {
     if (db.ready && !settings.tourDone && !ui.tour) ui.tour = true;
@@ -53,7 +59,20 @@
 
   const ACTIONS: Record<string, { run: () => void; inFields?: boolean; needsProject?: boolean }> = {
     search: { run: () => (ui.dialog = ui.dialog === 'search' ? null : 'search'), inFields: true },
-    togglePanel: { run: () => (settings.panelOpen = !settings.panelOpen), inFields: true },
+    togglePanel: {
+      run: () => (focusOn ? (settings.focusQuotes = !settings.focusQuotes) : (settings.panelOpen = !settings.panelOpen)),
+      inFields: true
+    },
+    'write.focus': {
+      run: () => {
+        if (ui.stage !== 'write') {
+          ui.stage = 'write';
+          ui.focus = true;
+        } else ui.focus = !ui.focus;
+      },
+      inFields: true,
+      needsProject: true
+    },
     settings: { run: () => (ui.dialog = 'settings'), inFields: true },
     undo: { run: () => db.undo() && ui.toast(t('Undone'), {}, 1200) },
     redo: { run: () => db.redo() && ui.toast(t('Redone'), {}, 1200) },
@@ -88,6 +107,17 @@
     newSource: { run: () => (ui.editSource = {}), inFields: true },
     importZotero: { run: () => (ui.dialog = 'zotero'), inFields: true }
   };
+
+  /** Esc leaves focus mode – unless it closes something else first (menu, dialog, library search).
+   *  Runs in the capture phase: the text editor would otherwise use Esc itself. */
+  function escFocus(e: KeyboardEvent) {
+    if (e.key !== 'Escape' || !focusOn || ui.recordingShortcut || ui.dialog || ui.editArtifact || ui.editSource || ui.placeTarget || ui.contextMenu || ui.tour) return;
+    const el = e.target as HTMLElement | null;
+    if (document.querySelector('[role="menu"], .modal') || el?.closest?.('.panel, .drawer')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    ui.focus = false;
+  }
 
   function keys(e: KeyboardEvent) {
     if (e.defaultPrevented || ui.recordingShortcut) return;
@@ -146,12 +176,13 @@
   ]);
 </script>
 
-<svelte:window onkeydown={keys} onpointermove={doResize} onpointerup={() => (resizing = false)} />
+<svelte:window onkeydown={keys} onkeydowncapture={escFocus} onpointermove={doResize} onpointerup={() => (resizing = false)} />
 
 {#if !db.ready}
   <div class="loading"></div>
 {:else}
-  <div class="app" class:has-panel={panelVisible && !ui.narrow} style="--panel:{settings.panelWidth}px">
+  <div class="app" class:has-panel={panelVisible && !ui.narrow} class:focus={focusOn} style="--panel:{settings.panelWidth}px">
+    {#if !focusOn}
     <header class="top">
       <div class="left" data-tour="project">
         <img src="{import.meta.env.BASE_URL}icon.svg" alt="" class="logo" />
@@ -194,6 +225,7 @@
         <button data-tour="settings" class="icon-btn" onclick={() => (ui.dialog = 'settings')} title={t('Settings')}><Icon name="settings" /></button>
       </div>
     </header>
+    {/if}
 
     <main class="main">
       {#if !project && ui.libraryMode}
@@ -277,6 +309,9 @@
   }
   .app.has-panel {
     grid-template-columns: minmax(0, 1fr) 5px min(var(--panel), 45vw);
+  }
+  .app.focus {
+    grid-template-rows: 1fr;
   }
   .top {
     grid-column: 1 / -1;

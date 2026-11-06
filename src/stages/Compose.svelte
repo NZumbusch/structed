@@ -1,6 +1,7 @@
 <script lang="ts">
   // "Schreiben": the final text, one editor per heading of the outline.
   import type { Editor } from '@tiptap/core';
+  import { untrack } from 'svelte';
   import Icon from '../components/Icon.svelte';
   import Menu from '../components/Menu.svelte';
   import SectionEditor from '../components/SectionEditor.svelte';
@@ -13,7 +14,8 @@
   import { flatten, wordCount, placementsOf, artifactLabel } from '../lib/ops';
   import { draftText, makeEditable, selectedQuotePos } from '../lib/editor.svelte';
   import { editorState, type InsertMode } from '../lib/editorState.svelte';
-  import { matches } from '../lib/shortcuts';
+  import { matches, comboFor, displayCombo } from '../lib/shortcuts';
+  import { renderMd } from '../lib/markdown';
   import type { Project } from '../lib/types';
 
   let { project }: { project: Project } = $props();
@@ -27,9 +29,101 @@
 
   function reg(id: string, e: Editor) {
     editors.set(id, e);
-    e.on('selectionUpdate', () => tick++);
+    e.on('selectionUpdate', () => {
+      tick++;
+      typewriter(e);
+    });
     e.on('transaction', () => tick++);
+    e.on('update', () => typewriter(e));
   }
+
+  // ---- focus mode ----
+  let scroller: HTMLDivElement;
+  const focus = $derived(ui.focus);
+  const showNotes = $derived(focus ? settings.focusNotes : settings.writeNotes);
+  const quotesOpen = $derived(ui.narrow ? ui.panelMobileOpen : settings.focusQuotes);
+  /** words when focus mode was entered: the session count starts there */
+  let startWords = $state<number | null>(null);
+  $effect(() => {
+    if (focus && startWords == null) startWords = untrack(() => total);
+    else if (!focus) startWords = null;
+  });
+  const sessionWords = $derived(startWords == null ? 0 : Math.max(0, total - startWords));
+  /** hide the controls while typing, show them again on mouse movement */
+  let typing = $state(false);
+  let pointerDown = false;
+
+  /** Typewriter scrolling: keep the line being written at the same height. */
+  function typewriter(e: Editor) {
+    if (!ui.focus || !settings.focusTypewriter || pointerDown || !e.isFocused || !scroller) return;
+    requestAnimationFrame(() => {
+      try {
+        const c = e.view.coordsAtPos(e.state.selection.head);
+        const r = scroller.getBoundingClientRect();
+        const d = c.top - (r.top + r.height * 0.42);
+        if (Math.abs(d) > 2) scroller.scrollTop += d;
+      } catch {
+        /* position not rendered */
+      }
+    });
+  }
+  $effect(() => {
+    // re-center when typewriter mode is switched on
+    if (focus && settings.focusTypewriter) untrack(() => { const e = activeEditor(); if (e) typewriter(e); });
+  });
+
+  let fullscreen = $state(!!document.fullscreenElement);
+  const canFullscreen = typeof document !== 'undefined' && !!document.fullscreenEnabled;
+  function toggleFullscreen() {
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    else document.documentElement.requestFullscreen().catch(() => {});
+  }
+
+  function toggleQuotes() {
+    if (ui.narrow) ui.panelMobileOpen = !ui.panelMobileOpen;
+    else settings.focusQuotes = !settings.focusQuotes;
+  }
+  function enterFocus() {
+    ui.focus = true;
+    // keep writing where the caret was
+    setTimeout(() => activeEditor()?.commands.focus(), 0);
+  }
+
+  // writing sprint
+  let now = $state(Date.now());
+  $effect(() => {
+    if (!ui.sprint) return;
+    const iv = setInterval(() => {
+      now = Date.now();
+      if (ui.sprint && now >= ui.sprint.end) {
+        const n = Math.max(0, untrack(() => total) - ui.sprint.words);
+        ui.toast(t('Sprint finished: {n} words in {m} minutes', { n, m: ui.sprint.minutes }), { kind: 'ok' }, 8000);
+        ui.sprint = null;
+      }
+    }, 1000);
+    return () => clearInterval(iv);
+  });
+  function startSprint(minutes: number) {
+    settings.focusSprint = minutes;
+    now = Date.now();
+    ui.sprint = { end: now + minutes * 60_000, words: total, minutes };
+  }
+  const left = $derived(ui.sprint ? Math.max(0, Math.ceil((ui.sprint.end - now) / 1000)) : 0);
+  const clock = (sec: number) => `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`;
+  const sprintMenu = $derived([
+    ...(ui.sprint
+      ? [{ label: t('Stop sprint'), icon: 'x', run: () => (ui.sprint = null) }, null]
+      : []),
+    ...[10, 15, 25, 45, 60].map((m) => ({ label: t('{m} minute sprint', { m }), icon: m === settings.focusSprint ? 'check' : 'timer', run: () => startSprint(m) }))
+  ]);
+  const GOALS = [0, 250, 500, 750, 1000, 1500, 2000];
+  const goalMenu = $derived(
+    GOALS.map((g) => ({
+      label: g ? t('{n} words this session', { n: g.toLocaleString() }) : t('No goal'),
+      icon: g === settings.focusGoal ? 'check' : 'target',
+      run: () => (settings.focusGoal = g)
+    }))
+  );
   const quoteSelected = () => {
     void tick;
     const e = activeEditor();
@@ -66,6 +160,7 @@
   }
 
   function keys(e: KeyboardEvent) {
+    if (focus && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace')) typing = true;
     if (matches(e, 'write.footnote')) {
       e.preventDefault();
       footnote();
@@ -89,9 +184,43 @@
   );
 </script>
 
-<svelte:window onkeydown={keys} />
+<svelte:window
+  onkeydown={keys}
+  onpointermove={(e) => e.pointerType === 'mouse' && (Math.abs(e.movementX) + Math.abs(e.movementY) > 2) && (typing = false)}
+  onpointerdown={() => ((pointerDown = true), (typing = false))}
+  onpointerup={() => (pointerDown = false)}
+/>
+<svelte:document onfullscreenchange={() => (fullscreen = !!document.fullscreenElement)} />
 
-<div class="compose scroll" data-tour="compose">
+<div
+  class="compose scroll"
+  class:focus
+  class:dim={focus && settings.focusDim}
+  class:tw={focus && settings.focusTypewriter}
+  data-tour="compose"
+  bind:this={scroller}
+>
+  {#if focus}
+    <div class="fbar" class:idle={typing} role="toolbar" aria-label={t('Focus mode')}>
+      <button class="icon-btn" title="{t('Exit focus mode')} (Esc)" aria-label={t('Exit focus mode')} onclick={() => (ui.focus = false)}><Icon name="x" size={16} /></button>
+      <span class="sep"></span>
+      <button class="icon-btn" class:active={settings.focusNotes} aria-pressed={settings.focusNotes} title={settings.focusNotes ? t('Hide notes') : t('Show notes')} aria-label={t('Notes')} onclick={() => (settings.focusNotes = !settings.focusNotes)}><Icon name="note" size={16} /></button>
+      <button class="icon-btn" class:active={quotesOpen} aria-pressed={quotesOpen} title="{quotesOpen ? t('Hide quotes') : t('Show quotes')} ({displayCombo(comboFor('togglePanel'))})" aria-label={t('Quotes')} onclick={toggleQuotes}><Icon name="quote" size={16} /></button>
+      <span class="sep"></span>
+      <button class="icon-btn" class:active={settings.focusDim} aria-pressed={settings.focusDim} title={t('Dim all but the current paragraph')} aria-label={t('Highlight current paragraph')} onclick={() => (settings.focusDim = !settings.focusDim)}><Icon name="eye" size={16} /></button>
+      <button class="icon-btn" class:active={settings.focusTypewriter} aria-pressed={settings.focusTypewriter} title={t('Typewriter scrolling: the current line stays in the middle')} aria-label={t('Typewriter scrolling')} onclick={() => (settings.focusTypewriter = !settings.focusTypewriter)}><Icon name="typewriter" size={16} /></button>
+      {#if canFullscreen}
+        <button class="icon-btn" class:active={fullscreen} aria-pressed={fullscreen} title={t('Full screen')} aria-label={t('Full screen')} onclick={toggleFullscreen}><Icon name="expand" size={16} /></button>
+      {/if}
+      <span class="sep"></span>
+      <Menu items={goalMenu} label={t('Session goal')}>
+        {#snippet trigger()}<Icon name="target" size={14} /><span class="hide-xs">{settings.focusGoal ? settings.focusGoal.toLocaleString() : t('Goal')}</span>{/snippet}
+      </Menu>
+      <Menu items={sprintMenu} label={t('Writing sprint')}>
+        {#snippet trigger()}<Icon name="timer" size={14} /><span class:run={ui.sprint}>{ui.sprint ? clock(left) : t('Sprint')}</span>{/snippet}
+      </Menu>
+    </div>
+  {:else}
   <div class="bar" role="toolbar" aria-label={t('Formatting')}>
     <button class="icon-btn fmt" class:active={is('bold')} title="{t('Bold')} (Ctrl+B)" aria-label={t('Bold')} onclick={() => cmd((e) => e.chain().focus().toggleBold().run())}><b>B</b></button>
     <button class="icon-btn fmt" class:active={is('italic')} title="{t('Italic')} (Ctrl+I)" aria-label={t('Italic')} onclick={() => cmd((e) => e.chain().focus().toggleItalic().run())}><i>I</i></button>
@@ -114,9 +243,12 @@
     </select>
     <span class="grow"></span>
     <span class="tiny muted wc">{total.toLocaleString()} {t('words')}</span>
-    <button class="icon-btn" title={t('Undo')} aria-label={t('Undo')} onclick={() => cmd((e) => e.chain().focus().undo().run())}><Icon name="undo" size={16} /></button>
+    <button class="icon-btn" class:active={settings.writeNotes} aria-pressed={settings.writeNotes} title={settings.writeNotes ? t('Hide notes') : t('Show notes')} aria-label={t('Notes')} onclick={() => (settings.writeNotes = !settings.writeNotes)}><Icon name="note" size={16} /></button>
+    <button class="icon-btn" title="{t('Undo')}" aria-label={t('Undo')} onclick={() => cmd((e) => e.chain().focus().undo().run())}><Icon name="undo" size={16} /></button>
+    <button class="icon-btn" title="{t('Focus mode')} ({displayCombo(comboFor('write.focus'))})" aria-label={t('Focus mode')} onclick={enterFocus}><Icon name="focus" size={16} /></button>
     <button class="btn sm primary" onclick={() => (exportOpen = true)}><Icon name="file" size={14} />{t('Word export')}</button>
   </div>
+  {/if}
 
   <article class="paper w-{settings.editorWidth}">
     <h1 class="dtitle">{project.title || t('Untitled project')}</h1>
@@ -126,8 +258,9 @@
         <svelte:element this={`h${Math.min(f.depth + 2, 4)}`} class="ht">
           <span class="hn">{f.num}</span>{f.h.title || t('Untitled')}
         </svelte:element>
-        {#if f.h.body.trim() && !f.h.draft}
-          <p class="gist small muted"><Icon name="note" size={12} /> {f.h.body.replace(/\s+/g, ' ').slice(0, 200)}</p>
+        {#if showNotes && f.h.body.trim()}
+          <!-- the gist from the outline, as a reminder of what this section should say -->
+          <div class="gist md small muted">{@html renderMd(f.h.body)}</div>
         {/if}
         <SectionEditor h={f.h} onEditor={reg} />
       </section>
@@ -136,6 +269,18 @@
     {/each}
   </article>
 </div>
+
+{#if focus}
+  <div class="fstat tiny" class:idle={typing} aria-live="off">
+    {#if settings.focusGoal}
+      <span class="goal" title={t('Session goal')}><span style="width:{Math.min(100, (sessionWords / settings.focusGoal) * 100)}%"></span></span>
+      <span class:done={sessionWords >= settings.focusGoal}>{sessionWords.toLocaleString()} / {settings.focusGoal.toLocaleString()}</span>
+    {:else}
+      <span>+{sessionWords.toLocaleString()}</span>
+    {/if}
+    <span class="muted">· {total.toLocaleString()} {t('words')}</span>
+  </div>
+{/if}
 
 {#if editorState.footnote}<FootnoteDialog />{/if}
 {#if exportOpen}<WordExport {project} onclose={() => (exportOpen = false)} />{/if}
@@ -218,8 +363,97 @@
     font-weight: 500;
   }
   .gist {
-    margin: 0 0 6px;
+    margin: 0 0 8px;
+    padding: 2px 0 2px 10px;
+    border-left: 2px solid var(--deco);
     font-style: italic;
+  }
+  .gist :global(p) {
+    margin: 0 0 0.3em;
+  }
+  .gist :global(:last-child) {
+    margin-bottom: 0;
+  }
+
+  /* ---- focus mode ---- */
+  .compose.focus .paper {
+    padding-top: 64px;
+  }
+  .compose.tw .paper {
+    padding-top: 40vh;
+    padding-bottom: 60vh;
+  }
+  .fbar {
+    position: sticky;
+    top: 10px;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    width: max-content;
+    max-width: calc(100% - 20px);
+    margin: 10px auto -46px;
+    padding: 3px 6px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--surface) 92%, transparent);
+    backdrop-filter: blur(6px);
+    box-shadow: var(--shadow);
+    transition: opacity 0.4s var(--ease);
+  }
+  .fbar.idle,
+  .fstat.idle {
+    opacity: 0;
+    pointer-events: none;
+  }
+  .fbar:focus-within {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .run {
+    font-variant-numeric: tabular-nums;
+    color: var(--accent-text);
+    font-weight: 600;
+  }
+  .fstat {
+    position: fixed;
+    right: 16px;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--surface) 90%, transparent);
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+    transition: opacity 0.4s var(--ease);
+  }
+  .fstat .done {
+    color: var(--ok);
+    font-weight: 600;
+  }
+  .goal {
+    width: 60px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--surface-3);
+    overflow: hidden;
+  }
+  .goal span {
+    display: block;
+    height: 100%;
+    background: var(--accent);
+  }
+  /* dim everything but the paragraph being written */
+  .compose.dim:has(:global(.ProseMirror-focused)) :is(.dtitle, .dsub, .ht, .gist, .empty),
+  .compose.dim:has(:global(.ProseMirror-focused)) :global(.prose > *) {
+    opacity: 0.3;
+    transition: opacity 0.25s var(--ease);
+  }
+  .compose.dim :global(.prose.ProseMirror-focused > .focus-cur) {
+    opacity: 1;
   }
   .empty {
     padding: 40px 0;
@@ -306,8 +540,12 @@
     .bar {
       padding: 6px 8px;
     }
-    .wc {
+    .wc,
+    .hide-xs {
       display: none;
+    }
+    .fstat {
+      right: 8px;
     }
   }
 </style>

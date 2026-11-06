@@ -24,6 +24,7 @@ The **library panel** is available in every stage. It groups items by source, au
   - BibTeX and CSL-JSON, either for the sources used in a project or for all of them
 - **Backup and restore**: a full JSON file that includes images, imported by merging or by replacing.
 - **Snapshots** save named versions of a project's structure, which you can restore later.
+- **Focus mode** in the Write stage (Ctrl+Shift+F, Esc to leave): only your text, with no header, panel or toolbar. The section notes and the library panel (quotes) can each be toggled back in. Extras: dimming everything except the current paragraph, typewriter scrolling, full screen, a word goal per session, and writing sprints (10–60 min). The controls fade out while you type and come back when you move the mouse. Outside focus mode, the notes under each heading can be toggled too.
 - **Search and command palette**: Ctrl+K.
 - **Undo** with Ctrl+Z (when no text field has focus), plus undo toasts for destructive actions.
 - **Settings**: light, dark, sepia or system theme, high contrast, accent color, text size, writing font, line width, reduced motion, and English or German.

@@ -41,6 +41,10 @@ class UI {
   focusHeading: string | null = $state(null);
   focusBody: string | null = $state(null);
   tour = $state(false);
+  /** distraction-free writing in the Write stage */
+  focus = $state(ls('focus', false));
+  /** a running writing sprint: ends at `end`, started with `words` words */
+  sprint: { end: number; words: number; minutes: number } | null = $state(null);
   /** library opened without a project (from the start screen) */
   libraryMode = $state(false);
   contextMenu: { x: number; y: number; title?: string; items: MenuItem[] } | null = $state(null);
@@ -64,6 +68,7 @@ class UI {
     $effect.root(() => {
       $effect(() => save('projectId', this.projectId));
       $effect(() => save('stage', this.stage));
+      $effect(() => save('focus', this.focus));
       $effect(() => save('collapsed', [...this.collapsed]));
       $effect(() => save('openBodies', [...this.openBodies]));
     });

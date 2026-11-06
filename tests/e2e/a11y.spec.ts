@@ -45,6 +45,16 @@ for (const th of THEMES) {
       await audit(page, 'arrange');
       await stage(page, 'Draft');
       await audit(page, 'write');
+      await stage(page, 'Write');
+      await expect(page.locator('.compose .ProseMirror').first()).toBeVisible();
+      await audit(page, 'compose');
+      await page.evaluate(() => {
+        const s = (window as any).__structed;
+        s.settings.focusNotes = true;
+        s.settings.focusGoal = 500;
+        s.ui.focus = true;
+      });
+      await audit(page, 'focus mode');
     });
 
     test('dialogs', async ({ page }) => {

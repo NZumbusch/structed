@@ -44,7 +44,10 @@
     file: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6',
     eye: 'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
     tag: 'M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L2 12V2h10l8.6 8.6a2 2 0 0 1 0 2.8zM7 7h.01',
-    filter: 'M22 3H2l8 9.5V19l4 2v-8.5z'
+    filter: 'M22 3H2l8 9.5V19l4 2v-8.5z',
+    timer: 'M12 22a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 9v4l2.5 2.5M10 2h4',
+    focus: 'M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2z',
+    typewriter: 'M3 6h18M6 12h12M3 18h18'
   };
   let { name, size = 18, stroke = 1.75 }: { name: string; size?: number; stroke?: number } = $props();
 </script>
