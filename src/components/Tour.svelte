@@ -22,7 +22,7 @@
   const steps: Step[] = [
     { title: 'Welcome to Structed', text: 'This short tour shows every part of the app. You can leave it any time and restart it in Settings → About & help.' },
     { target: '[data-tour="project"]', title: 'Projects', text: 'Each essay, paper or thesis is a project. Open the menu to switch projects, export, take snapshots or import from Zotero.' },
-    { target: '[data-tour="stages"]', title: 'Four stages', text: 'Work in stages, like tabs: Outline the structure, Collect quotes, Arrange them under headings, then Write. Shortcuts: {a}–{b}.' },
+    { target: '[data-tour="stages"]', title: 'Six stages', text: 'Work in stages, like tabs: Outline the structure, Collect quotes, Select what this project needs, Arrange it under headings, review the Draft, then Write. Shortcuts: {a}–{b}.' },
     { target: '[data-tour="tree"]', stage: 'outline', title: 'Outline', text: 'Type headings like in an outliner: {enter} for a new heading, {tab} / {stab} to indent or outdent, {notes} to write the gist of a section. The dot sets the status, the note icon opens notes.' },
     { target: '[data-tour="sources"]', stage: 'collect', title: 'Sources', text: 'All your sources live in one library shared by all projects – add them by hand or import from Zotero.' },
     { target: '[data-tour="zotero"]', stage: 'collect', title: 'Zotero import', text: 'Connect the Zotero Web API (or drop a BibTeX/CSL-JSON file). You can review PDF highlights before importing and clean up OCR artifacts.' },

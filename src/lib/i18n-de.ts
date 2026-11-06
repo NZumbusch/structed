@@ -1,5 +1,9 @@
 // German UI strings. Keys are the English originals (see i18n.ts).
 export const de: Record<string, string> = {
+  'choose the sources and quotes this project needs.': 'Quellen und Zitate wählen, die dieses Projekt braucht.',
+  'the final text with linked quotes and footnotes; Word export.': 'der fertige Text mit verknüpften Zitaten und Fußnoten; Word-Export.',
+  'Six stages': 'Sechs Phasen',
+  'Work in stages, like tabs: Outline the structure, Collect quotes, Select what this project needs, Arrange it under headings, review the Draft, then Write. Shortcuts: {a}–{b}.': 'Arbeite in Phasen wie in Tabs: Gliederung bauen, Zitate sammeln, fürs Projekt auswählen, unter Überschriften zuordnen, den Entwurf durchsehen, dann schreiben. Kürzel: {a}–{b}.',
   'Selected items': 'Ausgewählte Einträge',
   'hold one to select': 'zum Auswählen gedrückt halten',
   'Remove the demo project?': 'Demo-Projekt entfernen?',
@@ -294,8 +298,6 @@ export const de: Record<string, string> = {
   "This short tour shows every part of the app. You can leave it any time and restart it in Settings → About & help.": "Dieser kurze Rundgang zeigt alle Bereiche der App. Du kannst ihn jederzeit beenden und unter Einstellungen → Info & Hilfe neu starten.",
   "Projects": "Projekte",
   "Each essay, paper or thesis is a project. Open the menu to switch projects, export, take snapshots or import from Zotero.": "Jeder Essay, jede Arbeit ist ein Projekt. Über das Menü wechselst du Projekte, exportierst, legst Snapshots an oder importierst aus Zotero.",
-  "Four stages": "Vier Phasen",
-  "Work in stages, like tabs: Outline the structure, Collect quotes, Arrange them under headings, then Write. Shortcuts: {a}–{b}.": "Arbeite in Phasen wie in Tabs: Gliederung bauen, Zitate sammeln, fürs Projekt auswählen, unter Überschriften zuordnen, dann schreiben. Kürzel: {a}–{b}.",
   "Type headings like in an outliner: {enter} for a new heading, {tab} / {stab} to indent or outdent, {notes} to write the gist of a section. The dot sets the status, the note icon opens notes.": "Tippe Überschriften wie in einem Outliner: {enter} für eine neue Überschrift, {tab} / {stab} zum Ein- und Ausrücken, {notes} für den Kerngedanken eines Abschnitts. Der Punkt setzt den Status, das Notiz-Symbol öffnet Notizen.",
   "All your sources live in one library shared by all projects – add them by hand or import from Zotero.": "Alle Quellen liegen in einer gemeinsamen Bibliothek für alle Projekte – manuell anlegen oder aus Zotero importieren.",
   "Zotero import": "Zotero-Import",
