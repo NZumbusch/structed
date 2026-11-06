@@ -1,5 +1,7 @@
 // German UI strings. Keys are the English originals (see i18n.ts).
 export const de: Record<string, string> = {
+  'Save (everything is saved automatically anyway)': 'Speichern (alles wird ohnehin automatisch gespeichert)',
+  'Saved – Structed saves automatically': 'Gespeichert – Structed speichert automatisch',
   'Turn “ - ” into a dash “ – ” while typing': '„ - “ beim Tippen in einen Gedankenstrich „ – “ umwandeln',
   'Wording of the quote (shorten with […], adapt with [ ])': 'Wortlaut des Zitats (kürzen mit […], anpassen mit [ ])',
   'Replaces the selected passage with […]': 'Ersetzt die markierte Stelle durch […]',

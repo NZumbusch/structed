@@ -79,6 +79,16 @@
       needsProject: true
     },
     settings: { run: () => (ui.dialog = 'settings'), inFields: true },
+    // Ctrl+S out of habit: never the browser's "save page" dialog. Everything is stored
+    // on the fly; with Drive sync on, it also uploads soon.
+    save: {
+      run: () => {
+        if (sync.status !== 'off') sync.schedule(2000);
+        const text = t('Saved – Structed saves automatically');
+        if (!ui.toasts.some((x) => x.text === text)) ui.toast(text, { kind: 'ok' }, 1400);
+      },
+      inFields: true
+    },
     undo: { run: () => db.undo() && ui.toast(t('Undone'), {}, 1200) },
     redo: { run: () => db.redo() && ui.toast(t('Redone'), {}, 1200) },
     projects: { run: () => (ui.dialog = 'projects'), inFields: true },

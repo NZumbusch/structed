@@ -101,3 +101,23 @@ test('conflict warning appears next to the edited row; hint bar follows custom k
   await expect(page.locator('.keys')).not.toContainText('indent');
   await expect(page.locator('.keys')).toContainText('outdent');
 });
+
+test('Ctrl+S never opens the browser\'s save dialog; it confirms the automatic saving', async ({ page }) => {
+  await page.locator('nav.stages button', { hasText: 'Write' }).click();
+  const ed = page.locator('.compose .ProseMirror').first();
+  await ed.click();
+  await page.keyboard.type('Ein Satz.');
+  const prevented = await page.evaluate(() => {
+    const e = new KeyboardEvent('keydown', { key: 's', code: 'KeyS', ctrlKey: true, bubbles: true, cancelable: true });
+    document.querySelector('.compose .ProseMirror')!.dispatchEvent(e);
+    return e.defaultPrevented;
+  });
+  expect(prevented).toBe(true);
+  await expect(page.locator('.toast', { hasText: 'Saved – Structed saves automatically' })).toHaveCount(1);
+  // pressed again and again: still one toast, and typing goes on
+  await page.keyboard.press('Control+s');
+  await page.keyboard.press('Control+s');
+  await expect(page.locator('.toast', { hasText: 'Saved' })).toHaveCount(1);
+  await page.keyboard.type(' Noch einer.');
+  await expect(ed).toContainText('Ein Satz. Noch einer.');
+});
