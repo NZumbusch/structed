@@ -150,7 +150,7 @@
         <h4 class="sh4">{t('Writing')}</h4>
         <label class="chk"><input type="checkbox" bind:checked={settings.editorSpellcheck} />{t('Spell check')}</label>
         <label class="chk"><input type="checkbox" bind:checked={settings.editorAutoDash} />{t('Turn “ - ” into a dash “ – ” while typing')}</label>
-        <label class="field"><span>{t('Language of the text (spell check, hyphenation)')}</span>
+        <label class="field"><span>{t('Language of the text (spell check)')}</span>
           <select class="select" bind:value={settings.editorLang}>
             {#each [['de', 'Deutsch'], ['de-CH', 'Deutsch (Schweiz)'], ['en', 'English'], ['fr', 'Français'], ['it', 'Italiano']] as [v, l] (v)}<option value={v}>{l}</option>{/each}
           </select>
@@ -254,6 +254,7 @@
         <h3>Structed</h3>
         <button class="btn primary tourbtn" onclick={() => { ui.dialog = null; ui.tour = true; }}><Icon name="sparkle" size={15} />{t('Start guided tour')}</button>
         <p class="small">{t('A minimalist tool to structure academic writing: build an outline, collect quotes from your sources, arrange them under headings, and write with everything at hand.')}</p>
+        {#if ui.offlineReady || navigator.serviceWorker?.controller}<p class="small muted">{t('Works offline: the app is stored on this device.')}</p>{/if}
         <ul class="small">
           <li><b>{t('Outline')}</b> – {t('headings, subheadings and the gist of each section.')}</li>
           <li><b>{t('Collect')}</b> – {t('sources (Zotero) and quotes, paraphrases, notes, images.')}</li>

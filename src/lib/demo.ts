@@ -19,24 +19,36 @@ export function createDemo(lang: 'en' | 'de'): string {
       status: 'draft'
     });
     const sub = addChildHeading(main, lang === 'de' ? 'Kulturelles Gedächtnis' : 'Cultural memory');
+    const de = lang === 'de';
+    // the German demo uses the German original, so its sample quote is German too
     const s = db.create('sources', {
-      csl: {
-        id: 'assmann2011',
-        type: 'book',
-        title: 'Cultural Memory and Early Civilization',
-        author: [{ family: 'Assmann', given: 'Jan' }],
-        issued: { 'date-parts': [[2011]] },
-        publisher: 'Cambridge University Press',
-        'publisher-place': 'Cambridge'
-      },
+      csl: de
+        ? {
+            id: 'assmann1992',
+            type: 'book',
+            title: 'Das kulturelle Gedächtnis: Schrift, Erinnerung und politische Identität in frühen Hochkulturen',
+            author: [{ family: 'Assmann', given: 'Jan' }],
+            issued: { 'date-parts': [[1992]] },
+            publisher: 'C.H. Beck',
+            'publisher-place': 'München'
+          }
+        : {
+            id: 'assmann2011',
+            type: 'book',
+            title: 'Cultural Memory and Early Civilization',
+            author: [{ family: 'Assmann', given: 'Jan' }],
+            issued: { 'date-parts': [[2011]] },
+            publisher: 'Cambridge University Press',
+            'publisher-place': 'Cambridge'
+          },
       tags: [DEMO_TAG]
     });
     const q1 = db.create('artifacts', {
       kind: 'quote',
       sourceId: s.id,
-      text: 'The past is not simply preserved but reconstructed.',
-      page: '18',
-      tags: ['memory', DEMO_TAG],
+      text: de ? 'Vergangenheit entsteht überhaupt erst dadurch, daß man sich auf sie bezieht.' : 'The past is not simply preserved but reconstructed.',
+      page: de ? '31' : '18',
+      tags: [de ? 'gedächtnis' : 'memory', DEMO_TAG],
       comment: lang === 'de' ? 'Gut für die Einleitung.' : 'Good opener.'
     });
     db.create('artifacts', {
@@ -44,7 +56,7 @@ export function createDemo(lang: 'en' | 'de'): string {
       sourceId: s.id,
       text: lang === 'de' ? 'Erinnerung ist sozial gerahmt und medial vermittelt.' : 'Memory is socially framed and mediated.',
       page: '22–23',
-      tags: ['media', DEMO_TAG]
+      tags: [de ? 'medien' : 'media', DEMO_TAG]
     });
     const note = db.create('artifacts', {
       kind: 'note',

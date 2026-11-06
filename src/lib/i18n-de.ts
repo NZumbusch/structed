@@ -1,5 +1,8 @@
 // German UI strings. Keys are the English originals (see i18n.ts).
 export const de: Record<string, string> = {
+  'item placed': 'Eintrag zugeordnet',
+  'Language of the text (spell check)': 'Sprache des Textes (Rechtschreibung)',
+  'Works offline: the app is stored on this device.': 'Funktioniert offline: die App ist auf diesem Gerät gespeichert.',
   'choose the sources and quotes this project needs.': 'Quellen und Zitate wählen, die dieses Projekt braucht.',
   'the final text with linked quotes and footnotes; Word export.': 'der fertige Text mit verknüpften Zitaten und Fußnoten; Word-Export.',
   'Six stages': 'Sechs Phasen',

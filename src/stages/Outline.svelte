@@ -58,7 +58,7 @@
       <div class="stats row small muted">
         <span>{all.length} {t('headings')}</span>·
         <span>{words.toLocaleString()} {t('words')}{project.targetWords ? ` / ${project.targetWords.toLocaleString()}` : ''}</span>·
-        <span>{placed} {t('items placed')}</span>·
+        <span>{placed} {t(placed === 1 ? 'item placed' : 'items placed')}</span>·
         <span>{done}/{all.length} {t('done')}</span>
         <span class="grow"></span>
         <button class="btn ghost sm" onclick={expandAll} title={t('Expand all')}><Icon name="chevron-down" size={14} /></button>

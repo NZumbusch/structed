@@ -8,7 +8,7 @@
   import { settings, type GroupBy } from '../lib/settings.svelte';
   import { t } from '../lib/i18n';
   import { droppable } from '../lib/dnd';
-  import { authorsFull, familyStr, inProject, projectArtifacts, sourceLabel, usageCount, yearOf } from '../lib/ops';
+  import { authorsFull, familyStr, inProject, projectArtifacts, sourceLabel, usageCount, visibleTags, yearOf } from '../lib/ops';
   import type { Artifact, ArtifactKind } from '../lib/types';
 
   let kinds = new SvelteSet<ArtifactKind>();
@@ -62,8 +62,8 @@
           break;
         }
         case 'tag':
-          if (!a.tags.length) add('~none', t('Untagged'), a);
-          for (const tg of a.tags) add('t:' + tg, '#' + tg, a);
+          if (!visibleTags(a.tags).length) add('~none', t('Untagged'), a);
+          for (const tg of visibleTags(a.tags)) add('t:' + tg, '#' + tg, a);
           break;
         case 'kind':
           add(a.kind, t(a.kind), a);

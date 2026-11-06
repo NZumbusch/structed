@@ -467,6 +467,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    min-width: 0;
     border-right: 1px solid var(--border);
     background: var(--surface);
   }
@@ -475,6 +476,15 @@
     gap: 6px;
     padding: 10px;
     border-bottom: 1px solid var(--border);
+    min-width: 0;
+  }
+  /* the filter field shrinks so its buttons stay inside the column */
+  .stop .input {
+    min-width: 0;
+  }
+  .stop .row {
+    flex-wrap: wrap;
+    min-width: 0;
   }
   .lnk {
     border: 0;

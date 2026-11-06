@@ -66,6 +66,8 @@ class UI {
   }
   /** ends the current multi-selection (set by the view that has one) */
   selection: (() => void) | null = $state(null);
+  /** the app is cached for offline use (service worker ready) */
+  offlineReady = $state(false);
   recordingShortcut = $state(false);
   toasts: Toast[] = $state([]);
   collapsed = new SvelteSet<string>(ls<string[]>('collapsed', []));
