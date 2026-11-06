@@ -12,6 +12,7 @@
   import { referenceOf } from '../lib/cite';
   import { cleanText } from '../lib/ocr';
   import type { Artifact, ArtifactKind } from '../lib/types';
+  import { longpress } from '../lib/longpress';
 
   let q = $state('');
   let sort = $state<'author' | 'year' | 'added' | 'items'>('author');
@@ -80,6 +81,26 @@
   $effect(() => {
     sel;
     selected.clear();
+    itemPick = false;
+  });
+  /** selecting items: started by a long-press, Ctrl-click, a checkbox or "Select" */
+  let itemPick = $state(false);
+  const selecting = $derived(itemPick || selected.size > 0);
+  function endItemPick() {
+    selected.clear();
+    itemPick = false;
+  }
+  function toggleItem(id: string, v: boolean) {
+    if (v) selected.add(id);
+    else selected.delete(id);
+    // a selection started on the phone ends with the last tick removed
+    if (!selected.size && ui.narrow) itemPick = false;
+  }
+  // the back gesture / Esc ends a selection before anything else
+  $effect(() => {
+    const on = selecting || picked.size > 0 || pickMode;
+    ui.selection = on ? () => (endItemPick(), endPick()) : null;
+    return () => (ui.selection = null);
   });
   $effect(() => {
     if (!source) {
@@ -161,6 +182,7 @@
       if (picked.has(id)) picked.delete(id);
       else picked.add(id);
       anchor = id;
+      if (!picked.size && ui.narrow) endPick();
       return;
     }
     picked.clear();
@@ -255,6 +277,12 @@
   ]);
 </script>
 
+<svelte:window
+  onkeydown={(e) => {
+    if (e.key === 'Escape' && selecting && !ui.dialog && !ui.editArtifact && !ui.editSource && !ui.question && !(e.target as HTMLElement).closest?.('input,textarea')) endItemPick();
+  }}
+/>
+
 <div class="collect" class:detail={ui.narrow && !!sel}>
   <div class="srcs" data-tour="sources">
     <div class="stop">
@@ -306,6 +334,7 @@
           aria-pressed={showChecks ? picked.has(s.id) : undefined}
           onclick={(e) => srcClick(e, s.id)}
           oncontextmenu={(e) => srcContext(e, s.id)}
+          use:longpress={{ run: () => { pickMode = true; picked.add(s.id); anchor = s.id; } }}
         >
           {#if showChecks}<span class="ck" aria-hidden="true">{#if picked.has(s.id)}<Icon name="check" size={12} />{/if}</span>{/if}
           <span class="grow">
@@ -377,18 +406,32 @@
         {/if}
 
         {#if items.length}
-          <div class="row bulk small">
-            <label class="row"><input type="checkbox" checked={selected.size === items.length && items.length > 0} onchange={(e) => { if (e.currentTarget.checked) items.forEach((a) => selected.add(a.id)); else selected.clear(); }} />{t('Select all')}</label>
-            <span class="muted">{items.length} {t('items')}{selected.size ? ` · ${selected.size} ${t('selected')}` : ''}</span>
-            <span class="grow"></span>
-            {#if selected.size}
+          {#if selecting}
+            <div class="selbar row small" role="toolbar" aria-label={t('Selected items')}>
+              <button class="icon-btn sm" title={t('End selection')} aria-label={t('End selection')} onclick={endItemPick}><Icon name="x" size={16} /></button>
+              <strong class="grow">{t('{n} selected', { n: selected.size })}</strong>
+              <button class="btn ghost sm" onclick={() => (selected.size === items.length ? selected.clear() : items.forEach((a) => selected.add(a.id)))}>
+                {selected.size === items.length ? t('None') : t('All')}
+              </button>
+              <button class="icon-btn sm" disabled={!selected.size} title={t('Add tag…')} aria-label={t('Add tag…')} onclick={() => { const v = prompt(t('Tag')); if (v) bulk('tag', v.trim().replace(/^#/, '')); }}><Icon name="tag" size={16} /></button>
               <Menu items={bulkMenu} label={t('Bulk actions')} icon="more" />
-            {/if}
-          </div>
+              <button class="icon-btn sm danger" disabled={!selected.size} title={t('Delete selected')} aria-label={t('Delete selected')} onclick={() => bulk('delete')}><Icon name="trash" size={16} /></button>
+            </div>
+          {:else}
+            <div class="row bulk small">
+              {#if ui.narrow}
+                <span class="muted grow">{items.length} {t('items')} · {t('hold one to select')}</span>
+                <button class="lnk" onclick={() => (itemPick = true)}>{t('Select')}</button>
+              {:else}
+                <label class="row"><input type="checkbox" checked={false} onchange={(e) => e.currentTarget.checked && items.forEach((a) => selected.add(a.id))} />{t('Select all')}</label>
+                <span class="muted">{items.length} {t('items')}</span>
+              {/if}
+            </div>
+          {/if}
         {/if}
-        <div class="items">
+        <div class="items" class:selpad={selecting && ui.narrow}>
           {#each items as a (a.id)}
-            <ArtifactCard {a} context="collect" selectable selected={selected.has(a.id)} onselect={(v) => (v ? selected.add(a.id) : selected.delete(a.id))} />
+            <ArtifactCard {a} context="collect" selectable {selecting} selected={selected.has(a.id)} onselect={(v) => toggleItem(a.id, v)} />
           {/each}
         </div>
       </div>
@@ -478,6 +521,44 @@
   .st {
     font-size: 0.78rem;
     color: var(--muted);
+  }
+  .selpad {
+    padding-bottom: 80px;
+  }
+  .selbar {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    gap: 6px;
+    margin: 6px 0;
+    padding: 6px 8px;
+    border-radius: 10px;
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    box-shadow: var(--shadow);
+  }
+  @media (max-width: 700px) {
+    /* thumb reach: the actions sit at the bottom on phones */
+    .selbar {
+      position: fixed;
+      top: auto;
+      left: 8px;
+      right: 8px;
+      bottom: calc(8px + env(safe-area-inset-bottom));
+      z-index: 50;
+      margin: 0;
+      padding: 8px 10px;
+      background: var(--surface);
+    }
+    .selbar .icon-btn {
+      width: 40px;
+      height: 40px;
+    }
+    .src {
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+    }
   }
   .pickbar {
     gap: 4px;

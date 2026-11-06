@@ -36,7 +36,7 @@ class UI {
   editArtifact: { id?: string; sourceId?: string | null; kind?: string; headingId?: string } | null = $state(null);
   editSource: { id?: string } | null = $state(null);
   placeTarget: string | null = $state(null); // artifact id for "place under…" picker
-  collectSourceId: string | null = $state(null);
+  collectSourceId: string | null = $state(ls('collectSourceId', null));
   zoteroFor: string | null = $state(null); // source id: jump to highlight import
   focusHeading: string | null = $state(null);
   focusBody: string | null = $state(null);
@@ -46,7 +46,7 @@ class UI {
   /** a running writing sprint: ends at `end`, started with `words` words */
   sprint: { end: number; words: number; minutes: number } | null = $state(null);
   /** library opened without a project (from the start screen) */
-  libraryMode = $state(false);
+  libraryMode = $state(ls('libraryMode', false));
   contextMenu: { x: number; y: number; title?: string; items: MenuItem[] } | null = $state(null);
 
   /** open the right-click menu at the pointer */
@@ -64,6 +64,8 @@ class UI {
       this.question = { ...q, answer: (v) => ((this.question = null), resolve(v)) };
     });
   }
+  /** ends the current multi-selection (set by the view that has one) */
+  selection: (() => void) | null = $state(null);
   recordingShortcut = $state(false);
   toasts: Toast[] = $state([]);
   collapsed = new SvelteSet<string>(ls<string[]>('collapsed', []));
@@ -78,6 +80,9 @@ class UI {
       $effect(() => save('projectId', this.projectId));
       $effect(() => save('stage', this.stage));
       $effect(() => save('focus', this.focus));
+      // reopening the app (or a reload) returns to the library / the open source
+      $effect(() => save('libraryMode', this.libraryMode));
+      $effect(() => save('collectSourceId', this.collectSourceId));
       $effect(() => save('collapsed', [...this.collapsed]));
       $effect(() => save('openBodies', [...this.openBodies]));
     });

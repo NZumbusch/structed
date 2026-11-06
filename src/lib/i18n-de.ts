@@ -1,5 +1,7 @@
 // German UI strings. Keys are the English originals (see i18n.ts).
 export const de: Record<string, string> = {
+  'Selected items': 'Ausgewählte Einträge',
+  'hold one to select': 'zum Auswählen gedrückt halten',
   'Remove the demo project?': 'Demo-Projekt entfernen?',
   'It contains the sample project “{name}” plus sample sources and quotes in your library.': 'Es enthält das Beispielprojekt „{name}“ sowie Beispielquellen und -zitate in deiner Bibliothek.',
   'You have changed or added things in the demo project – those changes will be removed too.': 'Du hast im Demo-Projekt etwas geändert oder hinzugefügt – das wird ebenfalls entfernt.',

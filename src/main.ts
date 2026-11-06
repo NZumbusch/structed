@@ -7,6 +7,7 @@ import { applySettings, settings } from './lib/settings.svelte';
 import { createDemo } from './lib/demo';
 import { sync } from './lib/sync.svelte';
 import { startZoteroSync } from './lib/zoterosync.svelte';
+import { startBackHandling } from './lib/back.svelte';
 import { ui } from './lib/ui.svelte';
 import { t } from './lib/i18n';
 
@@ -17,6 +18,7 @@ applySettings();
 db.init().then(() => {
   sync.start();
   startZoteroSync();
+  startBackHandling();
 });
 
 const app = mount(App, { target: document.getElementById('app')! });

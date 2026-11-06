@@ -88,14 +88,18 @@ test('bulk select: clean up, tag and delete with undo', async ({ page }) => {
     const { db } = (window as any).__structed;
     for (const a of db.all('artifacts')) db.update('artifacts', a.id, { text: a.text + '  ﬁ .' });
   });
-  await page.locator('.bulk input[type=checkbox]').check();
-  await expect(page.locator('.bulk')).toContainText('3 selected');
-  await page.locator('.bulk').getByRole('button', { name: 'Bulk actions' }).click();
+  await page.locator('.bulk input[type=checkbox]').click();
+  await expect(page.locator('.selbar')).toContainText('3 selected');
+  await page.locator('.selbar').getByRole('button', { name: 'Bulk actions' }).click();
   await page.getByRole('menuitem', { name: 'Clean up text (OCR/PDF)' }).click();
   await expect(page.locator('.items .art').first()).toContainText('fi.');
-  await page.locator('.bulk input[type=checkbox]').check();
-  await page.locator('.bulk').getByRole('button', { name: 'Bulk actions' }).click();
-  await page.getByRole('menuitem', { name: 'Delete selected' }).click();
+  // Ctrl-click on a card ticks it, Esc ends the selection
+  await page.locator('.items .art .toggle').first().click({ modifiers: ['Control'] });
+  await expect(page.locator('.selbar')).toContainText('1 selected');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.selbar')).toHaveCount(0);
+  await page.locator('.bulk input[type=checkbox]').click();
+  await page.locator('.selbar').getByRole('button', { name: 'Delete selected' }).click();
   await expect(page.locator('.items .art')).toHaveCount(0);
   await page.locator('.toast').getByRole('button', { name: 'Undo' }).click();
   await expect(page.locator('.items .art')).toHaveCount(3);
