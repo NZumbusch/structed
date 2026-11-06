@@ -1,5 +1,9 @@
 // German UI strings. Keys are the English originals (see i18n.ts).
 export const de: Record<string, string> = {
+  'What to keep in sync': 'Was abgeglichen wird',
+  'Only these collections': 'Nur diese Sammlungen',
+  'Collections': 'Sammlungen',
+  'Ticking a collection also ticks its subcollections.': 'Eine Sammlung anzukreuzen kreuzt auch ihre Untersammlungen an.',
   'Save (everything is saved automatically anyway)': 'Speichern (alles wird ohnehin automatisch gespeichert)',
   'Saved – Structed saves automatically': 'Gespeichert – Structed speichert automatisch',
   'Turn “ - ” into a dash “ – ” while typing': '„ - “ beim Tippen in einen Gedankenstrich „ – “ umwandeln',
