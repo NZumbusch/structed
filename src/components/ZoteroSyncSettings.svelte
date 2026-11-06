@@ -44,6 +44,21 @@
     walk(null, 0);
     return out;
   });
+  const chosen = $derived(settings.zoteroSyncCollections ?? []);
+  /** "only these collections" chosen, but nothing ticked yet */
+  let pickMode = $state(false);
+  /** tick / untick a collection together with all its subcollections */
+  function toggle(key: string, on: boolean) {
+    const keys = [key];
+    for (let i = 0; i < keys.length; i++) for (const c of cols) if (c.parent === keys[i]) keys.push(c.key);
+    const next = new Set(chosen);
+    for (const k of keys) {
+      if (on) next.add(k);
+      else next.delete(k);
+    }
+    settings.zoteroSyncCollections = cols.length ? cols.map((c) => c.key).filter((k) => next.has(k)).concat([...next].filter((k) => !cols.some((c) => c.key === k))) : [...next];
+    if (!next.size) pickMode = true;
+  }
   const when = $derived(zsync.lastRun ? new Date(zsync.lastRun).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '');
 </script>
 
@@ -55,25 +70,32 @@
   {#if !ready}
     <p class="small muted">{t('Enter your user ID and API key above first.')}</p>
   {:else if settings.zoteroAutoSync}
-    <div class="grid">
-      <label class="field">
-        <span>{t('Library')}</span>
-        <select class="select" bind:value={settings.zoteroSyncLibrary}>
-          {#if !libs.length && settings.zoteroSyncLibrary}<option value={settings.zoteroSyncLibrary}>{settings.zoteroSyncLibrary}</option>{/if}
-          {#each libs as l (l.id)}<option value={l.id}>{l.name === 'My Library' ? t('My Library') : l.name}</option>{/each}
-        </select>
-      </label>
-      <label class="field">
-        <span>{t('Collection')}</span>
-        <select class="select" bind:value={settings.zoteroSyncCollection}>
-          <option value="">{t('Whole library')}</option>
-          {#if settings.zoteroSyncCollection && !cols.some((c) => c.key === settings.zoteroSyncCollection)}
-            <option value={settings.zoteroSyncCollection}>{settings.zoteroSyncCollection}</option>
-          {/if}
-          {#each tree as { c, depth } (c.key)}<option value={c.key}>{'  '.repeat(depth)}{c.name}</option>{/each}
-        </select>
-      </label>
-    </div>
+    <label class="field">
+      <span>{t('Library')}</span>
+      <select class="select" bind:value={settings.zoteroSyncLibrary} onchange={() => (settings.zoteroSyncCollections = [])}>
+        {#if !libs.length && settings.zoteroSyncLibrary}<option value={settings.zoteroSyncLibrary}>{settings.zoteroSyncLibrary}</option>{/if}
+        {#each libs as l (l.id)}<option value={l.id}>{l.name === 'My Library' ? t('My Library') : l.name}</option>{/each}
+      </select>
+    </label>
+    <fieldset class="scope">
+      <legend>{t('What to keep in sync')}</legend>
+      <label class="chk"><input type="radio" name="zscope" checked={!chosen.length && !pickMode} onchange={() => ((settings.zoteroSyncCollections = []), (pickMode = false))} />{t('Whole library')}</label>
+      <label class="chk"><input type="radio" name="zscope" checked={chosen.length > 0 || pickMode} disabled={!cols.length} onchange={() => (pickMode = true)} />{t('Only these collections')}</label>
+      {#if chosen.length || pickMode}
+        <div class="cols" role="group" aria-label={t('Collections')}>
+          {#each tree as { c, depth } (c.key)}
+            <label class="chk col" style="--d:{depth}">
+              <input type="checkbox" checked={chosen.includes(c.key)} onchange={(e) => toggle(c.key, e.currentTarget.checked)} />
+              <span class="grow">{c.name}</span><span class="tiny muted">{c.numItems}</span>
+            </label>
+          {/each}
+          {#each chosen.filter((k) => !cols.some((c) => c.key === k)) as k (k)}
+            <label class="chk col"><input type="checkbox" checked onchange={() => toggle(k, false)} /><span class="muted">{k}</span></label>
+          {/each}
+        </div>
+        <p class="tiny muted">{t('Ticking a collection also ticks its subcollections.')}</p>
+      {/if}
+    </fieldset>
     <label class="chk"><input type="checkbox" bind:checked={settings.zoteroSyncTags} />{t('Also take over Zotero tags')}</label>
     <div class="row st small">
       {#if zsync.running}
@@ -103,10 +125,31 @@
     align-items: baseline;
     font-size: 0.875rem;
   }
-  .grid {
+  .scope {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .scope legend {
+    margin-bottom: 4px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--muted);
+  }
+  .cols {
+    display: grid;
+    gap: 2px;
+    max-height: 240px;
+    overflow-y: auto;
+    margin-left: 22px;
+    padding: 6px 8px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+  .col {
+    padding: 3px 0 3px calc(var(--d, 0) * 16px);
   }
   .st {
     gap: 6px;
@@ -114,10 +157,5 @@
   }
   .err {
     color: var(--danger);
-  }
-  @media (max-width: 600px) {
-    .grid {
-      grid-template-columns: 1fr;
-    }
   }
 </style>

@@ -19,7 +19,9 @@ export interface Settings {
   zoteroGroups: string; // comma-separated group ids, optional
   zoteroAutoSync: boolean; // keep the sources in sync with Zotero automatically
   zoteroSyncLibrary: string; // "users/123" | "groups/456"
-  zoteroSyncCollection: string; // '' = the whole library
+  zoteroSyncCollections: string[]; // collection keys; empty = the whole library
+  /** @deprecated single collection of earlier versions, moved into zoteroSyncCollections */
+  zoteroSyncCollection?: string;
   zoteroSyncTags: boolean; // also take over Zotero tags
   zoteroSyncVersions: Record<string, number>; // last library version seen, per scope
   citationStyle: string;
@@ -79,7 +81,7 @@ const defaults: Settings = {
   zoteroGroups: '',
   zoteroAutoSync: false,
   zoteroSyncLibrary: '',
-  zoteroSyncCollection: '',
+  zoteroSyncCollections: [],
   zoteroSyncTags: false,
   zoteroSyncVersions: {},
   citationStyle: 'apa',
@@ -121,7 +123,11 @@ const KEY = 'structed.settings';
 
 function load(): Settings {
   try {
-    return { ...defaults, ...JSON.parse(localStorage.getItem(KEY) || '{}') };
+    const s: Settings = { ...defaults, ...JSON.parse(localStorage.getItem(KEY) || '{}') };
+    // one collection → several
+    if (s.zoteroSyncCollection) s.zoteroSyncCollections = [...new Set([...(s.zoteroSyncCollections ?? []), s.zoteroSyncCollection])];
+    delete s.zoteroSyncCollection;
+    return s;
   } catch {
     return { ...defaults };
   }

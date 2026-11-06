@@ -6,7 +6,7 @@
   import { settings } from '../lib/settings.svelte';
   import { t } from '../lib/i18n';
   import { comboFor, displayCombo } from '../lib/shortcuts';
-  import { createDemo, hasDemo, removeDemo } from '../lib/demo';
+  import { askRemoveDemo, createDemo, hasDemo } from '../lib/demo';
 
   interface Step {
     target?: string; // CSS selector
@@ -83,14 +83,16 @@
     document.querySelector(s.target ?? '')?.scrollIntoView({ block: 'nearest' });
   }
 
-  function finish(keepDemo = true) {
+  function finish() {
     settings.tourDone = true;
     ui.tour = false;
-    if (!keepDemo) {
-      removeDemo();
-      ui.projectId = db.all('projects')[0]?.id ?? null;
-    }
   }
+  /** Remove the demo – after a question if you changed it; your own data is never touched. */
+  async function removeAndFinish() {
+    finish();
+    await askRemoveDemo('', true);
+  }
+  const offerRemove = $derived(last && (createdDemo || hasDemo()));
 
   function key(e: KeyboardEvent) {
     if (e.key === 'Escape') {
@@ -138,8 +140,11 @@
     </div>
     <h3>{t(step.title)}</h3>
     <p>{fill(step.text)}</p>
-    {#if last && (createdDemo || hasDemo())}
-      <p class="small muted">{t('Keep the demo project to play around, or remove it.')}</p>
+    {#if offerRemove}
+      <div class="demo">
+        <p class="small"><b>{t('Start with a clean slate?')}</b> {t('The demo project and its sample sources and quotes are only for trying things out. Remove them before you start your own work – otherwise they show up in your library and, with Drive sync, on all your devices.')}</p>
+        <p class="hint muted">{t('Only demo content is removed – your own projects, sources and quotes stay. You can also remove it later from the project menu.')}</p>
+      </div>
     {/if}
     <div class="row actions">
       {#if i > 0}<button class="btn sm" onclick={() => show(i - 1)}>{t('Back')}</button>{/if}
@@ -147,9 +152,9 @@
       {#if !last}
         <button class="btn ghost sm" onclick={() => finish()}>{t('Skip tour')}</button>
         <button class="btn primary sm" onclick={() => show(i + 1)}>{t('Next')}</button>
-      {:else if createdDemo || hasDemo()}
-        <button class="btn sm" onclick={() => finish(false)}>{t('Remove demo')}</button>
-        <button class="btn primary sm" onclick={() => finish(true)}>{t('Keep demo')}</button>
+      {:else if offerRemove}
+        <button class="btn ghost sm" onclick={() => finish()}>{t('Keep it for now')}</button>
+        <button class="btn primary sm" onclick={removeAndFinish}><Icon name="trash" size={14} />{t('Remove demo & start fresh')}</button>
       {:else}
         <button class="btn primary sm" onclick={() => finish()}>{t('Done')}</button>
       {/if}
@@ -197,5 +202,20 @@
   }
   .actions {
     gap: 6px;
+  }
+  .demo {
+    margin: 0 0 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--surface-2);
+  }
+  .demo p {
+    margin: 0 0 4px;
+  }
+  .demo p:last-child {
+    margin: 0;
+  }
+  .hint {
+    font-size: 0.78rem;
   }
 </style>

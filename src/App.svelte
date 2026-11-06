@@ -24,6 +24,8 @@
   import { matches, comboFor, displayCombo } from './lib/shortcuts';
   import Tour from './components/Tour.svelte';
   import ContextMenu from './components/ContextMenu.svelte';
+  import AskDialog from './components/AskDialog.svelte';
+  import { askRemoveDemo, hasDemo } from './lib/demo';
 
   const project = $derived(db.get('projects', ui.projectId));
   const STAGES: { id: Stage; label: string; icon: string; tourKey: string }[] = [
@@ -186,6 +188,7 @@
     null,
     { label: t('Library (all projects)'), icon: 'book', run: () => { ui.projectId = null; ui.libraryMode = true; ui.collectSourceId = null; } },
     { label: t('Close project'), icon: 'x', run: () => { ui.projectId = null; ui.libraryMode = false; } },
+    ...(hasDemo() ? [{ label: t('Remove demo project…'), icon: 'trash', run: () => askRemoveDemo() }] : []),
     null,
     { label: t('Settings'), icon: 'settings', run: () => (ui.dialog = 'settings') }
   ]);
@@ -298,6 +301,7 @@
   {#if ui.placeTarget && project}<PlacePicker />{/if}
   {#if ui.tour}<Tour />{/if}
   <ContextMenu />
+  {#if ui.question}<AskDialog />{/if}
 
   <div class="toasts" aria-live="polite">
     {#each ui.toasts as tt (tt.id)}
