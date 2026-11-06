@@ -14,7 +14,7 @@
   import { flatten, wordCount, placementsOf, artifactLabel } from '../lib/ops';
   import { draftText, makeEditable, selectedQuotePos } from '../lib/editor.svelte';
   import { editorState, type InsertMode } from '../lib/editorState.svelte';
-  import { matches, comboFor, displayCombo } from '../lib/shortcuts';
+  import { matches, hint } from '../lib/shortcuts';
   import { renderMd } from '../lib/markdown';
   import type { Project } from '../lib/types';
 
@@ -159,11 +159,76 @@
     });
   }
 
+  let goalOpen = $state(false);
+  let sprintOpen = $state(false);
+  let quoteOpen = $state(false);
+  /** open a toolbar menu from the keyboard and focus its first item */
+  function openMenu(set: (v: boolean) => void) {
+    typing = false;
+    set(true);
+    setTimeout(() => document.querySelector<HTMLElement>('.menu [role="menuitem"]')?.focus(), 30);
+  }
+  const onOff = (label: string, on: boolean) => ui.toast(`${t(label)}: ${on ? t('on') : t('off')}`, {}, 1500);
+
+  /** Jump to the start of the next / previous section (like moving between cells). */
+  function gotoSection(dir: 1 | -1) {
+    const ids = flat.map((f) => f.h.id);
+    if (!ids.length) return;
+    const cur = editorState.active ? ids.indexOf(editorState.active.headingId) : -1;
+    const i = cur < 0 ? (dir > 0 ? 0 : ids.length - 1) : cur + dir;
+    if (i < 0 || i >= ids.length) return;
+    const e = editors.get(ids[i]);
+    if (!e) return;
+    e.chain().focus('start').run();
+    if (!(focus && settings.focusTypewriter)) {
+      const sec = scroller?.querySelector<HTMLElement>(`[data-sec="${ids[i]}"]`);
+      sec?.scrollIntoView({ block: focus ? 'center' : 'start', behavior: settings.reduceMotion ? 'auto' : 'smooth' });
+    }
+  }
+
+  const KEYS: Record<string, () => void> = {
+    'write.nextSection': () => gotoSection(1),
+    'write.prevSection': () => gotoSection(-1),
+    'write.notes': () => (focus ? (settings.focusNotes = !settings.focusNotes) : (settings.writeNotes = !settings.writeNotes)),
+    'write.dim': () => onOff('Highlight current paragraph', (settings.focusDim = !settings.focusDim)),
+    'write.typewriter': () => onOff('Typewriter scrolling', (settings.focusTypewriter = !settings.focusTypewriter)),
+    'write.fullscreen': () => canFullscreen && toggleFullscreen(),
+    'write.goal': () => (focus ? openMenu((v) => (goalOpen = v)) : ui.toast(t('Session goals are part of focus mode'), {}, 2500)),
+    'write.sprint': () => {
+      if (ui.sprint) {
+        ui.sprint = null;
+        ui.toast(t('Sprint stopped'), {}, 1500);
+      } else {
+        startSprint(settings.focusSprint);
+        ui.toast(t('{m} minute sprint', { m: settings.focusSprint }), {}, 1500);
+      }
+    },
+    'write.footnote': () => footnote(),
+    'write.insertQuote': () => {
+      if (focus) ui.focus = false; // the menu lives in the normal toolbar
+      setTimeout(() => openMenu((v) => (quoteOpen = v)), 0);
+    },
+    'write.insertMode': () => {
+      const i = MODES.findIndex((m) => m.id === settings.insertMode);
+      const m = MODES[(i + 1) % MODES.length];
+      settings.insertMode = m.id;
+      ui.toast(`${t('Insert quotes as')}: ${t(m.label)}`, {}, 1800);
+    },
+    'write.editQuote': () => cmd((e) => { const p = selectedQuotePos(e); if (p != null) makeEditable(e, p); }),
+    'write.bulletList': () => cmd((e) => e.chain().focus().toggleBulletList().run()),
+    'write.blockquote': () => cmd((e) => e.chain().focus().toggleBlockquote().run()),
+    'write.export': () => (exportOpen = true)
+  };
+
   function keys(e: KeyboardEvent) {
     if (focus && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace')) typing = true;
-    if (matches(e, 'write.footnote')) {
+    // the editor already handled it, or a dialog is open
+    if (e.defaultPrevented || ui.recordingShortcut || ui.dialog || ui.editArtifact || ui.editSource || ui.placeTarget || editorState.footnote || exportOpen) return;
+    for (const id in KEYS) {
+      if (!matches(e, id)) continue;
       e.preventDefault();
-      footnote();
+      KEYS[id]();
+      return;
     }
   }
 
@@ -204,19 +269,19 @@
     <div class="fbar" class:idle={typing} role="toolbar" aria-label={t('Focus mode')}>
       <button class="icon-btn" title="{t('Exit focus mode')} (Esc)" aria-label={t('Exit focus mode')} onclick={() => (ui.focus = false)}><Icon name="x" size={16} /></button>
       <span class="sep"></span>
-      <button class="icon-btn" class:active={settings.focusNotes} aria-pressed={settings.focusNotes} title={settings.focusNotes ? t('Hide notes') : t('Show notes')} aria-label={t('Notes')} onclick={() => (settings.focusNotes = !settings.focusNotes)}><Icon name="note" size={16} /></button>
-      <button class="icon-btn" class:active={quotesOpen} aria-pressed={quotesOpen} title="{quotesOpen ? t('Hide quotes') : t('Show quotes')} ({displayCombo(comboFor('togglePanel'))})" aria-label={t('Quotes')} onclick={toggleQuotes}><Icon name="quote" size={16} /></button>
+      <button class="icon-btn" class:active={settings.focusNotes} aria-pressed={settings.focusNotes} title="{settings.focusNotes ? t('Hide notes') : t('Show notes')}{hint('write.notes')}" aria-label={t('Notes')} onclick={() => (settings.focusNotes = !settings.focusNotes)}><Icon name="note" size={16} /></button>
+      <button class="icon-btn" class:active={quotesOpen} aria-pressed={quotesOpen} title="{quotesOpen ? t('Hide quotes') : t('Show quotes')}{hint('togglePanel')}" aria-label={t('Quotes')} onclick={toggleQuotes}><Icon name="quote" size={16} /></button>
       <span class="sep"></span>
-      <button class="icon-btn" class:active={settings.focusDim} aria-pressed={settings.focusDim} title={t('Dim all but the current paragraph')} aria-label={t('Highlight current paragraph')} onclick={() => (settings.focusDim = !settings.focusDim)}><Icon name="eye" size={16} /></button>
-      <button class="icon-btn" class:active={settings.focusTypewriter} aria-pressed={settings.focusTypewriter} title={t('Typewriter scrolling: the current line stays in the middle')} aria-label={t('Typewriter scrolling')} onclick={() => (settings.focusTypewriter = !settings.focusTypewriter)}><Icon name="typewriter" size={16} /></button>
+      <button class="icon-btn" class:active={settings.focusDim} aria-pressed={settings.focusDim} title="{t('Dim all but the current paragraph')}{hint('write.dim')}" aria-label={t('Highlight current paragraph')} onclick={() => (settings.focusDim = !settings.focusDim)}><Icon name="eye" size={16} /></button>
+      <button class="icon-btn" class:active={settings.focusTypewriter} aria-pressed={settings.focusTypewriter} title="{t('Typewriter scrolling: the current line stays in the middle')}{hint('write.typewriter')}" aria-label={t('Typewriter scrolling')} onclick={() => (settings.focusTypewriter = !settings.focusTypewriter)}><Icon name="typewriter" size={16} /></button>
       {#if canFullscreen}
-        <button class="icon-btn" class:active={fullscreen} aria-pressed={fullscreen} title={t('Full screen')} aria-label={t('Full screen')} onclick={toggleFullscreen}><Icon name="expand" size={16} /></button>
+        <button class="icon-btn" class:active={fullscreen} aria-pressed={fullscreen} title="{t('Full screen')}{hint('write.fullscreen')}" aria-label={t('Full screen')} onclick={toggleFullscreen}><Icon name="expand" size={16} /></button>
       {/if}
       <span class="sep"></span>
-      <Menu items={goalMenu} label={t('Session goal')}>
+      <Menu items={goalMenu} label="{t('Session goal')}{hint('write.goal')}" bind:open={goalOpen}>
         {#snippet trigger()}<Icon name="target" size={14} /><span class="hide-xs">{settings.focusGoal ? settings.focusGoal.toLocaleString() : t('Goal')}</span>{/snippet}
       </Menu>
-      <Menu items={sprintMenu} label={t('Writing sprint')}>
+      <Menu items={sprintMenu} label="{t('Writing sprint')}{hint('write.sprint')}" bind:open={sprintOpen}>
         {#snippet trigger()}<Icon name="timer" size={14} /><span class:run={ui.sprint}>{ui.sprint ? clock(left) : t('Sprint')}</span>{/snippet}
       </Menu>
     </div>
@@ -226,27 +291,27 @@
     <button class="icon-btn fmt" class:active={is('italic')} title="{t('Italic')} (Ctrl+I)" aria-label={t('Italic')} onclick={() => cmd((e) => e.chain().focus().toggleItalic().run())}><i>I</i></button>
     <button class="icon-btn fmt" class:active={is('underline')} title="{t('Underline')} (Ctrl+U)" aria-label={t('Underline')} onclick={() => cmd((e) => e.chain().focus().toggleUnderline().run())}><u>U</u></button>
     <span class="sep"></span>
-    <button class="icon-btn" class:active={is('bulletList')} title={t('Bullet list')} aria-label={t('Bullet list')} onclick={() => cmd((e) => e.chain().focus().toggleBulletList().run())}><Icon name="menu" size={16} /></button>
-    <button class="icon-btn" class:active={is('blockquote')} title={t('Block quote (own text)')} aria-label={t('Block quote (own text)')} onclick={() => cmd((e) => e.chain().focus().toggleBlockquote().run())}><Icon name="quote" size={16} /></button>
-    <button class="btn sm" title="{t('Footnote')} (Ctrl+Alt+F)" onclick={footnote}><sup>1</sup> {t('Footnote')}</button>
+    <button class="icon-btn" class:active={is('bulletList')} title="{t('Bullet list')}{hint('write.bulletList')}" aria-label={t('Bullet list')} onclick={() => cmd((e) => e.chain().focus().toggleBulletList().run())}><Icon name="menu" size={16} /></button>
+    <button class="icon-btn" class:active={is('blockquote')} title="{t('Block quote (own text)')}{hint('write.blockquote')}" aria-label={t('Block quote (own text)')} onclick={() => cmd((e) => e.chain().focus().toggleBlockquote().run())}><Icon name="quote" size={16} /></button>
+    <button class="btn sm" title="{t('Footnote')}{hint('write.footnote')}" onclick={footnote}><sup>1</sup> {t('Footnote')}</button>
     {#if quoteSelected()}
-      <button class="btn sm" title={t('Turn the selected quote into editable text to shorten or adapt it; the citation stays linked')} onclick={() => cmd((e) => { const p = selectedQuotePos(e); if (p != null) makeEditable(e, p); })}>
+      <button class="btn sm" title="{t('Turn the selected quote into editable text to shorten or adapt it; the citation stays linked')}{hint('write.editQuote')}" onclick={() => cmd((e) => { const p = selectedQuotePos(e); if (p != null) makeEditable(e, p); })}>
         <Icon name="edit" size={14} />{t('Edit quote text')}
       </button>
     {/if}
     <span class="sep"></span>
-    <Menu items={quickMenu} label={t('Insert a quote placed here')}>
+    <Menu items={quickMenu} label="{t('Insert a quote placed here')}{hint('write.insertQuote')}" bind:open={quoteOpen}>
       {#snippet trigger()}<Icon name="plus" size={14} />{t('Insert quote')}{/snippet}
     </Menu>
-    <select class="select mode" bind:value={settings.insertMode} aria-label={t('Insert quotes as')} title={t('Insert quotes as')}>
+    <select class="select mode" bind:value={settings.insertMode} aria-label={t('Insert quotes as')} title="{t('Insert quotes as')}{hint('write.insertMode')}">
       {#each MODES as m (m.id)}<option value={m.id}>{t(m.label)}</option>{/each}
     </select>
     <span class="grow"></span>
     <span class="tiny muted wc">{total.toLocaleString()} {t('words')}</span>
-    <button class="icon-btn" class:active={settings.writeNotes} aria-pressed={settings.writeNotes} title={settings.writeNotes ? t('Hide notes') : t('Show notes')} aria-label={t('Notes')} onclick={() => (settings.writeNotes = !settings.writeNotes)}><Icon name="note" size={16} /></button>
+    <button class="icon-btn" class:active={settings.writeNotes} aria-pressed={settings.writeNotes} title="{settings.writeNotes ? t('Hide notes') : t('Show notes')}{hint('write.notes')}" aria-label={t('Notes')} onclick={() => (settings.writeNotes = !settings.writeNotes)}><Icon name="note" size={16} /></button>
     <button class="icon-btn" title="{t('Undo')}" aria-label={t('Undo')} onclick={() => cmd((e) => e.chain().focus().undo().run())}><Icon name="undo" size={16} /></button>
-    <button class="icon-btn" title="{t('Focus mode')} ({displayCombo(comboFor('write.focus'))})" aria-label={t('Focus mode')} onclick={enterFocus}><Icon name="focus" size={16} /></button>
-    <button class="btn sm primary" onclick={() => (exportOpen = true)}><Icon name="file" size={14} />{t('Word export')}</button>
+    <button class="icon-btn" title="{t('Focus mode')}{hint('write.focus')}" aria-label={t('Focus mode')} onclick={enterFocus}><Icon name="focus" size={16} /></button>
+    <button class="btn sm primary" title="{t('Word export')}{hint('write.export')}" onclick={() => (exportOpen = true)}><Icon name="file" size={14} />{t('Word export')}</button>
   </div>
   {/if}
 
@@ -344,6 +409,7 @@
   }
   .sec {
     margin-top: 26px;
+    scroll-margin-top: 56px; /* below the sticky toolbar */
   }
   .ht {
     margin: 0 0 6px;

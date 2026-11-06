@@ -13,7 +13,7 @@ export interface ShortcutDef {
 
 export const SHORTCUTS: ShortcutDef[] = [
   { id: 'search', label: 'Search & commands', group: 'General', default: 'Mod+K' },
-  { id: 'togglePanel', label: 'Toggle library panel', group: 'General', default: 'Mod+\\' },
+  { id: 'togglePanel', label: 'Show / hide library panel (quotes)', group: 'General', default: 'Mod+\\' },
   { id: 'undo', label: 'Undo', group: 'General', default: 'Mod+Z' },
   { id: 'redo', label: 'Redo', group: 'General', default: 'Mod+Shift+Z' },
   { id: 'settings', label: 'Open settings', group: 'General', default: 'Mod+,' },
@@ -31,8 +31,22 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'stageArrange', label: 'Go to Arrange', group: 'Stages', default: 'Alt+4' },
   { id: 'stageDraft', label: 'Go to Draft', group: 'Stages', default: 'Alt+5' },
   { id: 'stageWrite', label: 'Go to Write', group: 'Stages', default: 'Alt+6' },
-  { id: 'write.focus', label: 'Focus mode', group: 'Writing', default: 'Mod+Shift+F' },
+  { id: 'write.focus', label: 'Focus mode on / off', group: 'Writing', default: 'Mod+Shift+F' },
+  { id: 'write.nextSection', label: 'Next section', group: 'Writing', default: 'Mod+Alt+ArrowDown' },
+  { id: 'write.prevSection', label: 'Previous section', group: 'Writing', default: 'Mod+Alt+ArrowUp' },
+  { id: 'write.notes', label: 'Show / hide notes', group: 'Writing', default: 'Mod+Alt+N' },
+  { id: 'write.dim', label: 'Highlight current paragraph (focus mode)', group: 'Writing', default: null },
+  { id: 'write.typewriter', label: 'Typewriter scrolling (focus mode)', group: 'Writing', default: null },
+  { id: 'write.fullscreen', label: 'Full screen', group: 'Writing', default: null },
+  { id: 'write.goal', label: 'Choose session goal', group: 'Writing', default: null },
+  { id: 'write.sprint', label: 'Start / stop writing sprint', group: 'Writing', default: null },
   { id: 'write.footnote', label: 'Insert footnote', group: 'Writing', default: 'Mod+Alt+F' },
+  { id: 'write.insertQuote', label: 'Insert a quote placed here', group: 'Writing', default: null },
+  { id: 'write.insertMode', label: 'Switch how quotes are inserted', group: 'Writing', default: null },
+  { id: 'write.editQuote', label: 'Edit quote text', group: 'Writing', default: null },
+  { id: 'write.bulletList', label: 'Bullet list', group: 'Writing', default: null },
+  { id: 'write.blockquote', label: 'Block quote (own text)', group: 'Writing', default: null },
+  { id: 'write.export', label: 'Word export', group: 'Writing', default: null },
   { id: 'newQuote', label: 'New quote', group: 'Create', default: null },
   { id: 'newParaphrase', label: 'New paraphrase', group: 'Create', default: null },
   { id: 'newNote', label: 'New note', group: 'Create', default: null },
@@ -120,6 +134,12 @@ export function comboFor(id: string): string | null {
   const o = settings.shortcuts?.[id];
   if (o !== undefined) return o;
   return SHORTCUTS.find((s) => s.id === id)?.default ?? null;
+}
+
+/** " (Ctrl+K)" for tooltips, or "" when the action has no shortcut. */
+export function hint(id: string): string {
+  const c = comboFor(id);
+  return c ? ` (${displayCombo(c)})` : '';
 }
 
 export function matches(e: KeyboardEvent, id: string): boolean {

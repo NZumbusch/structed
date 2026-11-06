@@ -131,3 +131,95 @@ test('@phone focus mode on a phone: quotes open in the drawer', async ({ page })
   await fbar.getByRole('button', { name: 'Exit focus mode' }).click();
   await expect(page.locator('header.top')).toBeVisible();
 });
+
+test('every Write / focus-mode button has a configurable shortcut', async ({ page }) => {
+  // notes: Ctrl+Alt+N by default, in normal and in focus mode
+  await expect(page.locator('.compose .gist').first()).toBeVisible();
+  await page.locator('.compose .ProseMirror').first().click();
+  await page.keyboard.press('Control+Alt+n');
+  await expect(page.locator('.compose .gist')).toHaveCount(0);
+  await expect(page.locator('.bar').getByRole('button', { name: 'Notes' })).toHaveAttribute('title', 'Show notes (Ctrl+Alt+N)');
+  await page.keyboard.press('Control+Shift+F');
+  await page.keyboard.press('Control+Alt+n');
+  await expect(page.locator('.compose .gist').first()).toBeVisible();
+  // quotes (library panel) with Ctrl+\ inside focus mode
+  await page.keyboard.press('Control+\\');
+  await expect(page.locator('.app .panel')).toBeVisible();
+  await page.keyboard.press('Control+\\');
+  await expect(page.locator('.app .panel')).toHaveCount(0);
+
+  // the extras are listed in the settings and can be assigned
+  await page.evaluate(() => ((window as any).__structed.ui.dialog = 'settings'));
+  await page.locator('.modal nav button', { hasText: 'Keyboard shortcuts' }).click();
+  for (const id of ['togglePanel', 'write.notes', 'write.dim', 'write.typewriter', 'write.fullscreen', 'write.goal', 'write.sprint', 'write.insertQuote', 'write.insertMode', 'write.editQuote', 'write.bulletList', 'write.blockquote', 'write.export'])
+    await expect(page.locator(`[data-shortcut="${id}"]`)).toBeVisible();
+  await expect(page.locator('[data-shortcut="togglePanel"]')).toContainText('Show / hide library panel (quotes)');
+  const rec = async (id: string, keys: string) => {
+    await page.locator(`[data-shortcut="${id}"] .key`).click();
+    await page.keyboard.press(keys);
+  };
+  await rec('write.dim', 'Alt+j');
+  await rec('write.typewriter', 'Alt+k');
+  await rec('write.sprint', 'Alt+l');
+  await rec('write.goal', 'Alt+g');
+  await rec('write.insertMode', 'Alt+i');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.modal')).toHaveCount(0);
+
+  const fbar = page.getByRole('toolbar', { name: 'Focus mode' });
+  await page.locator('.compose .ProseMirror').first().click();
+  await page.keyboard.press('Alt+j');
+  await expect(fbar.getByRole('button', { name: 'Highlight current paragraph' })).toHaveAttribute('aria-pressed', 'false');
+  await expect(fbar.getByRole('button', { name: 'Highlight current paragraph' })).toHaveAttribute('title', /\(Alt\+J\)$/);
+  await page.keyboard.press('Alt+k');
+  await expect(fbar.getByRole('button', { name: 'Typewriter scrolling' })).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Alt+l');
+  await expect(page.locator('.fbar .run')).toHaveText(/^2[45]:\d\d$/);
+  await page.keyboard.press('Alt+l');
+  await expect(page.locator('.fbar .run')).toHaveCount(0);
+  // the goal menu opens from the keyboard and is usable with the arrow keys
+  await page.keyboard.press('Alt+g');
+  await expect(page.getByRole('menuitem').first()).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Enter');
+  await expect(page.locator('.fstat')).toContainText('/ 250');
+  // insert mode cycles
+  await page.locator('.compose .ProseMirror').first().click();
+  await page.keyboard.press('Alt+i');
+  expect(await page.evaluate(() => (window as any).__structed.settings.insertMode)).toBe('editable');
+});
+
+test('jump to the next / previous section from the keyboard, in both views', async ({ page }) => {
+  const eds = page.locator('.compose .ProseMirror');
+  await eds.first().click();
+  await page.keyboard.type('Intro text');
+  // Ctrl+Alt+↓ goes to the next section, typing continues there
+  await page.keyboard.press('Control+Alt+ArrowDown');
+  await expect(eds.nth(1)).toBeFocused();
+  await page.keyboard.type('Main ');
+  await expect(eds.nth(1)).toContainText('Main');
+  await page.keyboard.press('Control+Alt+ArrowDown');
+  await expect(eds.nth(2)).toBeFocused();
+  // plain arrows still move the caret inside the text as usual
+  await page.keyboard.press('Control+Alt+ArrowUp');
+  await expect(eds.nth(1)).toBeFocused();
+  await page.keyboard.press('ArrowDown');
+  await expect(eds.nth(1)).toBeFocused();
+  await page.keyboard.press('Control+Alt+ArrowUp');
+  await expect(eds.nth(0)).toBeFocused();
+  await page.keyboard.press('Control+Alt+ArrowUp'); // first section: stays
+  await expect(eds.nth(0)).toBeFocused();
+  await expect(eds.nth(0)).toHaveText('Intro text');
+
+  // the same in focus mode
+  await page.keyboard.press('Control+Shift+F');
+  await expect(page.locator('header.top')).toHaveCount(0);
+  await eds.first().click();
+  await page.keyboard.press('Control+Alt+ArrowDown');
+  await page.keyboard.press('Control+Alt+ArrowDown');
+  await page.keyboard.press('Control+Alt+ArrowDown');
+  await expect(eds.nth(3)).toBeFocused();
+  await expect(eds.nth(3)).toBeInViewport();
+  await page.keyboard.press('Control+Alt+ArrowDown'); // last section: stays
+  await expect(eds.nth(3)).toBeFocused();
+});
