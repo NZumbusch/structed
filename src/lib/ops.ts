@@ -1,6 +1,6 @@
 import { db, byOrder, orderBetween } from './db.svelte';
 import { t } from './i18n';
-import type { Artifact, CSLItem, CSLName, Heading, Placement, Source } from './types';
+import type { Artifact, CSLItem, CSLName, Heading, Placement, Project, Source } from './types';
 
 // ---------------- projects ----------------
 export const TEMPLATES: Record<string, { en: string[]; de: string[] }> = {
@@ -277,7 +277,7 @@ export function mergeSource(from: Source, into: Source): number {
       }
     const tags = [...new Set([...into.tags, ...from.tags])];
     const note = [into.note, from.note].filter((x) => x?.trim()).join('\n\n');
-    db.update('sources', into.id, { tags, note: note || undefined });
+    db.update('sources', into.id, { tags, note: note || undefined, reading: into.reading ?? from.reading });
     db.remove('sources', from.id);
     return n;
   });
@@ -290,8 +290,24 @@ const sel = (projectId: string, refType: 'source' | 'artifact', refId: string) =
 export function isPlaced(artifactId: string, projectId: string): boolean {
   return usageCount(artifactId, projectId) > 0;
 }
+/** Is the source in the Zotero collection linked to the project? */
+export function inLinkedCollection(s: Source | undefined, p: Project | undefined): boolean {
+  const z = p?.zoteroCollection;
+  if (!z || !s?.zoteroKey || s.zoteroLibrary !== z.library) return false;
+  return !!s.zoteroCollections?.some((k) => z.keys.includes(k));
+}
+/** How a whole source belongs to a project: picked here, through the linked Zotero collection – or not. */
+export function sourceVia(sourceId: string, projectId: string): 'picked' | 'collection' | null {
+  const own = sel(projectId, 'source', sourceId);
+  if (own) return own.excluded ? null : 'picked';
+  return inLinkedCollection(db.get('sources', sourceId), db.get('projects', projectId)) ? 'collection' : null;
+}
 export function sourceSelected(sourceId: string, projectId: string): boolean {
-  return !!sel(projectId, 'source', sourceId);
+  return sourceVia(sourceId, projectId) !== null;
+}
+/** Sources that belong to the project as a whole (picked or through the linked collection). */
+export function projectSources(projectId: string): Source[] {
+  return db.all('sources').filter((s) => sourceSelected(s.id, projectId));
 }
 /** Why an item belongs to a project: placed, picked individually, via its source – or not at all. */
 export function membership(a: Artifact, projectId: string): 'placed' | 'item' | 'source' | null {
@@ -311,9 +327,12 @@ export function projectArtifacts(projectId: string): Artifact[] {
 export function addToProject(projectId: string, refType: 'source' | 'artifact', refId: string) {
   db.batch('add to project', () => {
     const cur = sel(projectId, refType, refId);
+    const linked = refType === 'source' && inLinkedCollection(db.get('sources', refId), db.get('projects', projectId));
     if (cur) {
-      if (cur.excluded) db.update('selections', cur.id, { excluded: false });
-    } else db.create('selections', { projectId, refType, refId });
+      // back to "through the collection" when it is in the linked collection anyway
+      if (cur.excluded && linked) db.remove('selections', cur.id);
+      else if (cur.excluded) db.update('selections', cur.id, { excluded: false });
+    } else if (!linked) db.create('selections', { projectId, refType, refId });
     // choosing a whole source re-includes its hidden items
     if (refType === 'source')
       for (const x of db.all('selections'))
@@ -339,6 +358,9 @@ export function removeSourceFromProject(projectId: string, sourceId: string) {
       if (x.refType === 'source' && x.refId === sourceId) db.remove('selections', x.id);
       else if (x.refType === 'artifact' && x.excluded && db.get('artifacts', x.refId)?.sourceId === sourceId) db.remove('selections', x.id);
     }
+    // in the linked Zotero collection: remember that it is not wanted here
+    if (inLinkedCollection(db.get('sources', sourceId), db.get('projects', projectId)))
+      db.create('selections', { projectId, refType: 'source', refId: sourceId, excluded: true });
   });
 }
 

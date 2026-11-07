@@ -22,7 +22,19 @@ export interface Project extends EntityBase {
   cover?: Record<string, string>;
   /** optional motto quote on its own page after the title page */
   mottoId?: string | null;
+  /** linked Zotero collection: every source in it (or in a subcollection) belongs to the project */
+  zoteroCollection?: ZoteroLink | null;
 }
+
+export interface ZoteroLink {
+  library: string; // "users/123" | "groups/456"
+  key: string; // the collection chosen
+  name: string;
+  /** the collection and its subcollections (refreshed when the project's sources are checked) */
+  keys: string[];
+}
+
+export type ReadingStatus = 'toread' | 'reading' | 'read';
 
 export interface Heading extends EntityBase {
   projectId: string;
@@ -41,8 +53,11 @@ export interface Source extends EntityBase {
   csl: CSLItem;
   zoteroKey?: string;
   zoteroLibrary?: string; // e.g. "users/123" or "groups/456"
+  /** keys of the Zotero collections the item is in (as last seen) */
+  zoteroCollections?: string[];
   tags: string[];
   note?: string;
+  reading?: ReadingStatus | null;
 }
 
 export type ArtifactKind = 'quote' | 'paraphrase' | 'note' | 'image';

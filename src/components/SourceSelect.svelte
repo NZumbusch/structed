@@ -1,7 +1,8 @@
 <script lang="ts">
   import { db } from '../lib/db.svelte';
   import { t } from '../lib/i18n';
-  import { sourceLabel } from '../lib/ops';
+  import { addToProject, sourceLabel } from '../lib/ops';
+  import { ui } from '../lib/ui.svelte';
 
   let { value = $bindable(null) }: { value: string | null } = $props();
   let q = $state('');
@@ -25,7 +26,11 @@
   }
   function createNew() {
     const title = q.trim();
-    const s = db.create('sources', { csl: { id: '', type: 'book', title, author: [] }, tags: [] });
+    const s = db.batch('new source', () => {
+      const s = db.create('sources', { csl: { id: '', type: 'book', title, author: [] }, tags: [] });
+      if (ui.projectId) addToProject(ui.projectId, 'source', s.id);
+      return s;
+    });
     pick(s.id);
   }
   function key(e: KeyboardEvent) {

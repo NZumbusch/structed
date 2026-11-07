@@ -182,6 +182,9 @@
           — {t('“Your userID for use in API calls”, then “Create new private key” with read access to the library (and notes).')}
         </p>
         <ZoteroSyncSettings />
+        <h4 class="sh4">{t('In Select')}</h4>
+        <label class="chk"><input type="checkbox" bind:checked={settings.zoteroHighlightCounts} />{t('Show how many highlights of a source are new (not gone through yet)')}</label>
+        <label class="chk"><input type="checkbox" bind:checked={settings.readingStatus} />{t('Reading status per source (to read, reading, read)')}</label>
         <p class="small muted">{t('Highlights from your PDFs: open a source in Collect (or select several) → “Go through highlights…”, and take or skip them one by one.')}</p>
       {:else if ui.settingsTab === 'sync'}
         <p class="small">{t('Sync all projects, sources and quotes between devices through a hidden app folder in your Google Drive. Works offline; changes merge per item.')}</p>
