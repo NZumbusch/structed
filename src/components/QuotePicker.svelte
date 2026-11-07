@@ -12,6 +12,7 @@
   import { t } from '../lib/i18n';
   import { authorsFull, familyStr, placementsOf, projectArtifacts, shortCite, sourceLabel, visibleTags, yearOf } from '../lib/ops';
   import { citedIds } from '../lib/footnote';
+  import { syncZoteroSoon, zsync } from '../lib/zoterosync.svelte';
   import { citeArtifact } from '../lib/cite';
   import { copyText } from '../lib/clipboard';
   import { renderMd } from '../lib/markdown';
@@ -175,7 +176,10 @@
       onclose();
     }
   }
-  onMount(() => setTimeout(() => input?.focus(), 20));
+  onMount(() => {
+    setTimeout(() => input?.focus(), 20);
+    syncZoteroSoon(); // new sources from Zotero show up while you search
+  });
 
   // ---- actions on the marked item ----
   async function copy(mode: 'text' | 'both' | 'cite') {
@@ -283,6 +287,7 @@
 
   <div class="count tiny muted" aria-live="polite">
     {t('{n} found', { n: results.length })}
+    {#if zsync.running}<span class="syncing">· {t('checking Zotero…')}</span>{/if}
     {#if elsewhere}
       · <button class="lnk" onclick={() => set({ scope: 'library' })}>{t('{n} more in the library (not selected for this project) – show', { n: elsewhere })}</button>
     {/if}

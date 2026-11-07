@@ -51,7 +51,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'newParaphrase', label: 'New paraphrase', group: 'Create', default: null },
   { id: 'newNote', label: 'New note', group: 'Create', default: null },
   { id: 'newSource', label: 'New source', group: 'Create', default: null },
-  { id: 'importZotero', label: 'Import from Zotero', group: 'Create', default: null },
+  { id: 'importZotero', label: 'Import sources (file / paste)', group: 'Create', default: null },
   { id: 'outline.newHeading', label: 'New heading (split at cursor)', group: 'Outline editing', default: 'Enter' },
   { id: 'outline.addChild', label: 'New subheading', group: 'Outline editing', default: null },
   { id: 'outline.indent', label: 'Indent', group: 'Outline editing', default: 'Tab' },

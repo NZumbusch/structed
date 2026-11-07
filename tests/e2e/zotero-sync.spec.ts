@@ -125,32 +125,3 @@ test('automatic Zotero sync is off until switched on', async ({ page }) => {
   expect(calls).toBe(0);
 });
 
-test('Zotero import dialog: deleted sources are marked and skipped by “Import all”, but can be picked', async ({ page }) => {
-  await page.route('https://api.zotero.org/**', async (route) => {
-    const p = new URL(route.request().url()).pathname;
-    const json = (body: unknown[]) => route.fulfill({ body: JSON.stringify(body), contentType: 'application/json', headers: { 'Total-Results': String(body.length) } });
-    if (p === '/users/1/groups' || p === '/users/1/collections') return json([]);
-    if (p.endsWith('/items/top')) return json([book('A', 'Les lieux de mémoire', 5), book('B', 'Das kulturelle Gedächtnis', 7, 'Assmann')]);
-    if (p.endsWith('/children')) return json([]);
-    return route.fulfill({ status: 404, body: 'not mocked ' + p });
-  });
-  await open(page, { settings: { zoteroUserId: '1', zoteroApiKey: 'KEY' } });
-  // B was imported once and then deleted
-  await page.evaluate(() => {
-    const { db } = (window as any).__structed;
-    const s = db.create('sources', { csl: { id: 'B', type: 'book', title: 'Das kulturelle Gedächtnis' }, tags: [], zoteroKey: 'B', zoteroLibrary: 'users/1' });
-    db.remove('sources', s.id);
-  });
-  const titles = () => page.evaluate(() => (window as any).__structed.db.all('sources').map((s: any) => s.csl.title).sort());
-  await page.evaluate(() => ((window as any).__structed.ui.dialog = 'zotero'));
-  const m = page.locator('.modal');
-  await expect(m.locator('.it', { hasText: 'Das kulturelle Gedächtnis' })).toContainText('deleted here – tick to import again');
-  await m.getByRole('button', { name: /Import all/ }).click();
-  await expect.poll(titles).toEqual(['Les lieux de mémoire']);
-  // picked explicitly, it comes back
-  await m.getByRole('button', { name: 'Close' }).click().catch(() => {});
-  await page.evaluate(() => ((window as any).__structed.ui.dialog = 'zotero'));
-  await page.locator('.modal .it', { hasText: 'Das kulturelle Gedächtnis' }).locator('input').check();
-  await page.locator('.modal').getByRole('button', { name: 'Import selected' }).click();
-  await expect.poll(titles).toEqual(['Das kulturelle Gedächtnis', 'Les lieux de mémoire']);
-});

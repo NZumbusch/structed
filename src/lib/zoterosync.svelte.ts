@@ -92,6 +92,11 @@ export async function syncZotero(quiet = true): Promise<void> {
   }
 }
 
+/** Sync now unless it ran within the last 30 s (opening the quote search, typing @). */
+export function syncZoteroSoon() {
+  if (zoteroSyncActive() && Date.now() - zsync.lastRun > 30_000) syncZotero();
+}
+
 /** Start the background sync: now, every 10 minutes, and when the app becomes visible again. */
 export function startZoteroSync() {
   const tick = () => syncZotero();

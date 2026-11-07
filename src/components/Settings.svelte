@@ -182,7 +182,7 @@
           — {t('“Your userID for use in API calls”, then “Create new private key” with read access to the library (and notes).')}
         </p>
         <ZoteroSyncSettings />
-        <button class="btn" onclick={() => (ui.dialog = 'zotero')}><Icon name="download" size={15} />{t('Open Zotero import')}</button>
+        <p class="small muted">{t('Highlights from your PDFs: open a source in Collect (or select several) → “Go through highlights…”, and take or skip them one by one.')}</p>
       {:else if ui.settingsTab === 'sync'}
         <p class="small">{t('Sync all projects, sources and quotes between devices through a hidden app folder in your Google Drive. Works offline; changes merge per item.')}</p>
         <div class="card status">

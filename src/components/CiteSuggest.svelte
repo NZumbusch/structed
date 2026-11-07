@@ -9,9 +9,17 @@
   import { editorState } from '../lib/editorState.svelte';
   import { authorsFull, projectArtifacts, sourceLabel, visibleTags } from '../lib/ops';
   import { citeText } from '../lib/citecache.svelte';
+  import { syncZoteroSoon } from '../lib/zoterosync.svelte';
   import type { Artifact } from '../lib/types';
 
   const m = $derived(editorState.mention);
+  // typing @ also checks Zotero for new sources (at most every 30 s)
+  let wasOpen = false;
+  $effect(() => {
+    const open = !!m;
+    if (open && !wasOpen) syncZoteroSoon();
+    wasOpen = open;
+  });
   let active = $state(0);
   const MAX = 8;
 

@@ -38,7 +38,8 @@ class UI {
   editSource: { id?: string } | null = $state(null);
   placeTarget: string | null = $state(null); // artifact id for "place under…" picker
   collectSourceId: string | null = $state(ls('collectSourceId', null));
-  zoteroFor: string | null = $state(null); // source id: jump to highlight import
+  /** sources whose Zotero highlights are being gone through one by one */
+  reviewSources: string[] | null = $state(null);
   focusHeading: string | null = $state(null);
   focusBody: string | null = $state(null);
   tour = $state(false);

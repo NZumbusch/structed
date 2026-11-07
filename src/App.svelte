@@ -184,7 +184,7 @@
     { label: t('All projects…'), icon: 'folder', run: () => (ui.dialog = 'projects') },
     { label: t('Export…'), icon: 'upload', run: () => (ui.dialog = 'export') },
     { label: t('Snapshots'), icon: 'history', run: () => (ui.dialog = 'snapshots') },
-    { label: t('Import from Zotero…'), icon: 'download', run: () => (ui.dialog = 'zotero') },
+    { label: t('Import sources…'), icon: 'download', run: () => (ui.dialog = 'zotero') },
     null,
     { label: t('Library (all projects)'), icon: 'book', run: () => { ui.projectId = null; ui.libraryMode = true; ui.collectSourceId = null; } },
     { label: t('Close project'), icon: 'x', run: () => { ui.projectId = null; ui.libraryMode = false; } },
@@ -300,6 +300,9 @@
   {#if ui.tour}<Tour />{/if}
   <ContextMenu />
   {#if ui.question}<AskDialog />{/if}
+  {#if ui.reviewSources}
+    {#await import('./components/HighlightReview.svelte') then m}<m.default />{/await}
+  {/if}
   {#if ui.wordExport && project}
     {#await import('./components/WordExport.svelte') then m}<m.default {project} onclose={() => (ui.wordExport = false)} />{/await}
   {/if}

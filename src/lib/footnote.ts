@@ -175,3 +175,21 @@ export function toClipboard(nodes: PMNode[]): { html: string; text: string } {
   }
   return { html, text };
 }
+
+/** Ids of library items cited in any project's text. */
+export function citedAnywhere(): Set<string> {
+  const ids = new Set<string>();
+  for (const p of db.all('projects')) for (const id of citedIds(p.id).keys()) ids.add(id);
+  return ids;
+}
+
+/**
+ * Quotes imported from Zotero highlights that are not used anywhere: not placed under a
+ * heading, not cited in a text, not picked for a project one by one.
+ */
+export function unusedImported(sourceId?: string) {
+  const placed = new Set(db.all('placements').map((p) => p.artifactId));
+  const picked = new Set(db.all('selections').filter((x) => x.refType === 'artifact').map((x) => x.refId));
+  const cited = citedAnywhere();
+  return db.all('artifacts').filter((a) => a.zoteroKey && (!sourceId || a.sourceId === sourceId) && !placed.has(a.id) && !picked.has(a.id) && !cited.has(a.id));
+}

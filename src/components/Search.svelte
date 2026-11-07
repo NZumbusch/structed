@@ -47,7 +47,7 @@
     for (const [lab, icon, run] of [
       [t('Settings'), 'settings', () => (ui.dialog = 'settings')],
       [t('Export…'), 'upload', () => (ui.dialog = 'export')],
-      [t('Import from Zotero…'), 'download', () => (ui.dialog = 'zotero')],
+      [t('Import sources…'), 'download', () => (ui.dialog = 'zotero')],
       [t('Snapshots'), 'history', () => (ui.dialog = 'snapshots')],
       [t('New quote'), 'quote', () => (ui.editArtifact = { kind: 'quote' })],
       [t('New note'), 'note', () => (ui.editArtifact = { kind: 'note' })]
