@@ -7,6 +7,7 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('each stage remembers whether the library panel is open; Write starts without it', async ({ page }) => {
+  await page.evaluate(() => ((window as any).__structed.settings.writePanel = true)); // (off in Write unless switched on)
   const panel = page.locator('.app .panel');
   const toggle = page.getByRole('button', { name: /^Library panel/ });
   await expect(panel).toBeVisible(); // Outline

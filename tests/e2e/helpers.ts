@@ -45,6 +45,7 @@ export async function settingsTab(page: Page, name: string) {
 
 /** The library panel is closed in Write by default: open it. */
 export async function openPanel(page: Page) {
+  await page.evaluate(() => ((window as any).__structed.settings.writePanel = true)); // off in Write by default
   if (!(await page.locator('.app .panel').isVisible())) await page.getByRole('button', { name: /^Library panel/ }).click();
   await expect(page.locator('.app .panel .lib')).toBeVisible();
 }
