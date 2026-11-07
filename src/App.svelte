@@ -130,7 +130,7 @@
   function escFocus(e: KeyboardEvent) {
     if (e.key !== 'Escape' || !focusOn || ui.recordingShortcut || ui.dialog || ui.editArtifact || ui.editSource || ui.placeTarget || ui.contextMenu || ui.tour) return;
     const el = e.target as HTMLElement | null;
-    if (document.querySelector('[role="menu"], .modal') || el?.closest?.('.panel, .drawer')) return;
+    if (document.querySelector('[role="menu"], .modal, .cite-suggest') || el?.closest?.('.panel, .drawer')) return;
     e.preventDefault();
     e.stopPropagation();
     ui.focus = false;

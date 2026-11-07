@@ -7,7 +7,7 @@
   import { ui } from '../lib/ui.svelte';
   import { t } from '../lib/i18n';
   import { cleanText } from '../lib/ocr';
-  import { deleteArtifact, place } from '../lib/ops';
+  import { addToProject, deleteArtifact, place } from '../lib/ops';
   import type { ArtifactKind } from '../lib/types';
 
   const req = ui.editArtifact!;
@@ -60,6 +60,12 @@
     else {
       const a = db.create('artifacts', data);
       if (req.headingId && ui.projectId) place(ui.projectId, req.headingId, a.id);
+      if (req.oncreated) {
+        // made while writing: part of this project, then handed back (e.g. to insert it)
+        if (ui.projectId) addToProject(ui.projectId, 'artifact', a.id);
+        const cb = req.oncreated;
+        queueMicrotask(() => cb(a.id));
+      }
     }
     if (again) {
       text = '';

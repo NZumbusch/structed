@@ -17,17 +17,20 @@
     header?: Snippet;
   } = $props();
 
+  let backdrop: HTMLDivElement;
   function key(e: KeyboardEvent) {
-    if (e.key === 'Escape') {
-      e.stopPropagation();
-      onclose();
-    }
+    if (e.key !== 'Escape') return;
+    // with a dialog over a dialog, Esc closes only the top one
+    const all = document.querySelectorAll('.backdrop');
+    if (all[all.length - 1] !== backdrop) return;
+    e.stopPropagation();
+    onclose();
   }
 </script>
 
 <svelte:window onkeydown={key} />
 
-<div class="backdrop" role="presentation" onpointerdown={(e) => e.target === e.currentTarget && onclose()}>
+<div class="backdrop" bind:this={backdrop} role="presentation" onpointerdown={(e) => e.target === e.currentTarget && onclose()}>
   <div class="modal" role="dialog" aria-modal="true" aria-label={title} style="--w:{width}">
     <header>
       <h2>{title}</h2>

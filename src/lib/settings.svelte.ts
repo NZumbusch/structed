@@ -75,9 +75,12 @@ export interface PickerPrefs {
   scope: 'section' | 'project' | 'library';
   kinds: ('quote' | 'paraphrase' | 'note')[];
   sourceId: string; // '' = all sources
+  tag: string; // '' = all tags
+  used: 'all' | 'unused' | 'used'; // already cited in this project's text?
+  group: 'none' | 'source' | 'author' | 'tag' | 'kind' | 'year';
   sort: 'source' | 'author' | 'year' | 'added' | 'recent';
 }
-export const PICKER_DEFAULTS: PickerPrefs = { scope: 'project', kinds: ['quote', 'paraphrase'], sourceId: '', sort: 'source' };
+export const PICKER_DEFAULTS: PickerPrefs = { scope: 'project', kinds: ['quote', 'paraphrase'], sourceId: '', tag: '', used: 'all', group: 'none', sort: 'source' };
 
 export const ACCENTS = ['#3b6fd8', '#2f9e75', '#c0582f', '#8a55c9', '#c94a73', '#b08a1e', '#56606f'];
 

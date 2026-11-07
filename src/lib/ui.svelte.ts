@@ -34,7 +34,7 @@ class UI {
   // (until v0.x the overview was called 'write'; the editor now has that id)
   dialog: null | 'settings' | 'zotero' | 'export' | 'projects' | 'snapshots' | 'search' | 'help' = $state(null);
   settingsTab = $state('appearance');
-  editArtifact: { id?: string; sourceId?: string | null; kind?: string; headingId?: string } | null = $state(null);
+  editArtifact: { id?: string; sourceId?: string | null; kind?: string; headingId?: string; oncreated?: (id: string) => void } | null = $state(null);
   editSource: { id?: string } | null = $state(null);
   placeTarget: string | null = $state(null); // artifact id for "place under…" picker
   collectSourceId: string | null = $state(ls('collectSourceId', null));

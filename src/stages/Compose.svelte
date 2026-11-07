@@ -8,6 +8,7 @@
   import SectionEditor from '../components/SectionEditor.svelte';
   import FootnoteDialog from '../components/FootnoteDialog.svelte';
   import QuotePicker from '../components/QuotePicker.svelte';
+  import CiteSuggest from '../components/CiteSuggest.svelte';
   import Modal from '../components/Modal.svelte';
   import { ui } from '../lib/ui.svelte';
   import { settings } from '../lib/settings.svelte';
@@ -249,8 +250,8 @@
 
   // insert a quote: search, filter and sort among all quotes (remembered between uses)
   let picking = $state(false);
-  function pickQuote(id: string) {
-    picking = false;
+  function pickQuote(id: string, keep = false) {
+    picking = keep;
     // the section that had the cursor; if none yet, the first section
     const target = editorState.active ?? null;
     if (target) target.insertArtifact(id, settings.insertMode);
@@ -367,8 +368,9 @@
 {/if}
 
 {#if editorState.footnote}<FootnoteDialog />{/if}
+<CiteSuggest />
 {#if picking}
-  <Modal title={t('Insert quote')} onclose={() => (picking = false)} width="720px">
+  <Modal title={t('Insert quote')} onclose={() => (picking = false)} width="980px">
     <div class="pickhead row small">
       <label class="row" for="pick-mode">{t('Insert as')}</label>
       <select id="pick-mode" class="select mode" bind:value={settings.insertMode}>

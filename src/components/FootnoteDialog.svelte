@@ -26,8 +26,8 @@
   /** the search to find a citation among many */
   let picking = $state(false);
 
-  function insert(id: string) {
-    picking = false;
+  function insert(id: string, keep = false) {
+    picking = keep;
     if (!editor) return;
     // focus right away (TipTap's focus() waits a frame; typing in between would be lost)
     editor.view.focus();
@@ -67,16 +67,17 @@
     close();
   }
   function key(e: KeyboardEvent) {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    // (in the quote search, Ctrl+Enter means "insert and keep it open")
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !(e.target as HTMLElement).closest('.qp')) {
       e.preventDefault();
       save();
     }
   }
 </script>
 
-<Modal title={t('Footnote')} onclose={close} width="720px">
+<Modal title={t('Footnote')} onclose={close} width="980px">
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="fd" onkeydown={key}>
+  <div class="fd" onkeydowncapture={key}>
     <div class="tools row" role="toolbar" aria-label={t('Formatting')}>
       <button class="icon-btn fmt" class:active={is('bold')} aria-label={t('Bold')} title="{t('Bold')} (Ctrl+B)" onclick={() => editor?.chain().focus().toggleBold().run()}><b>B</b></button>
       <button class="icon-btn fmt" class:active={is('italic')} aria-label={t('Italic')} title="{t('Italic')} (Ctrl+I)" onclick={() => editor?.chain().focus().toggleItalic().run()}><i>I</i></button>
