@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { keepScroll } from '../lib/keepScroll';
   // "Schreiben": the final text, one editor per heading of the outline.
   import type { Editor } from '@tiptap/core';
   import { untrack } from 'svelte';
@@ -6,12 +7,13 @@
   import Menu from '../components/Menu.svelte';
   import SectionEditor from '../components/SectionEditor.svelte';
   import FootnoteDialog from '../components/FootnoteDialog.svelte';
-  import { db } from '../lib/db.svelte';
+  import QuotePicker from '../components/QuotePicker.svelte';
+  import Modal from '../components/Modal.svelte';
   import { ui } from '../lib/ui.svelte';
   import { settings } from '../lib/settings.svelte';
   import { t } from '../lib/i18n';
-  import { flatten, wordCount, placementsOf, artifactLabel } from '../lib/ops';
-  import { draftText, makeEditable, selectedQuotePos } from '../lib/editor.svelte';
+  import { flatten, wordCount } from '../lib/ops';
+  import { draftText, insertArtifact as insertArtifactInto, makeEditable, selectedQuotePos } from '../lib/editor.svelte';
   import { editorState, type InsertMode } from '../lib/editorState.svelte';
   import { matches, hint } from '../lib/shortcuts';
   import { renderMd } from '../lib/markdown';
@@ -160,7 +162,6 @@
 
   let goalOpen = $state(false);
   let sprintOpen = $state(false);
-  let quoteOpen = $state(false);
   /** open a toolbar menu from the keyboard and focus its first item */
   function openMenu(set: (v: boolean) => void) {
     typing = false;
@@ -207,10 +208,7 @@
       }
     },
     'write.footnote': () => footnote(),
-    'write.insertQuote': () => {
-      if (focus) ui.focus = false; // the menu lives in the normal toolbar
-      setTimeout(() => openMenu((v) => (quoteOpen = v)), 0);
-    },
+    'write.insertQuote': () => (picking = true),
     'write.insertMode': () => {
       const i = MODES.findIndex((m) => m.id === settings.insertMode);
       const m = MODES[(i + 1) % MODES.length];
@@ -249,13 +247,18 @@
     { label: t('Undo'), icon: 'undo', run: () => cmd((e) => e.chain().focus().undo().run()) }
   ]);
 
-  // quick insert from the items placed under the current section
-  const here = $derived(editorState.active ? placementsOf(editorState.active.headingId).map((p) => db.get('artifacts', p.artifactId)).filter((a) => !!a) : []);
-  const quickMenu = $derived(
-    here.length
-      ? here.flatMap((a) => [{ label: artifactLabel(a!, 50), icon: a!.kind, run: () => editorState.active?.insertArtifact(a!.id, settings.insertMode) }])
-      : [{ label: t('No items placed under this heading – use the library panel'), run: () => {} }]
-  );
+  // insert a quote: search, filter and sort among all quotes (remembered between uses)
+  let picking = $state(false);
+  function pickQuote(id: string) {
+    picking = false;
+    // the section that had the cursor; if none yet, the first section
+    const target = editorState.active ?? null;
+    if (target) target.insertArtifact(id, settings.insertMode);
+    else {
+      const first = flat[0] && editors.get(flat[0].h.id);
+      if (first) insertArtifactInto(first, id, settings.insertMode);
+    }
+  }
 </script>
 
 <svelte:window
@@ -273,6 +276,7 @@
   class:tw={focus && settings.focusTypewriter}
   data-tour="compose"
   bind:this={scroller}
+  use:keepScroll={'write:' + project.id}
 >
   {#if focus}
     <div class="fbar" class:idle={typing} role="toolbar" aria-label={t('Focus mode')}>
@@ -309,9 +313,7 @@
       </button>
     {/if}
     <span class="sep"></span>
-    <Menu items={quickMenu} label="{t('Insert a quote placed here')}{hint('write.insertQuote')}" bind:open={quoteOpen}>
-      {#snippet trigger()}<Icon name="plus" size={14} />{t('Insert quote')}{/snippet}
-    </Menu>
+    <button class="btn ghost sm" title="{t('Insert a quote')}{hint('write.insertQuote')}" onclick={() => (picking = true)}><Icon name="plus" size={14} />{t('Insert quote')}</button>
     {#if !ui.narrow}
       <select class="select mode" bind:value={settings.insertMode} aria-label={t('Insert quotes as')} title="{t('Insert quotes as')}{hint('write.insertMode')}">
         {#each MODES as m (m.id)}<option value={m.id}>{t(m.label)}</option>{/each}
@@ -365,6 +367,17 @@
 {/if}
 
 {#if editorState.footnote}<FootnoteDialog />{/if}
+{#if picking}
+  <Modal title={t('Insert quote')} onclose={() => (picking = false)} width="720px">
+    <div class="pickhead row small">
+      <label class="row" for="pick-mode">{t('Insert as')}</label>
+      <select id="pick-mode" class="select mode" bind:value={settings.insertMode}>
+        {#each MODES as m (m.id)}<option value={m.id}>{t(m.label)}</option>{/each}
+      </select>
+    </div>
+    <QuotePicker headingId={editorState.active?.headingId ?? null} onpick={pickQuote} />
+  </Modal>
+{/if}
 
 <style>
   .compose {
@@ -387,6 +400,10 @@
   .fmt {
     font-family: var(--font-serif);
     font-size: 1rem;
+  }
+  .pickhead {
+    gap: 8px;
+    margin-bottom: 10px;
   }
   .sep {
     width: 1px;

@@ -5,12 +5,9 @@
   import type { Editor } from '@tiptap/core';
   import Modal from './Modal.svelte';
   import Icon from './Icon.svelte';
-  import Menu from './Menu.svelte';
-  import { db } from '../lib/db.svelte';
-  import { ui } from '../lib/ui.svelte';
+  import QuotePicker from './QuotePicker.svelte';
   import { t } from '../lib/i18n';
   import { editorState } from '../lib/editorState.svelte';
-  import { artifactLabel, projectArtifacts, shortCite } from '../lib/ops';
   import { createFootnoteEditor, editableQuote, footnoteEditorContent, makeEditable, selectedQuotePos } from '../lib/editor.svelte';
 
   const fn = editorState.footnote!;
@@ -26,16 +23,11 @@
     { id: 'editable', label: 'As editable text', hint: 'The quote as text you can shorten or adapt; the reference stays linked' }
   ];
 
-  const items = $derived(
-    (ui.projectId ? projectArtifacts(ui.projectId) : db.all('artifacts')).filter((a) => a.kind === 'quote' || a.kind === 'paraphrase')
-  );
-  const insertMenu = $derived(
-    items.length
-      ? items.map((a) => ({ label: `${artifactLabel(a, 60)} — ${shortCite(a)}`, icon: a.kind, run: () => insert(a.id) }))
-      : [{ label: t('No quotes in this project yet'), run: () => {} }]
-  );
+  /** the search to find a citation among many */
+  let picking = $state(false);
 
   function insert(id: string) {
+    picking = false;
     if (!editor) return;
     // focus right away (TipTap's focus() waits a frame; typing in between would be lost)
     editor.view.focus();
@@ -57,7 +49,9 @@
   onMount(() => {
     editor = createFootnoteEditor({ element: host, content: fn.content, placeholder: t('Text, quotes and citations, e.g. “Vgl. …; ferner …”') });
     editor.on('transaction', () => tick++);
-    setTimeout(() => editor?.commands.focus('end'), 30);
+    // focus at once, so the first keys typed land in the footnote
+    editor.view.focus();
+    editor.commands.focus('end');
     return () => editor?.destroy();
   });
 
@@ -80,7 +74,7 @@
   }
 </script>
 
-<Modal title={t('Footnote')} onclose={close} width="620px">
+<Modal title={t('Footnote')} onclose={close} width="720px">
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div class="fd" onkeydown={key}>
     <div class="tools row" role="toolbar" aria-label={t('Formatting')}>
@@ -88,9 +82,9 @@
       <button class="icon-btn fmt" class:active={is('italic')} aria-label={t('Italic')} title="{t('Italic')} (Ctrl+I)" onclick={() => editor?.chain().focus().toggleItalic().run()}><i>I</i></button>
       <button class="icon-btn fmt" class:active={is('underline')} aria-label={t('Underline')} title="{t('Underline')} (Ctrl+U)" onclick={() => editor?.chain().focus().toggleUnderline().run()}><u>U</u></button>
       <span class="sep"></span>
-      <Menu items={insertMenu} label={t('Insert a quote or citation')}>
-        {#snippet trigger()}<Icon name="plus" size={14} />{t('Insert citation')}{/snippet}
-      </Menu>
+      <button class="btn sm" class:on={picking} aria-expanded={picking} onclick={() => (picking = !picking)} title={t('Insert a quote or citation')}>
+        <Icon name="plus" size={14} />{t('Insert citation')}
+      </button>
       <select class="select mode" bind:value={mode} aria-label={t('Insert as')} title={t(MODES.find((m) => m.id === mode)!.hint)}>
         {#each MODES as m (m.id)}<option value={m.id}>{t(m.label)}</option>{/each}
       </select>
@@ -100,6 +94,11 @@
         </button>
       {/if}
     </div>
+    {#if picking}
+      <div class="picker">
+        <QuotePicker headingId={editorState.active?.headingId ?? null} onpick={insert} onclose={() => ((picking = false), editor?.commands.focus())} />
+      </div>
+    {/if}
     <div class="fed" bind:this={host} aria-label={t('Footnote text')}></div>
     <p class="tiny muted">{t('Combine as many quotes and citations as you like with your own words. Citations stay linked to the library; right-click a quote to edit its text.')}</p>
   </div>
@@ -135,6 +134,15 @@
     height: 28px;
     padding: 0 6px;
     font-size: 0.8rem;
+  }
+  .picker {
+    padding: 10px;
+    border-radius: 10px;
+    background: var(--surface-2);
+  }
+  .btn.on {
+    border-color: var(--accent);
+    background: var(--accent-soft);
   }
   .fed {
     min-height: 110px;

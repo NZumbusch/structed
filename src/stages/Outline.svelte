@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { keepScroll } from '../lib/keepScroll';
   import Icon from '../components/Icon.svelte';
   import HeadingRow from '../components/HeadingRow.svelte';
   import { db } from '../lib/db.svelte';
@@ -43,7 +44,7 @@
   }
 </script>
 
-<div class="wrap scroll">
+<div class="wrap scroll" use:keepScroll={mode + ':' + project.id}>
   <div class="page">
     <header class="ph">
       <textarea

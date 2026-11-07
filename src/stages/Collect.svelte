@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { keepScroll } from '../lib/keepScroll';
   import { SvelteSet } from 'svelte/reactivity';
   import Icon from '../components/Icon.svelte';
   import Menu from '../components/Menu.svelte';
@@ -310,7 +311,7 @@
       </div>
     {/if}
     <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="slist scroll" onkeydown={listKey}>
+    <div class="slist scroll" onkeydown={listKey} use:keepScroll={'collect-list'}>
       <button class="src special" class:on={sel === '~all'} onclick={() => (ui.collectSourceId = '~all')}>
         <span class="grow">{t('All items')}</span><span class="cnt">{db.all('artifacts').length}</span>
       </button>
@@ -352,7 +353,7 @@
     </div>
   </div>
 
-  <div class="main scroll">
+  <div class="main scroll" use:keepScroll={'collect:' + (sel ?? '')}>
     {#if !sel}
       <div class="empty">
         <Icon name="book" size={32} />
