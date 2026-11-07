@@ -36,7 +36,22 @@ function setup() {
           { type: 'text', text: ': ' },
           { type: 'quoteRef', attrs: { id: q1.id, mode: 'inline' } },
           { type: 'text', text: '.' },
-          { type: 'footnote', attrs: { before: 'Vgl.', quoteId: q2.id, after: 'Hervorhebung original.' } }
+          { type: 'footnote', attrs: { before: 'Vgl.', quoteId: q2.id, after: 'Hervorhebung original.' } },
+          { type: 'text', text: ' Weiter.' },
+          // a free footnote: own words, two citations, formatting
+          {
+            type: 'footnote',
+            attrs: {
+              content: [
+                { type: 'text', text: 'Vgl. ' },
+                { type: 'quoteRef', attrs: { id: q1.id, mode: 'cite' } },
+                { type: 'text', text: '; ' },
+                { type: 'text', text: 'ferner', marks: [{ type: 'italic' }] },
+                { type: 'text', text: ' ' },
+                { type: 'quoteRef', attrs: { id: q2.id, mode: 'inline' } }
+              ]
+            }
+          }
         ]
       },
       { type: 'quoteBlock', attrs: { id: q1.id } }
@@ -85,8 +100,16 @@ describe('Word export with the Seminararbeit template', () => {
     expect(doc).toContain('&quot;locator&quot;:&quot;797&quot;');
     expect(fn).toContain('ADDIN ZOTERO_ITEM CSL_CITATION');
     expect(fn).toContain('&quot;noteIndex&quot;:1');
-    expect(fn).not.toContain('zotero.org/users'); // Scheibel is not a Zotero item
+    expect(fn.slice(0, fn.indexOf('w:footnote w:id="2"'))).not.toContain('zotero.org/users'); // Scheibel is not a Zotero item
     expect(fn).toContain('Hervorhebung original.');
+    // the free footnote: both citations as fields with its note number, own text and italics kept
+    const second = fn.slice(fn.indexOf('w:footnote w:id="2"'));
+    expect(second).toContain('Vgl. ');
+    expect(second.match(/ADDIN ZOTERO_ITEM CSL_CITATION/g)).toHaveLength(2);
+    expect(second).toContain('&quot;noteIndex&quot;:2');
+    expect(second).toMatch(/<w:i\/>[^]*?ferner/);
+    expect(second).toContain('Es bleibt ein Affect');
+    expect(doc).toContain('<w:footnoteReference w:id="2"/>');
     expect(doc).toContain('<w:footnoteReference w:id="1"/>');
     // block quote in the "Quote" style + centered citation
     expect(doc).toContain('<w:pStyle w:val="Quote"/>');

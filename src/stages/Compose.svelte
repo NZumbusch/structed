@@ -139,7 +139,7 @@
 
   function footnote() {
     cmd((e) => {
-      e.chain().focus().insertContent({ type: 'footnote', attrs: { before: '', quoteId: null, after: '' } }).run();
+      e.chain().focus().insertContent({ type: 'footnote', attrs: { content: [] } }).run();
       // open the dialog for the new footnote
       setTimeout(() => {
         const marks = e.view.dom.querySelectorAll<HTMLElement>('sup.fn');

@@ -7,6 +7,7 @@ import { settings } from '../settings.svelte';
 import { flatten } from '../ops';
 import { bibliography } from '../cite';
 import { citeTextAsync, marks, oneLine } from '../citecache.svelte';
+import { footnoteContent } from '../footnote';
 import type { Artifact, Project, Source } from '../types';
 import seminararbeit from './seminararbeit.json';
 
@@ -135,16 +136,8 @@ async function inline(nodes: PMNode[] | undefined, ctx: Ctx, base: string, noteI
     } else if (n.type === 'footnote') {
       const id = ctx.footnotes.length + 1;
       const fb = ctx.sn.footnotePPr.match(/<w:rPr>.*?<\/w:rPr>/s)?.[0] ?? '';
-      let inner = ctx.sn.footnoteRefRun + run(' ' + String(n.attrs?.before ?? '').trim(), fb);
-      const a = n.attrs?.quoteId ? db.get('artifacts', String(n.attrs.quoteId)) : undefined;
-      if (a) {
-        const src = db.get('sources', a.sourceId);
-        if (src) ctx.cited.set(src.id, src);
-        const [l, r] = marks();
-        inner += run((n.attrs?.before ? ' ' : '') + l, fb) + run(oneLine(n.attrs?.quoteText ? String(n.attrs.quoteText) : a.text), fb, { i: settings.quoteItalic }) + run(r + ' ', fb);
-        if (src) inner += citationField(a, await ctx.citeFormat(a), id, fb);
-      }
-      if (n.attrs?.after) inner += run(' ' + String(n.attrs.after).trim(), fb);
+      // free text with any number of quotes and citations, rendered like the main text
+      const inner = ctx.sn.footnoteRefRun + run(' ', fb) + (await inline(footnoteContent(n.attrs), ctx, fb, id));
       ctx.footnotes.push(`<w:footnote w:id="${id}">${para(ctx.sn.footnotePPr, inner)}</w:footnote>`);
       out += `<w:r>${ctx.sn.footnoteRefRPr}<w:footnoteReference w:id="${id}"/></w:r>`;
     }

@@ -11,6 +11,8 @@ import { settings } from './settings.svelte';
 import { citeText, marks, oneLine, wordsOf } from './citecache.svelte';
 import { editorState, type InsertMode } from './editorState.svelte';
 import { ui } from './ui.svelte';
+import { editableQuote, footnoteContent, footnotePlain, type PMNode } from './footnote';
+export { editableQuote };
 import { t } from './i18n';
 
 function quoteMenu(e: MouseEvent, editor: Editor, getPos: (() => number | undefined) | boolean) {
@@ -138,9 +140,9 @@ export const QuoteBlock = Node.create({
 });
 
 /**
- * Footnote: text before, an optional linked quote, text after. Numbered automatically.
- * `quoteText` holds a shortened/adapted wording of the quote ([…], [sic]); null = the
- * library text, live. The citation stays linked either way.
+ * Footnote: free text with any number of linked quotes and citations (`content`, inline
+ * ProseMirror JSON), numbered automatically. Older footnotes stored text before, one
+ * quote and text after; they are read through `footnoteContent`.
  */
 export const Footnote = Node.create({
   name: 'footnote',
@@ -149,7 +151,7 @@ export const Footnote = Node.create({
   atom: true,
   selectable: true,
   addAttributes() {
-    return { before: { default: '' }, quoteId: { default: null }, quoteText: { default: null }, after: { default: '' } };
+    return { content: { default: null }, before: { default: '' }, quoteId: { default: null }, quoteText: { default: null }, after: { default: '' } };
   },
   parseHTML() {
     return [{ tag: 'sup[data-footnote]' }];
@@ -165,20 +167,18 @@ export const Footnote = Node.create({
       dom.tabIndex = 0;
       let attrs = $state({ ...node.attrs });
       const stop = live(() => {
-        const q = attrs.quoteId ? quoteParts(attrs.quoteId) : null;
-        const [l, r] = marks();
-        dom.title = [attrs.before, q ? `${l}${attrs.quoteText ?? q.text}${r} ${q.cite}` : '', attrs.after].filter(Boolean).join(' ');
+        dom.title = footnotePlain(footnoteContent(attrs));
       });
       const open = () => {
         const pos = typeof getPos === 'function' ? getPos() : null;
         if (pos == null) return;
         editorState.footnote = {
-          text: dom.title,
-          before: attrs.before,
-          quoteId: attrs.quoteId,
-          quoteText: attrs.quoteText ?? null,
-          after: attrs.after,
-          save: (v) => editor.chain().command(({ tr }) => (tr.setNodeMarkup(pos, undefined, { ...v }), true)).run(),
+          content: footnoteContent(attrs),
+          save: (content) =>
+            editor
+              .chain()
+              .command(({ tr }) => (tr.setNodeMarkup(pos, undefined, { content, before: '', quoteId: null, quoteText: null, after: '' }), true))
+              .run(),
           remove: () => editor.chain().deleteRange({ from: pos, to: pos + 1 }).run()
         };
       };
@@ -242,6 +242,48 @@ export const CurrentBlock = Extension.create({
   }
 });
 
+/**
+ * The small editor inside the footnote dialog: the same text features as the main text
+ * (marks, linked quotes and citations, dash), without blocks, lists or nested footnotes.
+ */
+export function createFootnoteEditor(opts: { element: HTMLElement; content: PMNode[]; placeholder: string }) {
+  return new Editor({
+    element: opts.element,
+    content: { type: 'doc', content: [{ type: 'paragraph', content: opts.content.length ? opts.content : undefined }] },
+    extensions: [
+      StarterKit.configure({
+        heading: false,
+        codeBlock: false,
+        code: false,
+        horizontalRule: false,
+        strike: false,
+        link: false,
+        blockquote: false,
+        bulletList: false,
+        orderedList: false,
+        listItem: false
+      }),
+      Placeholder.configure({ placeholder: opts.placeholder }),
+      QuoteRef,
+      AutoDash
+    ],
+    editorProps: {
+      attributes: { class: 'prose fnprose', spellcheck: String(settings.editorSpellcheck), lang: settings.editorLang }
+    }
+  });
+}
+
+/** Inline content of the footnote editor; paragraphs become line breaks (a footnote is one paragraph). */
+export function footnoteEditorContent(editor: Editor): PMNode[] {
+  const paras = (editor.getJSON().content ?? []) as PMNode[];
+  const out: PMNode[] = [];
+  paras.forEach((p, i) => {
+    if (i && (p.content?.length || 0)) out.push({ type: 'hardBreak' });
+    out.push(...(p.content ?? []));
+  });
+  return out;
+}
+
 export function createEditor(opts: {
   element: HTMLElement;
   content: string | undefined;
@@ -293,6 +335,7 @@ export function insertArtifact(editor: Editor, artifactId: string, mode: InsertM
   let m = mode;
   // long quotes become block quotes (APA: 40+ words), notes are inserted as text
   if (m === 'inline' && settings.autoBlockWords > 0 && a.kind === 'quote' && wordsOf(a.text) >= settings.autoBlockWords) m = 'block';
+  editor.view.focus(); // at once, so typing right after the insert lands in the text
   const chain = editor.chain().focus();
   if (pos != null) chain.setTextSelection(pos);
   if (a.kind === 'note' || (a.kind === 'paraphrase' && m === 'inline')) {
@@ -305,25 +348,8 @@ export function insertArtifact(editor: Editor, artifactId: string, mode: InsertM
     return;
   }
   if (m === 'block') chain.insertContent({ type: 'quoteBlock', attrs: { id: a.id } }).run();
-  else if (m === 'footnote') chain.insertContent({ type: 'footnote', attrs: { before: '', quoteId: a.id, after: '' } }).run();
+  else if (m === 'footnote') chain.insertContent({ type: 'footnote', attrs: { content: [{ type: 'quoteRef', attrs: { id: a.id, mode: 'inline' } }] } }).run();
   else chain.insertContent({ type: 'quoteRef', attrs: { id: a.id, mode: m } }).run();
-}
-
-/**
- * A quote as normal, editable text („…“, italic per settings) followed by a linked
- * citation – for shortened or adapted quotes ([…], [sic], own additions).
- */
-export function editableQuote(id: string, text?: string) {
-  const a = db.get('artifacts', id);
-  const [l, r] = marks();
-  const q = oneLine(text ?? a?.text ?? '');
-  const italic = settings.quoteItalic ? [{ type: 'italic' }] : [];
-  return [
-    { type: 'text', text: l },
-    ...(q ? [{ type: 'text', text: q, marks: italic }] : []),
-    { type: 'text', text: r + ' ' },
-    ...(a?.sourceId ? [{ type: 'quoteRef', attrs: { id, mode: 'cite' } }] : [])
-  ];
 }
 
 /** Replace the linked quote node at `pos` by editable text (keeps the citation linked). */
