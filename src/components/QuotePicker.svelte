@@ -20,9 +20,12 @@
 
   let {
     headingId = null,
+    showMode = false,
     onpick,
     onclose
   }: {
+    /** offer "insert as …" next to the insert button (Write) */
+    showMode?: boolean;
     /** the section being written: offers "this section" as a scope */
     headingId?: string | null;
     /** `keep`: insert and keep the search open (Ctrl+Enter) */
@@ -45,6 +48,9 @@
     limit = LIMIT_STEP;
   };
   const changed = $derived(JSON.stringify(p) !== JSON.stringify(PICKER_DEFAULTS));
+  /** cited / source / tag live behind one "Filter" button */
+  let filterOpen = $state(false);
+  const filterCount = $derived((p.used !== 'all' && ui.projectId ? 1 : 0) + (p.sourceId ? 1 : 0) + (p.tag ? 1 : 0));
   const reset = () => {
     settings.picker = { ...PICKER_DEFAULTS };
     active = 0;
@@ -224,8 +230,17 @@
     ['year', 'By year']
   ];
   const KINDS: ('quote' | 'paraphrase' | 'note')[] = ['quote', 'paraphrase', 'note'];
+  const INSERT_MODES: [typeof settings.insertMode, string][] = [
+    ['inline', 'In the sentence'],
+    ['editable', 'As editable text'],
+    ['block', 'Block quote'],
+    ['footnote', 'In a footnote'],
+    ['cite', 'Citation only']
+  ];
   const toggleKind = (k: 'quote' | 'paraphrase' | 'note') => set({ kinds: p.kinds.includes(k) ? p.kinds.filter((x) => x !== k) : [...p.kinds, k] });
 </script>
+
+<svelte:window onpointerdown={() => (filterOpen = false)} />
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div class="qp" onkeydown={key}>
@@ -248,45 +263,73 @@
     <button class="btn sm" onclick={newQuote} title={t('Add a quote that is missing, then insert it')}><Icon name="plus" size={14} />{t('New quote')}</button>
   </div>
 
+  <!-- one calm row: where from · type · filter · (right) groups · order -->
   <div class="controls">
     <div class="seg" role="group" aria-label={t('Where from')}>
-      {#if headingId}<button class:on={scope === 'section'} onclick={() => set({ scope: 'section' })} title={t('Placed under this heading')}>{t('This section')}</button>{/if}
+      {#if headingId}<button class:on={scope === 'section'} onclick={() => set({ scope: 'section' })} title={t('Placed under this heading')}>{t('Section')}</button>{/if}
       {#if ui.projectId}<button class:on={scope === 'project'} onclick={() => set({ scope: 'project' })}>{t('Project')}</button>{/if}
       <button class:on={scope === 'library'} onclick={() => set({ scope: 'library' })}>{t('Library')}</button>
     </div>
-    <div class="kinds" role="group" aria-label={t('Type')}>
+    <div class="seg" role="group" aria-label={t('Type')}>
       {#each KINDS as k (k)}
-        <button class="btn sm kind" class:on={p.kinds.includes(k)} aria-pressed={p.kinds.includes(k)} onclick={() => toggleKind(k)}><Icon name={k} size={13} />{t(k)}</button>
+        <button class:on={p.kinds.includes(k)} aria-pressed={p.kinds.includes(k)} onclick={() => toggleKind(k)}><Icon name={k} size={13} />{t(k)}</button>
       {/each}
     </div>
-    {#if ui.projectId}
-      <select class="select" value={p.used} onchange={(e) => set({ used: e.currentTarget.value as PickerPrefs['used'] })} aria-label={t('Cited in the text')}>
-        <option value="all">{t('Cited or not')}</option>
-        <option value="unused">{t('Not yet in the text')}</option>
-        <option value="used">{t('Already in the text')}</option>
+    <div class="fwrap">
+      <button class="pill" class:on={filterOpen || filterCount > 0} aria-expanded={filterOpen} onclick={(e) => { e.stopPropagation(); filterOpen = !filterOpen; }}>
+        <Icon name="filter" size={13} />{t('Filter')}{#if filterCount}<span class="badge">{filterCount}</span>{/if}
+      </button>
+      {#if filterOpen}
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="fpop" role="dialog" aria-label={t('Filter')} tabindex="-1" onpointerdown={(e) => e.stopPropagation()}>
+          {#if ui.projectId}
+            <label class="field"><span>{t('Cited in the text')}</span>
+              <select class="select" value={p.used} onchange={(e) => set({ used: e.currentTarget.value as PickerPrefs['used'] })} aria-label={t('Cited in the text')}>
+                <option value="all">{t('Cited or not')}</option>
+                <option value="unused">{t('Not yet in the text')}</option>
+                <option value="used">{t('Already in the text')}</option>
+              </select>
+            </label>
+          {/if}
+          <label class="field"><span>{t('Source')}</span>
+            <select class="select" value={p.sourceId} onchange={(e) => set({ sourceId: e.currentTarget.value })} aria-label={t('Source')}>
+              <option value="">{t('All sources')}</option>
+              {#each sources as s (s.id)}<option value={s.id}>{sourceLabel(s)} – {s.csl.title ?? ''}</option>{/each}
+            </select>
+          </label>
+          <label class="field"><span>{t('Tag')}</span>
+            <select class="select" value={p.tag} onchange={(e) => set({ tag: e.currentTarget.value })} aria-label={t('Tag')} disabled={!tags.length && !p.tag}>
+              <option value="">{t('All tags')}</option>
+              {#each tags as tg (tg)}<option value={tg}>#{tg}</option>{/each}
+            </select>
+          </label>
+          <div class="row factions">
+            {#if filterCount}<button class="btn ghost sm" onclick={() => set({ used: 'all', sourceId: '', tag: '' })}>{t('Reset filters')}</button>{/if}
+            <span class="grow"></span>
+            <button class="btn sm" onclick={() => (filterOpen = false)}>{t('Done')}</button>
+          </div>
+        </div>
+      {/if}
+    </div>
+    <div class="order push">
+    <label class="pill sel" title={t('Group by')}>
+      <Icon name="layers" size={13} />
+      <select value={p.group} onchange={(e) => set({ group: e.currentTarget.value as PickerPrefs['group'] })} aria-label={t('Group by')}>
+        {#each GROUPS as [v, l] (v)}<option value={v}>{t(l)}</option>{/each}
       </select>
-    {/if}
-    <select class="select" value={p.sourceId} onchange={(e) => set({ sourceId: e.currentTarget.value })} aria-label={t('Source')}>
-      <option value="">{t('All sources')}</option>
-      {#each sources as s (s.id)}<option value={s.id}>{sourceLabel(s)} – {s.csl.title ?? ''}</option>{/each}
-    </select>
-    {#if tags.length || p.tag}
-      <select class="select" value={p.tag} onchange={(e) => set({ tag: e.currentTarget.value })} aria-label={t('Tag')}>
-        <option value="">{t('All tags')}</option>
-        {#each tags as tg (tg)}<option value={tg}>#{tg}</option>{/each}
+    </label>
+    <label class="pill sel" title={t('Sort')}>
+      <Icon name="arrow-down" size={13} />
+      <select value={p.sort} onchange={(e) => set({ sort: e.currentTarget.value as PickerPrefs['sort'] })} aria-label={t('Sort')}>
+        {#each SORTS as [v, l] (v)}<option value={v}>{t(l)}</option>{/each}
       </select>
-    {/if}
-    <select class="select" value={p.group} onchange={(e) => set({ group: e.currentTarget.value as PickerPrefs['group'] })} aria-label={t('Group by')}>
-      {#each GROUPS as [v, l] (v)}<option value={v}>{t(l)}</option>{/each}
-    </select>
-    <select class="select" value={p.sort} onchange={(e) => set({ sort: e.currentTarget.value as PickerPrefs['sort'] })} aria-label={t('Sort')}>
-      {#each SORTS as [v, l] (v)}<option value={v}>{t(l)}</option>{/each}
-    </select>
-    {#if changed}<button class="btn ghost sm" onclick={reset}><Icon name="undo" size={13} />{t('Reset')}</button>{/if}
+    </label>
+    </div>
   </div>
 
   <div class="count tiny muted" aria-live="polite">
     {t('{n} found', { n: results.length })}
+    {#if changed}· <button class="lnk" onclick={reset}>{t('Reset')}</button>{/if}
     {#if zsync.running}<span class="syncing">· {t('checking Zotero…')}</span>{/if}
     {#if elsewhere}
       · <button class="lnk" onclick={() => set({ scope: 'library' })}>{t('{n} more in the library (not selected for this project) – show', { n: elsewhere })}</button>
@@ -334,6 +377,11 @@
     {#if current}
       {@const s = src(current)}
       <aside class="preview" aria-label={t('Preview')}>
+        <div class="phead">
+          <span class="tiny muted grow ellipsis">{s ? `${shortCite(current)}` : t('No source')}{cited.get(current.id) ? ` · ${t('Cited {n}× in the text', { n: cited.get(current.id)! })}` : ''}</span>
+          <button class="icon-btn sm" title={t('Edit')} aria-label={t('Edit')} onclick={() => (ui.editArtifact = { id: current!.id })}><Icon name="edit" size={15} /></button>
+          <Menu items={copyMenu} label={t('Copy')} icon="copy" />
+        </div>
         <div class="pv scrollable">
           {#if current.title}<strong>{current.title}</strong>{/if}
           {#if current.kind === 'note'}
@@ -346,15 +394,15 @@
           <p class="psrc tiny muted">
             {#if s}{authorsFull(s.csl)}{yearOf(s.csl) ? ` (${yearOf(s.csl)})` : ''}: {s.csl.title}{current.page ? ` · ${t('p.')} ${current.page}` : ''}{:else}{t('No source')}{/if}
             {#if visibleTags(current.tags).length}<br />{visibleTags(current.tags).map((x) => '#' + x).join(' ')}{/if}
-            {#if cited.get(current.id)}<br />{t('Cited {n}× in the text', { n: cited.get(current.id)! })}{/if}
           </p>
         </div>
         <div class="pact">
-          <button class="btn primary sm" onclick={() => pick(current)} title="Enter · {t('Ctrl+Enter: insert and keep this open')}"><Icon name="plus" size={14} />{t('Insert')}</button>
-          <button class="btn sm" onclick={() => (ui.editArtifact = { id: current!.id })}><Icon name="edit" size={14} />{t('Edit')}</button>
-          <Menu items={copyMenu} label={t('Copy')}>
-            {#snippet trigger()}<Icon name="copy" size={14} />{t('Copy')}{/snippet}
-          </Menu>
+          <button class="btn primary" onclick={() => pick(current)} title="Enter · {t('Ctrl+Enter: insert and keep this open')}"><Icon name="plus" size={14} />{t('Insert')}</button>
+          {#if showMode}
+            <select class="select mode" bind:value={settings.insertMode} aria-label={t('Insert as')} title={t('Insert as')}>
+              {#each INSERT_MODES as [v, l] (v)}<option value={v}>{t(l)}</option>{/each}
+            </select>
+          {/if}
         </div>
       </aside>
     {/if}
@@ -401,42 +449,99 @@
     color: var(--text);
     font-size: 0.9rem;
   }
+  /* everything in the row is the same grey family and height (32px) */
   .controls {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 6px;
   }
-  /* one height for every control in the filter rows */
-  .controls {
-    --ctl: 32px;
-  }
-  .controls .select {
-    width: auto;
-    max-width: 200px;
-    min-height: var(--ctl);
-    height: var(--ctl);
-    padding: 0 8px;
-    font-size: 0.8125rem;
-  }
   .controls .seg {
     padding: 3px;
   }
   .controls .seg button {
-    height: calc(var(--ctl) - 6px);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 26px;
     padding: 0 9px;
   }
-  .controls .btn {
-    height: var(--ctl);
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--muted);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
   }
-  .kinds {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 3px;
+  .pill:hover,
+  .pill.on {
+    color: var(--text);
   }
-  .kind.on {
-    border-color: var(--accent);
+  .pill.on {
     background: var(--accent-soft);
+    color: var(--accent-text);
+  }
+  .pill.sel {
+    padding: 0 4px 0 10px;
+    gap: 2px;
+  }
+  .push {
+    margin-left: auto;
+  }
+  .order {
+    display: flex;
+    gap: 6px;
+  }
+  .pill select {
+    height: 100%;
+    max-width: 140px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    outline: none;
+  }
+  .pill:focus-within {
+    box-shadow: 0 0 0 2px var(--accent-soft);
+  }
+  .badge {
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 0.68rem;
+    line-height: 16px;
+    text-align: center;
+  }
+  .fwrap {
+    position: relative;
+  }
+  .fpop {
+    position: absolute;
+    z-index: 5;
+    top: calc(100% + 6px);
+    left: 0;
+    width: 300px;
+    display: grid;
+    gap: 10px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+  }
+  .factions {
+    gap: 6px;
   }
   .body {
     display: grid;
@@ -532,7 +637,7 @@
   }
   .preview {
     display: grid;
-    grid-template-rows: minmax(0, 1fr) auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     gap: 8px;
     height: min(50vh, 440px);
     padding: 10px 12px;
@@ -568,10 +673,23 @@
   .psrc {
     margin: 8px 0 0;
   }
+  .phead {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    margin: -4px -6px 0 0;
+  }
+  /* insert, and how: one control height */
   .pact {
     display: flex;
-    flex-wrap: wrap;
     gap: 6px;
+  }
+  .pact .mode {
+    flex: 1;
+    min-width: 0;
+    height: 34px;
+    min-height: 34px;
+    font-size: 0.8125rem;
   }
   .empty {
     display: grid;
@@ -595,9 +713,11 @@
       height: auto;
       max-height: 30vh;
     }
-    .controls .select {
-      max-width: 100%;
-      flex: 1 1 40%;
+    .push {
+      margin-left: 0;
+    }
+    .fpop {
+      width: min(300px, calc(100vw - 48px));
     }
   }
 </style>
