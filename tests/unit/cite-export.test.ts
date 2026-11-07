@@ -99,3 +99,58 @@ describe('canHaveAnnotations', () => {
     expect(canHaveAnnotations({ itemType: 'note' })).toBe(false);
   });
 });
+
+import { joinSecondary, secondaryPrefix } from '../../src/lib/cite';
+import { shortCite, sourcesOf } from '../../src/lib/ops';
+describe('secondary citations and locator labels', () => {
+  function quote() {
+    const kaufmann = db.create('sources', { csl: { id: 'k', type: 'entry-encyclopedia', title: 'Konfessionalisierung', author: [{ family: 'Kaufmann', given: 'Thomas' }], issued: { 'date-parts': [[1996]] }, 'container-title': 'RGG' }, tags: [] });
+    const lotz = db.create('sources', { csl: { id: 'l', type: 'book', title: 'Der Umgang mit heiligen Quellen', author: [{ family: 'Lotz-Heumann', given: 'Ute' }], issued: { 'date-parts': [[2001]] } }, tags: [] });
+    const q = db.create('artifacts', { kind: 'quote', text: 'x', tags: [], sourceId: lotz.id, page: '108', original: { sourceId: kaufmann.id, page: '1121', pageLabel: 'column' } });
+    return { kaufmann, lotz, q };
+  }
+  it('joins original and source inside one pair of brackets', async () => {
+    const { q } = quote();
+    // APA 7 abbreviates only pages and paragraphs (APA 8.13)
+    expect(await citeArtifact(q, { style: 'apa', locale: 'en-US' })).toBe('(Kaufmann, 1996, Column 1121, as cited in Lotz-Heumann, 2001, p. 108)');
+    expect(await citeArtifact(q, { style: 'apa', locale: 'de-DE' })).toBe('(Kaufmann, 1996, Spalte 1121, zit. nach Lotz-Heumann, 2001, S. 108)');
+    expect(await secondaryPrefix(q, { style: 'apa', locale: 'de-DE' })).toBe('Kaufmann, 1996, Spalte 1121, zit. nach');
+    expect(shortCite(q)).toBe('Kaufmann 1996, col. 1121, cited in Lotz-Heumann 2001, p. 108');
+  });
+  it('note styles: the first citation loses its period', () => {
+    expect(joinSecondary('Kaufmann, „Konfessionalisierung“, Sp. 1121.', 'Lotz-Heumann, Umgang, S. 108.', 'zit. nach')).toBe('Kaufmann, „Konfessionalisierung“, Sp. 1121, zit. nach Lotz-Heumann, Umgang, S. 108.');
+    expect(joinSecondary('', '(B, 2001)', 'x')).toBe('(B, 2001)');
+  });
+  it('a label of its own for the location; the original goes into the bibliography', async () => {
+    const { kaufmann, lotz, q } = quote();
+    const c = db.create('artifacts', { kind: 'quote', text: 'y', tags: [], sourceId: kaufmann.id, page: '1121', pageLabel: 'column' });
+    expect(await citeArtifact(c, { style: 'apa', locale: 'de-DE' })).toBe('(Kaufmann, 1996, Spalte 1121)');
+    expect(await citeArtifact({ ...c, pageLabel: 'paragraph', page: '4' }, { style: 'apa', locale: 'de-DE' })).toBe('(Kaufmann, 1996, Abs. 4)');
+    expect(sourcesOf(q).map((s) => s.id)).toEqual([lotz.id, kaufmann.id]);
+    expect(sourcesOf(q, false).map((s) => s.id)).toEqual([lotz.id]);
+  });
+});
+
+import { readFileSync } from 'node:fs';
+describe('citation styles', () => {
+  it('loads the bundled styles instead of falling back to APA', async () => {
+    const real = globalThis.fetch;
+    globalThis.fetch = (async (u: string) => {
+      try {
+        return new Response(readFileSync(process.cwd() + '/public/' + String(u).replace(/^.*?csl\//, 'csl/'), 'utf8'));
+      } catch {
+        return new Response('', { status: 404 });
+      }
+    }) as typeof fetch;
+    try {
+      const s = db.create('sources', { csl: { id: 'k', type: 'book', title: 'Konfessionalisierung', author: [{ family: 'Kaufmann', given: 'Thomas' }], issued: { 'date-parts': [[1996]] } }, tags: [] });
+      const q = db.create('artifacts', { kind: 'quote', text: 'x', tags: [], sourceId: s.id, page: '1121', pageLabel: 'column' });
+      expect(await citeArtifact(q, { style: 'din-1505-2', locale: 'de-DE' })).toBe('(Kaufmann, 1996, Sp. 1121)');
+      expect(await citeArtifact(q, { style: 'chicago-author-date', locale: 'de-DE' })).toBe('(Kaufmann 1996, Sp. 1121)');
+      expect(await citeArtifact(q, { style: 'chicago-notes-bibliography', locale: 'de-DE' })).toBe('Thomas Kaufmann, Konfessionalisierung (1996), Sp. 1121.');
+      expect(await citeArtifact(q, { style: 'modern-language-association', locale: 'en-US' })).toBe('(Kaufmann, col. 1121)');
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+});

@@ -1,6 +1,7 @@
 import { db, byOrder, orderBetween } from './db.svelte';
 import { t } from './i18n';
-import type { Artifact, CSLItem, CSLName, Heading, Placement, Project, Source } from './types';
+import type { Artifact, CSLItem, CSLName, Heading, LocatorLabel, Placement, Project, Source } from './types';
+import { settings } from './settings.svelte';
 
 // ---------------- projects ----------------
 export const TEMPLATES: Record<string, { en: string[]; de: string[] }> = {
@@ -249,7 +250,7 @@ export function deleteSource(s: Source, withArtifacts: boolean) {
       if (a.sourceId === s.id) {
         if (withArtifacts) deleteArtifact(a);
         else db.update('artifacts', a.id, { sourceId: null });
-      }
+      } else if (a.original?.sourceId === s.id) db.update('artifacts', a.id, { original: null });
     for (const x of db.all('selections')) if (x.refType === 'source' && x.refId === s.id) db.remove('selections', x.id);
     db.remove('sources', s.id);
   });
@@ -268,7 +269,7 @@ export function mergeSource(from: Source, into: Source): number {
       if (a.sourceId === from.id) {
         db.update('artifacts', a.id, { sourceId: into.id });
         n++;
-      }
+      } else if (a.original?.sourceId === from.id) db.update('artifacts', a.id, { original: { ...a.original, sourceId: into.id } });
     for (const x of db.all('selections'))
       if (x.refType === 'source' && x.refId === from.id) {
         const dup = db.all('selections').some((y) => y.refType === 'source' && y.refId === into.id && y.projectId === x.projectId);
@@ -402,12 +403,42 @@ export function sourceLabel(s: Source | undefined): string {
   if (a || y) return `${a || s.csl.title?.slice(0, 30) || '?'}${y ? ' ' + y : ''}`;
   return s.csl.title ?? '(untitled)';
 }
+/** Short forms of the locator labels, as shown in the app ("p. 12", "col. 1121"). */
+const LABEL_SHORT: Record<string, [string, string]> = {
+  column: ['col.', 'cols.'],
+  paragraph: ['para.', 'paras.'],
+  section: ['sec.', 'secs.'],
+  line: ['l.', 'll.'],
+  chapter: ['ch.', 'chs.'],
+  volume: ['vol.', 'vols.'],
+  folio: ['fol.', 'fols.'],
+  note: ['n.', 'nn.'],
+  number: ['no.', 'nos.'],
+  verse: ['v.', 'vv.'],
+  'sub-verbo': ['s.v.', 's.vv.'],
+  figure: ['fig.', 'figs.'],
+  table: ['tbl.', 'tbls.']
+};
+export function locatorText(page: string | undefined, label?: LocatorLabel): string {
+  if (!page?.trim()) return '';
+  const many = /[-–,&]/.test(page);
+  const l = !label || label === 'page' ? (many ? t('pp.') : t('p.')) : t(LABEL_SHORT[label]?.[many ? 1 : 0] ?? label);
+  return `${l} ${page.trim()}`;
+}
 export function shortCite(a: Artifact): string {
   const s = db.get('sources', a.sourceId);
   if (!s) return '';
-  const base = sourceLabel(s);
-  const pp = /[-–]/.test(a.page ?? '') ? t('pp.') : t('p.');
-  return a.page ? `${base}, ${pp} ${a.page}` : base;
+  const loc = locatorText(a.page, a.pageLabel);
+  const main = loc ? `${sourceLabel(s)}, ${loc}` : sourceLabel(s);
+  const o = a.original ? db.get('sources', a.original.sourceId) : undefined;
+  if (!o) return main;
+  const oloc = locatorText(a.original!.page, a.original!.pageLabel);
+  return `${sourceLabel(o)}${oloc ? ', ' + oloc : ''}, ${t('cited in')} ${main}`;
+}
+/** Sources a quote stands for in a bibliography: its source and, if wanted, the original it quotes. */
+export function sourcesOf(a: Artifact, withOriginal = settings.secondaryInBib): Source[] {
+  const out = [db.get('sources', a.sourceId), withOriginal && a.original ? db.get('sources', a.original.sourceId) : undefined];
+  return out.filter((s): s is Source => !!s);
 }
 export function artifactLabel(a: Artifact, n = 90): string {
   const t = (a.title || a.text || a.comment || '').replace(/\s+/g, ' ').trim();

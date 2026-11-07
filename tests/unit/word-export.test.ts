@@ -151,6 +151,27 @@ describe('Word export with the Seminararbeit template', () => {
     expect(doc).toContain('&quot;locator&quot;:&quot;797&quot;');
   });
 
+  it('a secondary citation: the original as prefix of the live field, and in the bibliography', async () => {
+    settings.exportZotero = true;
+    settings.secondaryInBib = true;
+    const p = setup();
+    const sub = db.all('headings').find((h) => h.title === 'Bachs Kantatenschaffen')!;
+    const dürr = db.all('sources').find((s) => s.zoteroKey === 'ABCD1234')!;
+    const orig = db.create('sources', { csl: { id: 'K', type: 'book', title: 'Konfessionalisierung', author: [{ family: 'Kaufmann', given: 'Thomas' }], issued: { 'date-parts': [[1996]] } }, tags: [], zoteroKey: 'KAUF0001', zoteroLibrary: 'users/42' });
+    const q = db.create('artifacts', { kind: 'quote', text: 'Zitat', page: '108', tags: [], sourceId: dürr.id, original: { sourceId: orig.id, page: '1121', pageLabel: 'column' } });
+    db.update('headings', sub.id, { draft: JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'quoteRef', attrs: { id: q.id, mode: 'cite' } }] }] }) });
+    const { doc } = await unzip(await buildWordDocument(p, { templateBytes: bytes, cover: false, toc: false, style: 'apa', locale: 'de-DE' }));
+    expect(doc).toContain('(Kaufmann, 1996, Spalte 1121, zit. nach Dürr, 1971, S. 108)');
+    expect(doc).toContain('&quot;prefix&quot;:&quot;Kaufmann, 1996, Spalte 1121, zit. nach&quot;');
+    // Kaufmann has no field of its own: listed as "uncited" so a Zotero refresh keeps it in the bibliography
+    expect(doc).toContain('&quot;uncited&quot;:[[&quot;http://zotero.org/users/42/items/KAUF0001&quot;]]');
+    expect(doc).toMatch(/Kaufmann, T\. \(1996\)/);
+    settings.secondaryInBib = false;
+    const { doc: without } = await unzip(await buildWordDocument(p, { templateBytes: bytes, cover: false, toc: false, style: 'apa', locale: 'de-DE' }));
+    expect(without).not.toMatch(/Kaufmann, T\. \(1996\)/);
+    expect(without).toContain('&quot;uncited&quot;:[]');
+    settings.secondaryInBib = true;
+  });
   it('rpr merges formatting in schema order', () => {
     const base = '<w:rPr><w:rFonts w:ascii="X"/><w:lang w:eastAsia="de-DE"/></w:rPr>';
     expect(rpr(base, { b: true, i: true, u: true })).toBe('<w:rPr><w:rFonts w:ascii="X"/><w:b/><w:bCs/><w:i/><w:iCs/><w:u w:val="single"/><w:lang w:eastAsia="de-DE"/></w:rPr>');
