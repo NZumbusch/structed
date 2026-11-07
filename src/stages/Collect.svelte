@@ -14,6 +14,7 @@
   import { cleanText } from '../lib/ocr';
   import type { Artifact, ArtifactKind } from '../lib/types';
   import { longpress } from '../lib/longpress';
+  import { unusedImported } from '../lib/footnote';
 
   let q = $state('');
   let sort = $state<'author' | 'year' | 'added' | 'items'>('author');
@@ -46,6 +47,23 @@
   });
 
   const sel = $derived(ui.collectSourceId);
+  // imported Zotero highlights nobody uses (to clean up after importing too much)
+  const unusedList = $derived(unusedImported());
+  const unusedIds = $derived(new Set(unusedList.map((a) => a.id)));
+  const unusedHere = $derived(unusedList.filter((a) => a.sourceId === sel));
+  async function deleteUnused(list: Artifact[]) {
+    const n = list.length;
+    const ok = await ui.ask({
+      title: t('Delete {n} unused highlights?', { n }),
+      text: t('They are not placed under a heading, not cited in any text and not picked for a project. They will not be offered again when you go through the highlights (unless you ask for skipped ones).'),
+      ok: t('Delete {n}', { n }),
+      cancel: t('Cancel'),
+      danger: true
+    });
+    if (!ok) return;
+    db.batch('delete unused highlights', () => list.forEach((a) => deleteArtifact(a)));
+    ui.toast(t('{n} items deleted', { n }), { action: { label: t('Undo'), run: () => db.undo() } });
+  }
   const source = $derived(sel && sel !== '~none' && sel !== '~all' ? db.get('sources', sel) : undefined);
   // cleanup views across all projects
   const norm = (x: string) => x.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim().slice(0, 120);
@@ -59,7 +77,8 @@
     '~none': (a) => !db.get('sources', a.sourceId),
     '~orphan': (a) => projectsOf(a).length === 0,
     '~nopage': (a) => (a.kind === 'quote' || a.kind === 'paraphrase') && !!db.get('sources', a.sourceId) && !a.page?.trim(),
-    '~dupes': (a) => dupeKeys.has(norm(a.text))
+    '~dupes': (a) => dupeKeys.has(norm(a.text)),
+    '~zunused': (a) => unusedIds.has(a.id)
   };
   const viewCount = (v: string) => db.all('artifacts').filter(VIEWS[v]).length;
   const VIEW_LABEL: Record<string, string> = {
@@ -67,7 +86,8 @@
     '~none': 'Own notes & unsourced',
     '~orphan': 'In no project',
     '~nopage': 'Without page number',
-    '~dupes': 'Possible duplicates'
+    '~dupes': 'Possible duplicates',
+    '~zunused': 'Unused Zotero highlights'
   };
 
   const items = $derived.by(() => {
@@ -237,6 +257,9 @@
       ? pickedSources.slice(0, 8).map((x) => ({ label: t('Merge all into “{s}”', { s: sourceLabel(x) }), icon: 'layers', run: () => { mergeInto(x.id); } }))
       : []),
     { label: t('Add tag…'), icon: 'tag', run: tagSources },
+    ...(pickedSources.some((x) => x.zoteroKey)
+      ? [{ label: t('Go through highlights…'), icon: 'download', run: () => { ui.reviewSources = pickedSources.filter((x) => x.zoteroKey).map((x) => x.id); endPick(); } }]
+      : []),
     null,
     { label: t('Delete…'), icon: 'trash', danger: true, run: () => { delOpen = true; } }
   ]);
@@ -290,7 +313,7 @@
       <div class="row">
         <input class="input grow" placeholder={t('Filter sources…')} bind:value={q} />
         <button class="icon-btn" title={t('New source')} onclick={() => (ui.editSource = {})}><Icon name="plus" /></button>
-        <button class="icon-btn" data-tour="zotero" title={t('Import from Zotero…')} onclick={() => (ui.dialog = 'zotero')}><Icon name="download" /></button>
+        <button class="icon-btn" data-tour="zotero" title={t('Import sources…')} onclick={() => (ui.dialog = 'zotero')}><Icon name="download" /></button>
       </div>
       <div class="row tiny muted">
         {t('Sort')}:
@@ -320,7 +343,7 @@
       </button>
       <div class="views">
         <span class="tiny muted vh">{t('Clean up')}</span>
-        {#each ['~orphan', '~nopage', '~dupes'] as v (v)}
+        {#each ['~orphan', '~nopage', '~dupes', '~zunused'] as v (v)}
           <button class="src special sub" class:on={sel === v} onclick={() => (ui.collectSourceId = v)}>
             <span class="grow">{t(VIEW_LABEL[v])}</span><span class="cnt">{viewCount(v)}</span>
           </button>
@@ -347,7 +370,7 @@
       {:else}
         <div class="empty small">
           <p>{t('No sources yet.')}</p>
-          <button class="btn sm" onclick={() => (ui.dialog = 'zotero')}>{t('Import from Zotero…')}</button>
+          <button class="btn sm" onclick={() => (ui.dialog = 'zotero')}>{t('Import sources…')}</button>
         </div>
       {/each}
     </div>
@@ -374,15 +397,26 @@
             {#if ref}<p class="ref">{ref}</p>{/if}
             {#if source.note}<p class="small">{source.note}</p>{/if}
             {#if source.zoteroKey}
-              <button class="btn sm" onclick={() => { ui.zoteroFor = source.id; ui.dialog = 'zotero'; }}>
-                <Icon name="download" size={14} />{t('Import Zotero highlights…')}
-              </button>
+              <div class="row zrow">
+                <button class="btn sm" onclick={() => (ui.reviewSources = [source.id])}>
+                  <Icon name="download" size={14} />{t('Go through highlights…')}
+                </button>
+                {#if unusedHere.length}
+                  <button class="btn ghost sm" onclick={() => deleteUnused(unusedHere)} title={t('Imported highlights not placed, cited or picked anywhere')}>
+                    <Icon name="trash" size={14} />{t('Delete {n} unused highlights', { n: unusedHere.length })}
+                  </button>
+                {/if}
+              </div>
             {/if}
           </header>
         {:else}
           <h2 class="sh">{t(VIEW_LABEL[sel] ?? 'All items')}</h2>
           {#if sel === '~orphan'}<p class="small muted">{t('Quotes and notes that are neither selected for nor placed in any project.')}</p>{/if}
           {#if sel === '~dupes'}<p class="small muted">{t('Items with (almost) the same text, sorted next to each other.')}</p>{/if}
+          {#if sel === '~zunused'}
+            <p class="small muted">{t('Quotes imported from Zotero highlights that are not placed under a heading, not cited in a text and not picked for a project. Deleted ones do not come back when you go through the highlights again.')}</p>
+            {#if items.length}<button class="btn sm danger" onclick={() => deleteUnused(items)}><Icon name="trash" size={14} />{t('Delete all {n}', { n: items.length })}</button>{/if}
+          {/if}
         {/if}
 
         {#if sel === '~none' || !sel?.startsWith('~')}
@@ -532,6 +566,10 @@
   .st {
     font-size: 0.78rem;
     color: var(--muted);
+  }
+  .zrow {
+    flex-wrap: wrap;
+    gap: 6px;
   }
   .selpad {
     padding-bottom: 80px;

@@ -109,7 +109,7 @@
     { label: t('Image'), icon: 'image', run: () => (ui.editArtifact = { kind: 'image' }) },
     null,
     { label: t('New source'), icon: 'book', run: () => (ui.editSource = {}) },
-    { label: t('Import from Zotero…'), icon: 'download', run: () => (ui.dialog = 'zotero') }
+    { label: t('Import sources…'), icon: 'download', run: () => (ui.dialog = 'zotero') }
   ];
 </script>
 
@@ -203,7 +203,7 @@
         {:else}
           <p>{t('No quotes or notes yet.')}</p>
           <button class="btn sm" onclick={() => (ui.editArtifact = { kind: 'quote' })}><Icon name="plus" size={14} />{t('Add a quote')}</button>
-          <button class="btn sm" onclick={() => (ui.dialog = 'zotero')}><Icon name="download" size={14} />{t('Import from Zotero…')}</button>
+          <button class="btn sm" onclick={() => (ui.dialog = 'zotero')}><Icon name="download" size={14} />{t('Import sources…')}</button>
         {/if}
       </div>
     {/if}

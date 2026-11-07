@@ -11,7 +11,9 @@ import { settings } from './settings.svelte';
 import { citeText, marks, oneLine, wordsOf } from './citecache.svelte';
 import { editorState, type InsertMode } from './editorState.svelte';
 import { ui } from './ui.svelte';
-import { editableQuote, footnoteContent, footnotePlain, type PMNode } from './footnote';
+import { editableQuote, footnoteContent, footnotePlain, toClipboard, type PMNode } from './footnote';
+import { Slice } from '@tiptap/pm/model';
+import type { EditorView } from '@tiptap/pm/view';
 export { editableQuote };
 import { t } from './i18n';
 
@@ -219,6 +221,98 @@ export const AutoDash = Extension.create({
   }
 });
 
+/**
+ * Typing "@" starts a citation search right in the text ("@nora 31"): the list of
+ * suggestions follows the caret; Enter or Tab inserts the citation (Name, year, page).
+ * The "@" must start a word, so e-mail addresses do not trigger it. Esc closes it.
+ */
+export const CiteTrigger = Extension.create({
+  name: 'citeTrigger',
+  addProseMirrorPlugins() {
+    const editor = this.editor;
+    const find = (state: import('@tiptap/pm/state').EditorState) => {
+      const sel = state.selection;
+      if (!sel.empty) return null;
+      const at = sel.$from;
+      if (!at.parent.isTextblock) return null;
+      const before = at.parent.textBetween(0, at.parentOffset, undefined, '\ufffc');
+      const m = /(?:^|[\s(\[„“"'])@([^@\n\ufffc]{0,40})$/.exec(before);
+      if (!m || /\s{2}$/.test(m[1])) return null;
+      const from = at.pos - m[1].length - 1;
+      return { from, to: at.pos, query: m[1] };
+    };
+    return [
+      new Plugin({
+        view: () => ({
+          update: (view) => {
+            const f = editor.isFocused || view.hasFocus() ? find(view.state) : null;
+            const gone = editorState.dismissed.get(editor);
+            if (!f || gone === f.from) {
+              if (editorState.mention?.editor === editor) editorState.mention = null;
+              return;
+            }
+            const c = view.coordsAtPos(f.from);
+            editorState.mention = { editor, ...f, left: c.left, top: c.top, bottom: c.bottom };
+          },
+          destroy: () => {
+            if (editorState.mention?.editor === editor) editorState.mention = null;
+          }
+        }),
+        props: {
+          handleKeyDown: (_view, e) => {
+            const m = editorState.mention;
+            if (!m || m.editor !== editor) return false;
+            if (e.key === 'Escape') {
+              editorState.dismissed.set(editor, m.from);
+              editorState.mention = null;
+              e.stopPropagation();
+              return true;
+            }
+            if (['ArrowDown', 'ArrowUp', 'Enter', 'Tab'].includes(e.key)) return editorState.mentionKey?.(e.key) ?? false;
+            return false;
+          }
+        }
+      })
+    ];
+  }
+});
+
+/**
+ * Copy and cut: other programs get the text with each quote's citation and the footnotes
+ * numbered below (HTML and plain text); pasting back into Structed keeps quotes linked.
+ */
+const CLIP = 'application/x-structed';
+function copySelection(view: EditorView, e: ClipboardEvent, cut: boolean) {
+  const sel = view.state.selection;
+  if (sel.empty || !e.clipboardData) return false;
+  const slice = sel.content();
+  const { html, text } = toClipboard(slice.content.toJSON() as PMNode[]);
+  e.clipboardData.setData('text/html', html);
+  e.clipboardData.setData('text/plain', text);
+  e.clipboardData.setData(CLIP, JSON.stringify(slice.toJSON()));
+  e.preventDefault();
+  if (cut) view.dispatch(view.state.tr.deleteSelection().scrollIntoView().setMeta('uiEvent', 'cut'));
+  return true;
+}
+function pasteOwn(view: EditorView, e: ClipboardEvent) {
+  const raw = e.clipboardData?.getData(CLIP);
+  if (!raw) return false;
+  try {
+    const slice = Slice.fromJSON(view.state.schema, JSON.parse(raw));
+    view.dispatch(view.state.tr.replaceSelection(slice).scrollIntoView().setMeta('uiEvent', 'paste'));
+    return true;
+  } catch {
+    return false; // e.g. a block quote pasted into a footnote: fall back to the text
+  }
+}
+const clipboardProps = {
+  handleDOMEvents: {
+    copy: (view: EditorView, e: Event) => copySelection(view, e as ClipboardEvent, false),
+    cut: (view: EditorView, e: Event) => copySelection(view, e as ClipboardEvent, true)
+  },
+  handlePaste: (view: EditorView, e: ClipboardEvent) => pasteOwn(view, e)
+};
+
 /** Marks the top-level block holding the caret with `.focus-cur` (focus mode dims the rest). */
 export const CurrentBlock = Extension.create({
   name: 'currentBlock',
@@ -265,9 +359,11 @@ export function createFootnoteEditor(opts: { element: HTMLElement; content: PMNo
       }),
       Placeholder.configure({ placeholder: opts.placeholder }),
       QuoteRef,
-      AutoDash
+      AutoDash,
+      CiteTrigger
     ],
     editorProps: {
+      ...clipboardProps,
       attributes: { class: 'prose fnprose', spellcheck: String(settings.editorSpellcheck), lang: settings.editorLang }
     }
   });
@@ -314,9 +410,11 @@ export function createEditor(opts: {
       QuoteBlock,
       Footnote,
       CurrentBlock,
-      AutoDash
+      AutoDash,
+      CiteTrigger
     ],
     editorProps: {
+      ...clipboardProps,
       attributes: {
         class: 'prose',
         spellcheck: String(settings.editorSpellcheck),

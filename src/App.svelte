@@ -34,7 +34,8 @@
     { id: 'arrange', label: 'Arrange', icon: 'layers', tourKey: 'stageArrange' },
     { id: 'write', label: 'Write', icon: 'edit', tourKey: 'stageWrite' }
   ];
-  const panelStage = $derived(ui.stage !== 'collect' && ui.stage !== 'select');
+  // no panel in Collect/Select (they show the library themselves), and in Write only when switched on
+  const panelStage = $derived(ui.stage !== 'collect' && ui.stage !== 'select' && (ui.stage !== 'write' || settings.writePanel));
   /** distraction-free writing: no header, library panel only on request */
   const focusOn = $derived(ui.focus && ui.stage === 'write' && !!project);
   const panelVisible = $derived((focusOn ? settings.focusQuotes : panelOpenIn(ui.stage)) && panelStage && !!project);
@@ -61,7 +62,9 @@
     search: { run: () => (ui.dialog = ui.dialog === 'search' ? null : 'search'), inFields: true },
     togglePanel: {
       run: () =>
-        ui.narrow
+        ui.stage === 'write' && !settings.writePanel
+          ? ui.toast(t('In Write, quotes come in through “Insert quote” ({k}) or @. The panel can be switched on in Settings → Editor.', { k: displayCombo(comboFor('write.insertQuote')) || '–' }), {}, 5000)
+          : ui.narrow
           ? (ui.panelMobileOpen = !ui.panelMobileOpen)
           : focusOn
             ? (settings.focusQuotes = !settings.focusQuotes)
@@ -127,7 +130,7 @@
   function escFocus(e: KeyboardEvent) {
     if (e.key !== 'Escape' || !focusOn || ui.recordingShortcut || ui.dialog || ui.editArtifact || ui.editSource || ui.placeTarget || ui.contextMenu || ui.tour) return;
     const el = e.target as HTMLElement | null;
-    if (document.querySelector('[role="menu"], .modal') || el?.closest?.('.panel, .drawer')) return;
+    if (document.querySelector('[role="menu"], .modal, .cite-suggest') || el?.closest?.('.panel, .drawer')) return;
     e.preventDefault();
     e.stopPropagation();
     ui.focus = false;
@@ -181,7 +184,7 @@
     { label: t('All projects…'), icon: 'folder', run: () => (ui.dialog = 'projects') },
     { label: t('Export…'), icon: 'upload', run: () => (ui.dialog = 'export') },
     { label: t('Snapshots'), icon: 'history', run: () => (ui.dialog = 'snapshots') },
-    { label: t('Import from Zotero…'), icon: 'download', run: () => (ui.dialog = 'zotero') },
+    { label: t('Import sources…'), icon: 'download', run: () => (ui.dialog = 'zotero') },
     null,
     { label: t('Library (all projects)'), icon: 'book', run: () => { ui.projectId = null; ui.libraryMode = true; ui.collectSourceId = null; } },
     { label: t('Close project'), icon: 'x', run: () => { ui.projectId = null; ui.libraryMode = false; } },
@@ -297,6 +300,9 @@
   {#if ui.tour}<Tour />{/if}
   <ContextMenu />
   {#if ui.question}<AskDialog />{/if}
+  {#if ui.reviewSources}
+    {#await import('./components/HighlightReview.svelte') then m}<m.default />{/await}
+  {/if}
   {#if ui.wordExport && project}
     {#await import('./components/WordExport.svelte') then m}<m.default {project} onclose={() => (ui.wordExport = false)} />{/await}
   {/if}

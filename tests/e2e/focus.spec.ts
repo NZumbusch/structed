@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { open, seedDemo, stage, settingsTab } from './helpers';
 
 test.beforeEach(async ({ page }) => {
-  await open(page, { settings: { language: 'en' } });
+  await open(page, { settings: { language: 'en', writePanel: true } });
   await seedDemo(page);
   await stage(page, 'Write');
   await expect(page.locator('.compose .ProseMirror').first()).toBeVisible();

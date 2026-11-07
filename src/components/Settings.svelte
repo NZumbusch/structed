@@ -156,6 +156,7 @@
         </label>
         <h4 class="sh4">{t('Writing')}</h4>
         <label class="chk"><input type="checkbox" bind:checked={settings.editorSpellcheck} />{t('Spell check')}</label>
+        <label class="chk"><input type="checkbox" bind:checked={settings.writePanel} />{t('Library panel next to the text in Write (otherwise: “Insert quote”, its shortcut or @)')}</label>
         <label class="chk"><input type="checkbox" bind:checked={settings.editorAutoDash} />{t('Turn “ - ” into a dash “ – ” while typing')}</label>
         <label class="field"><span>{t('Language of the text (spell check)')}</span>
           <select class="select" bind:value={settings.editorLang}>
@@ -181,7 +182,7 @@
           — {t('“Your userID for use in API calls”, then “Create new private key” with read access to the library (and notes).')}
         </p>
         <ZoteroSyncSettings />
-        <button class="btn" onclick={() => (ui.dialog = 'zotero')}><Icon name="download" size={15} />{t('Open Zotero import')}</button>
+        <p class="small muted">{t('Highlights from your PDFs: open a source in Collect (or select several) → “Go through highlights…”, and take or skip them one by one.')}</p>
       {:else if ui.settingsTab === 'sync'}
         <p class="small">{t('Sync all projects, sources and quotes between devices through a hidden app folder in your Google Drive. Works offline; changes merge per item.')}</p>
         <div class="card status">

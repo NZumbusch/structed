@@ -8,6 +8,7 @@
   import SectionEditor from '../components/SectionEditor.svelte';
   import FootnoteDialog from '../components/FootnoteDialog.svelte';
   import QuotePicker from '../components/QuotePicker.svelte';
+  import CiteSuggest from '../components/CiteSuggest.svelte';
   import Modal from '../components/Modal.svelte';
   import { ui } from '../lib/ui.svelte';
   import { settings } from '../lib/settings.svelte';
@@ -249,8 +250,8 @@
 
   // insert a quote: search, filter and sort among all quotes (remembered between uses)
   let picking = $state(false);
-  function pickQuote(id: string) {
-    picking = false;
+  function pickQuote(id: string, keep = false) {
+    picking = keep;
     // the section that had the cursor; if none yet, the first section
     const target = editorState.active ?? null;
     if (target) target.insertArtifact(id, settings.insertMode);
@@ -283,7 +284,7 @@
       <button class="icon-btn" title="{t('Exit focus mode')} (Esc)" aria-label={t('Exit focus mode')} onclick={() => (ui.focus = false)}><Icon name="x" size={16} /></button>
       <span class="sep"></span>
       <button class="icon-btn" class:active={settings.focusNotes} aria-pressed={settings.focusNotes} title="{settings.focusNotes ? t('Hide notes') : t('Show notes')}{hint('write.notes')}" aria-label={t('Notes')} onclick={() => (settings.focusNotes = !settings.focusNotes)}><Icon name="note" size={16} /></button>
-      <button class="icon-btn" class:active={quotesOpen} aria-pressed={quotesOpen} title="{quotesOpen ? t('Hide quotes') : t('Show quotes')}{hint('togglePanel')}" aria-label={t('Quotes')} onclick={toggleQuotes}><Icon name="quote" size={16} /></button>
+      {#if settings.writePanel}<button class="icon-btn" class:active={quotesOpen} aria-pressed={quotesOpen} title="{quotesOpen ? t('Hide quotes') : t('Show quotes')}{hint('togglePanel')}" aria-label={t('Quotes')} onclick={toggleQuotes}><Icon name="quote" size={16} /></button>{/if}
       <span class="sep"></span>
       <button class="icon-btn" class:active={settings.focusDim} aria-pressed={settings.focusDim} title="{t('Dim all but the current paragraph')}{hint('write.dim')}" aria-label={t('Highlight current paragraph')} onclick={() => (settings.focusDim = !settings.focusDim)}><Icon name="eye" size={16} /></button>
       <button class="icon-btn" class:active={settings.focusTypewriter} aria-pressed={settings.focusTypewriter} title="{t('Typewriter scrolling: the current line stays in the middle')}{hint('write.typewriter')}" aria-label={t('Typewriter scrolling')} onclick={() => (settings.focusTypewriter = !settings.focusTypewriter)}><Icon name="typewriter" size={16} /></button>
@@ -367,8 +368,9 @@
 {/if}
 
 {#if editorState.footnote}<FootnoteDialog />{/if}
+<CiteSuggest />
 {#if picking}
-  <Modal title={t('Insert quote')} onclose={() => (picking = false)} width="720px">
+  <Modal title={t('Insert quote')} onclose={() => (picking = false)} width="980px">
     <div class="pickhead row small">
       <label class="row" for="pick-mode">{t('Insert as')}</label>
       <select id="pick-mode" class="select mode" bind:value={settings.insertMode}>
