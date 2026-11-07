@@ -57,7 +57,7 @@ test('Zotero sources stay in sync automatically, fetching only what changed', as
 
   // nothing new → one cheap request, no duplicates
   await page.getByRole('button', { name: 'Check now' }).click();
-  await expect(page.locator('.toast', { hasText: 'everything up to date' })).toBeVisible();
+  await expect(page.locator('.toast', { hasText: 'everything up to date' }).first()).toBeVisible();
   expect(requests.at(-1)).toContain('since=121');
   expect(await titles()).toHaveLength(3);
 
@@ -68,7 +68,7 @@ test('Zotero sources stay in sync automatically, fetching only what changed', as
   });
   lib = lib.map((x) => (x.key === 'B' ? book('B', 'Das kulturelle Gedächtnis (2. Aufl.)', 125, 'Assmann') : x));
   await page.getByRole('button', { name: 'Check now' }).click();
-  await expect(page.locator('.toast', { hasText: 'everything up to date' })).toBeVisible();
+  await expect(page.locator('.toast', { hasText: 'everything up to date' }).first()).toBeVisible();
   expect(await titles()).toEqual(['Geschichte und Gedächtnis', 'Les lieux de mémoire (Bd. 1)']);
   // …and it survives purging old deleted records
   await page.evaluate(() => (window as any).__structed.db.compact(0));

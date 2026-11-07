@@ -34,6 +34,10 @@ export interface Settings {
   /** library panel open per stage; unset = open, except in Write where it starts closed */
   panelOpenIn: Record<string, boolean>;
   outlineVisits: number; // the shortcut hints under the outline show for the first few visits
+  /** the quote picker (insert a citation): remembered filters and order */
+  picker: PickerPrefs;
+  /** quotes inserted lately, newest first (for "recently used") */
+  recentQuotes: string[];
   showAllProjectsInPanel: boolean;
   snapshotOnBigChange: boolean;
   shortcuts: Record<string, string | null>;
@@ -64,6 +68,14 @@ export interface Settings {
   coverDefaults: Record<string, string>;
   tourDone: boolean;
 }
+
+export interface PickerPrefs {
+  scope: 'section' | 'project' | 'library';
+  kinds: ('quote' | 'paraphrase' | 'note')[];
+  sourceId: string; // '' = all sources
+  sort: 'source' | 'author' | 'year' | 'added' | 'recent';
+}
+export const PICKER_DEFAULTS: PickerPrefs = { scope: 'project', kinds: ['quote', 'paraphrase'], sourceId: '', sort: 'source' };
 
 export const ACCENTS = ['#3b6fd8', '#2f9e75', '#c0582f', '#8a55c9', '#c94a73', '#b08a1e', '#56606f'];
 
@@ -97,6 +109,8 @@ const defaults: Settings = {
   panelOpen: true,
   panelOpenIn: {},
   outlineVisits: 0,
+  picker: { ...PICKER_DEFAULTS },
+  recentQuotes: [],
   showAllProjectsInPanel: true,
   snapshotOnBigChange: true,
   shortcuts: {},

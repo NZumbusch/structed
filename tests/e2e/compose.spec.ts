@@ -69,7 +69,7 @@ test('footnotes are free text: several citations, own words, formatting; numbere
   await page.keyboard.type('See ');
   await dlg.getByLabel('Insert as').selectOption('cite');
   await dlg.getByRole('button', { name: /Insert citation/ }).click();
-  await page.getByRole('menuitem', { name: /The past is not simply/ }).click();
+  await page.getByRole('option', { name: /The past is not simply/ }).click();
   await page.keyboard.type('; ');
   await page.keyboard.press('Control+i');
   await page.keyboard.type('also');
@@ -77,7 +77,7 @@ test('footnotes are free text: several citations, own words, formatting; numbere
   await page.keyboard.type(' ');
   await dlg.getByLabel('Insert as').selectOption('inline');
   await dlg.getByRole('button', { name: /Insert citation/ }).click();
-  await page.getByRole('menuitem', { name: /Memory is socially framed/ }).click();
+  await page.getByRole('option', { name: /Memory is socially framed/ }).click();
   await expect(fed.locator('.qref')).toHaveCount(2);
   await expect(fed.locator('p > em')).toHaveText('also');
   await page.keyboard.press('Control+Enter'); // saves
@@ -259,7 +259,7 @@ test('the quote in a footnote can be shortened; the citation stays linked', asyn
   const fed = dlg.locator('.fed .ProseMirror');
   await dlg.getByLabel('Insert as').selectOption('editable');
   await dlg.getByRole('button', { name: /Insert citation/ }).click();
-  await page.getByRole('menuitem', { name: /The past is not simply/ }).click();
+  await page.getByRole('option', { name: /The past is not simply/ }).click();
   // the quote is plain text now: shorten it
   await expect(fed).toContainText('„The past is not simply preserved but reconstructed.“');
   await fed.locator('em').evaluate((el) => {
