@@ -1,5 +1,16 @@
 // German UI strings. Keys are the English originals (see i18n.ts).
 export const de: Record<string, string> = {
+  'Quote + citation': 'Zitat + Beleg',
+  'Only the reference, e.g. “Vgl. Assmann 1992, S. 31”': 'Nur der Beleg, z. B. „Vgl. Assmann 1992, S. 31“',
+  'The quote in quotation marks, then the reference': 'Das Zitat in Anführungszeichen, dann der Beleg',
+  'The quote as text you can shorten or adapt; the reference stays linked': 'Das Zitat als Text zum Kürzen oder Anpassen; der Beleg bleibt verknüpft',
+  'No quotes in this project yet': 'Noch keine Zitate in diesem Projekt',
+  'Insert a quote or citation': 'Zitat oder Beleg einfügen',
+  'Insert citation': 'Beleg einfügen',
+  'Insert as': 'Einfügen als',
+  'Text, quotes and citations, e.g. “Vgl. …; ferner …”': 'Text, Zitate und Belege, z. B. „Vgl. …; ferner …“',
+  'Footnote text': 'Text der Fußnote',
+  'Combine as many quotes and citations as you like with your own words. Citations stay linked to the library; right-click a quote to edit its text.': 'Kombiniere beliebig viele Zitate und Belege mit eigenem Text. Belege bleiben mit der Bibliothek verknüpft; Rechtsklick auf ein Zitat, um seinen Text zu bearbeiten.',
   'Paste or type a quote…': 'Zitat einfügen oder tippen…',
   'All settings': 'Alle Einstellungen',
   'Filter & grouping': 'Filter & Gruppierung',

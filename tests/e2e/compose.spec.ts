@@ -56,27 +56,67 @@ test('insert a linked quote from the panel; it updates when the library changes'
   await expect(ed.locator('.qblock .qb-cite')).toContainText('Assmann');
 });
 
-test('footnotes with a linked quote are numbered and editable', async ({ page }) => {
+test('footnotes are free text: several citations, own words, formatting; numbered and editable', async ({ page }) => {
   const ed = page.locator('.compose .ProseMirror').first();
   await ed.click();
   await page.keyboard.type('A sentence');
   await page.locator('.bar').getByRole('button', { name: /Footnote/ }).click();
   const dlg = page.locator('.modal');
   await expect(dlg.locator('h2')).toHaveText('Footnote');
-  await dlg.getByLabel('Text before the quote').fill('See');
-  await dlg.getByLabel('Quote (optional, stays linked)').selectOption({ index: 1 });
-  await dlg.getByRole('button', { name: 'Save' }).click();
+  const fed = dlg.locator('.fed .ProseMirror');
+  await expect(fed).toBeFocused();
+  // "See" + citation only + "; also " (italic) + quote with citation
+  await page.keyboard.type('See ');
+  await dlg.getByLabel('Insert as').selectOption('cite');
+  await dlg.getByRole('button', { name: /Insert citation/ }).click();
+  await page.getByRole('menuitem', { name: /The past is not simply/ }).click();
+  await page.keyboard.type('; ');
+  await page.keyboard.press('Control+i');
+  await page.keyboard.type('also');
+  await page.keyboard.press('Control+i');
+  await page.keyboard.type(' ');
+  await dlg.getByLabel('Insert as').selectOption('inline');
+  await dlg.getByRole('button', { name: /Insert citation/ }).click();
+  await page.getByRole('menuitem', { name: /Memory is socially framed/ }).click();
+  await expect(fed.locator('.qref')).toHaveCount(2);
+  await expect(fed.locator('p > em')).toHaveText('also');
+  await page.keyboard.press('Control+Enter'); // saves
+  await expect(page.locator('.modal')).toHaveCount(0);
   const fn = ed.locator('sup.fn');
   await expect(fn).toHaveCount(1);
   expect(await fn.evaluate((e) => getComputedStyle(e, '::after').content)).toContain('counter(fn)'); // numbered via CSS counter
-  await expect(fn).toHaveAttribute('title', /^See „/);
-  // keyboard shortcut adds a second one
+  await expect(fn).toHaveAttribute('title', /^See \(Assmann, 2011, p\. 18\); also „Memory is socially framed and mediated\.“ \(Assmann, 2011, pp\. 22–23\)$/);
+  // reopen: everything is still there and editable
+  await fn.click();
+  await expect(fed.locator('.qref')).toHaveCount(2);
+  await expect(fed).toContainText('See');
+  await page.keyboard.press('Escape');
+  // keyboard shortcut adds a second one, which can be deleted
   await ed.click();
   await page.keyboard.press('End');
   await page.keyboard.press('Control+Alt+f');
   await expect(page.locator('.modal h2')).toHaveText('Footnote');
   await page.locator('.modal').getByRole('button', { name: 'Delete footnote' }).click();
   await expect(fn).toHaveCount(1);
+});
+
+test('footnotes from before (text, one quote, text) open as free text', async ({ page }) => {
+  await page.evaluate(() => {
+    const { db, ui } = (window as any).__structed;
+    const h = db.all('headings').filter((x: any) => x.projectId === ui.projectId).sort((a: any, b: any) => (a.order < b.order ? -1 : 1))[0];
+    const q = db.all('artifacts').find((a: any) => a.text.startsWith('The past'));
+    const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Old.' }, { type: 'footnote', attrs: { before: 'Cf.', quoteId: q.id, quoteText: 'The past is […] reconstructed.', after: 'Emphasis mine.' } }] }] };
+    db.update('headings', h.id, { draft: JSON.stringify(doc) });
+  });
+  const fn = page.locator('.compose .ProseMirror').first().locator('sup.fn');
+  await expect(fn).toHaveAttribute('title', /^Cf\. „The past is \[…\] reconstructed\.“ \(Assmann, 2011, p\. 18\) Emphasis mine\.$/);
+  await fn.click();
+  const fed = page.locator('.modal .fed .ProseMirror');
+  await expect(fed).toContainText('Cf. „The past is […] reconstructed.“');
+  await expect(fed.locator('.qref.cite-only')).toHaveCount(1);
+  await expect(fed).toContainText('Emphasis mine.');
+  await page.locator('.modal').getByRole('button', { name: 'Save' }).click();
+  await expect(fn).toHaveAttribute('title', /^Cf\. „The past is \[…\] reconstructed\.“ \(Assmann, 2011, p\. 18\) Emphasis mine\.$/);
 });
 
 test('Word export: title page fields, template, Zotero fields', async ({ page }) => {
@@ -127,6 +167,7 @@ test('editable quotes: shorten with […], citation stays linked; convert a link
     sel.removeAllRanges();
     sel.addRange(r);
   });
+  await page.waitForTimeout(150); // the editor picks up the selection
   await page.keyboard.type('[…] ');
   await expect(ed.locator('em')).toHaveText('The past is […] reconstructed.');
   // page change in the library still updates the citation
@@ -215,17 +256,22 @@ test('the quote in a footnote can be shortened; the citation stays linked', asyn
   await page.keyboard.type('A sentence');
   await page.locator('.bar').getByRole('button', { name: /Footnote/ }).click();
   const dlg = page.locator('.modal');
-  const sel = dlg.getByLabel('Quote (optional, stays linked)');
-  const val = await sel.locator('option', { hasText: 'The past is not simply' }).getAttribute('value');
-  await sel.selectOption(val!);
-  const wording = dlg.getByLabel(/Wording of the quote/);
-  await expect(wording).toHaveValue('The past is not simply preserved but reconstructed.');
-  // select "simply preserved but " and replace it with […]
-  await wording.evaluate((el: HTMLTextAreaElement) => el.setSelectionRange(16, 37));
-  await dlg.getByRole('button', { name: /Omission/ }).click();
-  await expect(wording).toHaveValue('The past is not […]reconstructed.');
-  await wording.fill('The past is not […] reconstructed.');
-  await expect(dlg).toContainText('Edited – the citation stays linked');
+  const fed = dlg.locator('.fed .ProseMirror');
+  await dlg.getByLabel('Insert as').selectOption('editable');
+  await dlg.getByRole('button', { name: /Insert citation/ }).click();
+  await page.getByRole('menuitem', { name: /The past is not simply/ }).click();
+  // the quote is plain text now: shorten it
+  await expect(fed).toContainText('„The past is not simply preserved but reconstructed.“');
+  await fed.locator('em').evaluate((el) => {
+    const r = document.createRange();
+    const tn = el.firstChild!;
+    r.setStart(tn, 16);
+    r.setEnd(tn, 37);
+    const sel = getSelection()!;
+    sel.removeAllRanges();
+    sel.addRange(r);
+  });
+  await page.keyboard.type('[…] ');
   await dlg.getByRole('button', { name: 'Save' }).click();
   const fn = ed.locator('sup.fn');
   await expect(fn).toHaveAttribute('title', /„The past is not \[…\] reconstructed\.“ \(Assmann, 2011, p\. 18\)/);
@@ -236,10 +282,4 @@ test('the quote in a footnote can be shortened; the citation stays linked', asyn
     db.update('artifacts', a.id, { page: '19' });
   });
   await expect(fn).toHaveAttribute('title', /\[…\] reconstructed\.“ \(Assmann, 2011, p\. 19\)/);
-  // reopen: the edited wording is kept, and can be reset
-  await fn.click();
-  await expect(wording).toHaveValue('The past is not […] reconstructed.');
-  await dlg.getByRole('button', { name: 'Back to the library text' }).click();
-  await dlg.getByRole('button', { name: 'Save' }).click();
-  await expect(fn).toHaveAttribute('title', /„The past is not simply preserved but reconstructed\.“/);
 });
