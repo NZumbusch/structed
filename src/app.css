@@ -214,6 +214,28 @@ a {
   padding: 0 8px;
   font-size: 0.8125rem;
 }
+/* icons beside text sit on the middle of the capitals (measured in lib/iconAlign.ts);
+   small controls and chips use their own value */
+:root {
+  --icon-shift: 0px;
+  --icon-shift-sm: 0px;
+  --icon-shift-xs: 0px;
+}
+.btn.sm,
+.seg button,
+.pill {
+  --icon-y: var(--icon-shift-sm);
+}
+.chip {
+  --icon-y: var(--icon-shift-xs);
+}
+button:not(.icon-btn):not(.tick):not(.tw) > svg,
+a.btn > svg,
+label.btn > svg,
+label.pill > svg,
+.chip > svg {
+  translate: 0 var(--icon-y, var(--icon-shift));
+}
 .icon-btn {
   display: inline-grid;
   place-items: center;
