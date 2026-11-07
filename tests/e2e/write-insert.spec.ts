@@ -156,3 +156,23 @@ test('copying text takes the citations and footnotes along; pasting back keeps t
   await expect(ed2.locator('sup.fn')).toHaveCount(1);
   await expect(ed2).toContainText('Memory is social (Nora, 1984, p. 12) indeed.');
 });
+
+test('group headings keep their height in a long list', async ({ page }) => {
+  await open(page);
+  await seedDemo(page);
+  await page.evaluate(() => {
+    const { db, ui } = (window as any).__structed;
+    for (const fam of ['Nora', 'Halbwachs', 'Assmann2']) {
+      const s = db.create('sources', { csl: { id: fam, type: 'book', title: 'Book of ' + fam, author: [{ family: fam }], issued: { 'date-parts': [[1990]] } }, tags: [] });
+      db.create('selections', { projectId: ui.projectId, refType: 'source', refId: s.id });
+      for (let i = 0; i < 8; i++) db.create('artifacts', { kind: 'quote', sourceId: s.id, text: `${fam} quote ${i}`, page: String(i), tags: [] });
+    }
+  });
+  await stage(page, 'Write');
+  await page.locator('.compose .ProseMirror').first().click();
+  await page.keyboard.press('Control+Alt+z');
+  await page.locator('.modal').getByLabel('Group by').selectOption('source');
+  const heights = await page.locator('.modal .gh').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
+  expect(heights.length).toBe(4);
+  for (const h of heights) expect(h).toBeGreaterThan(18);
+});

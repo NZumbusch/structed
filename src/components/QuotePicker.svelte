@@ -371,7 +371,10 @@
   .top {
     display: flex;
     gap: 6px;
-    align-items: center;
+    align-items: stretch; /* the button as tall as the search field */
+  }
+  .top .btn {
+    height: auto;
   }
   .search {
     flex: 1;
@@ -404,16 +407,27 @@
     align-items: center;
     gap: 6px;
   }
+  /* one height for every control in the filter rows */
+  .controls {
+    --ctl: 32px;
+  }
   .controls .select {
     width: auto;
     max-width: 200px;
-    min-height: 30px;
-    height: 30px;
-    padding: 0 6px;
-    font-size: 0.8rem;
+    min-height: var(--ctl);
+    height: var(--ctl);
+    padding: 0 8px;
+    font-size: 0.8125rem;
   }
-  .seg button {
+  .controls .seg {
+    padding: 3px;
+  }
+  .controls .seg button {
+    height: calc(var(--ctl) - 6px);
     padding: 0 9px;
+  }
+  .controls .btn {
+    height: var(--ctl);
   }
   .kinds {
     display: flex;
@@ -433,6 +447,7 @@
   .list {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: max-content; /* a long list scrolls; rows never get squeezed */
     align-content: start;
     gap: 2px;
     height: min(50vh, 440px);
@@ -540,7 +555,8 @@
     font-style: italic;
   }
   .pcomment {
-    margin: 0 0 8px;
+    /* the box reaches out, so its text lines up with the quote above */
+    margin: 0 -8px 8px;
     padding: 4px 8px;
     border-radius: 6px;
     background: color-mix(in srgb, var(--warn) 12%, transparent);

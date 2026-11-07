@@ -75,9 +75,9 @@
 <svelte:window onkeydowncapture={onKey} />
 
 <div class="sc">
-  <div class="row">
+  <div class="row top">
     <input class="input grow" placeholder={t('Filter shortcuts…')} bind:value={filter} />
-    <button class="btn sm" onclick={resetAllShortcuts}>{t('Reset all')}</button>
+    <button class="btn" onclick={resetAllShortcuts}>{t('Reset all')}</button>
   </div>
   <p class="small muted">{t('Click a shortcut, then press the new key combination. Esc cancels, Backspace removes it.')}</p>
 
@@ -114,6 +114,12 @@
   .sc {
     display: grid;
     gap: 8px;
+  }
+  .top {
+    align-items: stretch;
+  }
+  .top .btn {
+    height: auto;
   }
   h4 {
     margin-top: 10px;
