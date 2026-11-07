@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import JSZip from 'jszip';
 import { readFileSync } from 'node:fs';
-import { open, openPanel, seedDemo, stage } from './helpers';
+import { open, openPanel, seedDemo, stage, touchDrag } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await open(page, { settings: { language: 'en' } });
@@ -194,10 +194,45 @@ test('editable quotes: shorten with […], citation stays linked; convert a link
   await card.getByRole('button', { name: 'More' }).click();
   await page.getByRole('menuitem', { name: 'Insert as block quote' }).click();
   await ed.locator('.qblock').click({ button: 'right' });
-  await page.locator('.cmenu').getByRole('menuitem', { name: 'Convert to editable text' }).click();
+  await page.locator('.cmenu').getByRole('menuitem', { name: 'As editable text' }).click();
   await expect(ed.locator('.qblock')).toHaveCount(0);
   await expect(ed.locator('blockquote')).toContainText('The past is not simply');
   await expect(ed.locator('blockquote .qref.cite-only')).toHaveCount(1);
+});
+
+test('an inserted quote shows differently on right-click or double-click: citation only, quote + citation, block, footnote', async ({ page }) => {
+  const ed = page.locator('.compose .ProseMirror').first();
+  await ed.click();
+  await page.keyboard.type('As Assmann says ');
+  await page.locator('.lib .gh').first().click();
+  const card = page.locator('.lib .art', { hasText: 'The past is not simply' });
+  await card.getByRole('button', { name: 'More' }).click();
+  await page.getByRole('menuitem', { name: 'Insert citation only' }).click();
+  const menu = page.locator('.cmenu');
+  // citation only → quote + citation (right-click)
+  await ed.locator('.qref.cite-only').click({ button: 'right' });
+  await expect(menu.getByRole('menuitem', { name: 'Citation only' })).toBeVisible();
+  await menu.getByRole('menuitem', { name: 'Quote + citation' }).click();
+  await expect(ed.locator('.qref:not(.cite-only)')).toContainText('The past is not simply preserved');
+  await expect(ed.locator('.qref:not(.cite-only)')).toContainText('(Assmann, 2011, p. 18)');
+  // → block quote (double-click)
+  await ed.locator('.qref').dblclick();
+  await menu.getByRole('menuitem', { name: 'Block quote' }).click();
+  await expect(ed.locator('.qblock')).toContainText('The past is not simply');
+  await expect(ed.locator('.qref')).toHaveCount(0);
+  // → back to citation only, in the text
+  await ed.locator('.qblock').click({ button: 'right' });
+  await menu.getByRole('menuitem', { name: 'Citation only' }).click();
+  await expect(ed.locator('.qblock')).toHaveCount(0);
+  await expect(ed.locator('.qref.cite-only')).toHaveText('(Assmann, 2011, p. 18)');
+  // → into a footnote
+  await ed.locator('.qref.cite-only').click({ button: 'right' });
+  await menu.getByRole('menuitem', { name: 'In a footnote' }).click();
+  await expect(ed.locator('.qref')).toHaveCount(0);
+  await expect(ed.locator('sup.fn')).toHaveCount(1);
+  // undo brings the citation back
+  await page.keyboard.press('Control+z');
+  await expect(ed.locator('.qref.cite-only')).toHaveCount(1);
 });
 
 test('@layout no line of the text starts with a space', async ({ page }) => {
@@ -282,4 +317,22 @@ test('the quote in a footnote can be shortened; the citation stays linked', asyn
     db.update('artifacts', a.id, { page: '19' });
   });
   await expect(fn).toHaveAttribute('title', /\[…\] reconstructed\.“ \(Assmann, 2011, p\. 19\)/);
+});
+
+test('@touch long-press on an inserted quote opens the same menu', async ({ page, context }) => {
+  // a citation in the first section
+  await page.evaluate(() => {
+    const { db } = (window as any).__structed;
+    const a = db.all('artifacts').find((x: any) => x.text.startsWith('The past'));
+    const h = db.all('headings')[0];
+    db.update('headings', h.id, { draft: JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'See ' }, { type: 'quoteRef', attrs: { id: a.id, mode: 'cite' } }] }] }) });
+  });
+  const ref = page.locator('.compose .qref.cite-only').first();
+  await expect(ref).toBeVisible();
+  const b = (await ref.boundingBox())!;
+  const at = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+  await touchDrag(page, context, at, at, 600);
+  const menu = page.locator('.cmenu');
+  await menu.getByRole('menuitem', { name: 'Quote + citation' }).click();
+  await expect(page.locator('.compose .qref:not(.cite-only)').first()).toContainText('The past is not simply');
 });

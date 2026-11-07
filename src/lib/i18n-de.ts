@@ -874,5 +874,6 @@ export const de: Record<string, string> = {
   'Words between original and source': 'Text zwischen Original und Quelle',
   'List the original work in the bibliography too': 'Das Originalwerk auch ins Literaturverzeichnis aufnehmen',
   'A quote you know only from another work: open it, set its source to the work you read and add the original under “Secondary citation”. It is cited as “(Kaufmann, 1996, col. 1121, as cited in Lotz-Heumann, 2001, p. 108)”.': 'Ein Zitat, das du nur aus einem anderen Werk kennst: Öffne es, wähle als Quelle das Werk, das du gelesen hast, und trage das Original unter „Sekundärzitat“ ein. Zitiert wird dann z. B. „(Kaufmann, 1996, Sp. 1121, zit. nach Lotz-Heumann, 2001, S. 108)“.',
-  'Note (n.)': 'Anmerkung (Anm.)'
+  'Note (n.)': 'Anmerkung (Anm.)',
+  'Right-click or double-click: show differently': 'Rechtsklick oder Doppelklick: anders darstellen'
 };
