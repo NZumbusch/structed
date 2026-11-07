@@ -30,6 +30,10 @@ export interface Settings {
   readingStatus: boolean;
   citationStyle: string;
   citationLocale: string;
+  /** secondary citations: the words between original and source ('' = by citation language) */
+  secondaryText: string;
+  /** secondary citations: list the original work in the bibliography too */
+  secondaryInBib: boolean;
   panelGroupBy: GroupBy;
   panelScope: 'project' | 'library';
   panelUsage: 'unused' | 'all' | 'used';
@@ -113,6 +117,8 @@ const defaults: Settings = {
   readingStatus: true,
   citationStyle: 'apa',
   citationLocale: 'en-US',
+  secondaryText: '',
+  secondaryInBib: true,
   panelGroupBy: 'source',
   panelScope: 'project',
   panelUsage: 'all',

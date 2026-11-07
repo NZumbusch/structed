@@ -4,8 +4,8 @@
 import JSZip from 'jszip';
 import { db } from '../db.svelte';
 import { settings } from '../settings.svelte';
-import { flatten } from '../ops';
-import { bibliography } from '../cite';
+import { flatten, sourcesOf } from '../ops';
+import { bibliography, secondaryPrefix } from '../cite';
 import { citeTextAsync, marks, oneLine } from '../citecache.svelte';
 import { footnoteContent } from '../footnote';
 import type { Artifact, Project, Source } from '../types';
@@ -79,11 +79,12 @@ export function zoteroItem(s: Source) {
   return item;
 }
 
-export function citationField(a: Artifact, formatted: string, noteIndex: number, base: string, page?: string): string {
+export function citationField(a: Artifact, formatted: string, noteIndex: number, base: string, page?: string, prefix = ''): string {
   const s = db.get('sources', a.sourceId);
   if (!s) return '';
+  fieldCited.add(s.id);
   if (!settings.exportZotero) return run(formatted, base);
-  const item = { ...zoteroItem(s), ...((page ?? a.page) ? { locator: page ?? a.page, label: 'page' } : {}) };
+  const item = { ...zoteroItem(s), ...((page ?? a.page) ? { locator: page ?? a.page, label: a.pageLabel ?? 'page' } : {}), ...(prefix ? { prefix } : {}) };
   const json = {
     citationID: rid(),
     properties: { formattedCitation: formatted, plainCitation: formatted, noteIndex },
@@ -100,6 +101,16 @@ export function citationField(a: Artifact, formatted: string, noteIndex: number,
   );
 }
 
+/** Sources cited in a Zotero field of their own (during one export). */
+const fieldCited = new Set<string>();
+/**
+ * Zotero items for the bibliography without a field of their own – the originals of
+ * secondary citations, whose field cites the source quoted from – so a Zotero refresh keeps them.
+ */
+function uncited(sources: Source[]): string[][] {
+  return sources.filter((s) => !fieldCited.has(s.id) && s.zoteroKey && s.zoteroLibrary).map((s) => zoteroItem(s).uris as string[]);
+}
+
 // ---------------- ProseMirror JSON → OOXML ----------------
 interface PMNode {
   type: string;
@@ -114,6 +125,8 @@ interface Ctx {
   footnotes: string[];
   cited: Map<string, Source>;
   citeFormat: (a: Artifact) => Promise<string>;
+  /** secondary citation: the original as plain text before the live Zotero item */
+  prefix: (a: Artifact) => Promise<string>;
 }
 
 async function inline(nodes: PMNode[] | undefined, ctx: Ctx, base: string, noteIndex = 0): Promise<string> {
@@ -127,12 +140,12 @@ async function inline(nodes: PMNode[] | undefined, ctx: Ctx, base: string, noteI
       const a = db.get('artifacts', String(n.attrs?.id));
       if (!a) continue;
       const src = db.get('sources', a.sourceId);
-      if (src) ctx.cited.set(src.id, src);
+      if (src) sourcesOf(a).forEach((x) => ctx.cited.set(x.id, x));
       if (n.attrs?.mode !== 'cite') {
         const [l, r] = marks();
         out += run(l, base) + run(oneLine(a.text), base, { i: settings.quoteItalic }) + run(r + (src ? ' ' : ''), base);
       }
-      if (src) out += citationField(a, await ctx.citeFormat(a), noteIndex, base);
+      if (src) out += citationField(a, await ctx.citeFormat(a), noteIndex, base, undefined, await ctx.prefix(a));
     } else if (n.type === 'footnote') {
       const id = ctx.footnotes.length + 1;
       const fb = ctx.sn.footnotePPr.match(/<w:rPr>.*?<\/w:rPr>/s)?.[0] ?? '';
@@ -163,10 +176,10 @@ async function blocks(doc: PMNode | undefined, ctx: Ctx): Promise<string> {
       const a = db.get('artifacts', String(b.attrs?.id));
       if (!a) continue;
       const src = db.get('sources', a.sourceId);
-      if (src) ctx.cited.set(src.id, src);
+      if (src) sourcesOf(a).forEach((x) => ctx.cited.set(x.id, x));
       const [l, r] = marks();
       out += para(sn.quotePPr, run(l + a.text.trim() + r, sn.quoteRPr));
-      if (src) out += para(sn.quoteCitePPr, citationField(a, await ctx.citeFormat(a), 0, sn.bodyRPr));
+      if (src) out += para(sn.quoteCitePPr, citationField(a, await ctx.citeFormat(a), 0, sn.bodyRPr, undefined, await ctx.prefix(a)));
     }
   }
   return out;
@@ -188,6 +201,7 @@ export interface WordOptions {
 export async function buildWordDocument(project: Project, o: WordOptions = {}): Promise<Blob> {
   const tpl = TEMPLATES[o.template ?? settings.exportTemplate] ?? TEMPLATES.seminararbeit;
   const sn = tpl.snippets;
+  fieldCited.clear();
   const bytes = o.templateBytes ?? (await (await fetch(`${import.meta.env.BASE_URL}${tpl.file}`)).arrayBuffer());
   const zip = await JSZip.loadAsync(bytes);
   const style = o.style ?? 'apa';
@@ -196,7 +210,8 @@ export async function buildWordDocument(project: Project, o: WordOptions = {}): 
     sn,
     footnotes: [],
     cited: new Map(),
-    citeFormat: (a) => citeTextAsync(a, { style, locale })
+    citeFormat: (a) => citeTextAsync(a, { style, locale }),
+    prefix: (a) => secondaryPrefix(a, { style, locale }).catch(() => '')
   };
   let body = '';
 
@@ -210,9 +225,9 @@ export async function buildWordDocument(project: Project, o: WordOptions = {}): 
       const [l, r] = marks();
       const pageBreak = (pPr: string) => pPr.replace(/(<w:pStyle [^>]*\/>)?/, (m) => m + '<w:pageBreakBefore/>');
       const src = db.get('sources', motto.sourceId);
-      if (src) ctx.cited.set(src.id, src);
+      if (src) sourcesOf(motto).forEach((x) => ctx.cited.set(x.id, x));
       body += para(pageBreak(sn.motto.quotePPr), run(l + motto.text.trim() + r, sn.motto.quoteRPr));
-      if (src) body += para(sn.motto.citePPr, citationField(motto, await ctx.citeFormat(motto), 0, sn.motto.citeRPr));
+      if (src) body += para(sn.motto.citePPr, citationField(motto, await ctx.citeFormat(motto), 0, sn.motto.citeRPr, undefined, await ctx.prefix(motto)));
       body += sn.motto.sectEnd;
     }
   }
@@ -270,7 +285,7 @@ export async function buildWordDocument(project: Project, o: WordOptions = {}): 
     const br = (x: string) => `<w:r>${rpr(sn.bibRPr)}${x}</w:r>`;
     const fieldStart =
       settings.exportZotero
-        ? br('<w:fldChar w:fldCharType="begin"/>') + br('<w:instrText xml:space="preserve"> ADDIN ZOTERO_BIBL {"uncited":[],"omitted":[],"custom":[]} CSL_BIBLIOGRAPHY </w:instrText>') + br('<w:fldChar w:fldCharType="separate"/>')
+        ? br('<w:fldChar w:fldCharType="begin"/>') + br('<w:instrText xml:space="preserve"> ADDIN ZOTERO_BIBL ' + esc(JSON.stringify({ uncited: uncited(sources), omitted: [], custom: [] })) + ' CSL_BIBLIOGRAPHY </w:instrText>') + br('<w:fldChar w:fldCharType="separate"/>')
         : '';
     const fieldEnd = settings.exportZotero ? br('<w:fldChar w:fldCharType="end"/>') : '';
     if (!entries.length) body += para(sn.bibPPr, fieldStart + fieldEnd);

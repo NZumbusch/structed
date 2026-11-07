@@ -10,22 +10,79 @@ import { db } from './db.svelte';
 import { settings } from './settings.svelte';
 import { citeText, marks, oneLine, wordsOf } from './citecache.svelte';
 import { editorState, type InsertMode } from './editorState.svelte';
-import { ui } from './ui.svelte';
+import { ui, type MenuItem } from './ui.svelte';
+import { longpress } from './longpress';
+import { artifactLabel, shortCite } from './ops';
 import { editableQuote, footnoteContent, footnotePlain, toClipboard, type PMNode } from './footnote';
 import { Slice } from '@tiptap/pm/model';
 import type { EditorView } from '@tiptap/pm/view';
 export { editableQuote };
 import { t } from './i18n';
+const tr = t; // where `t` is shadowed
+
+type QuoteForm = 'inline' | 'cite' | 'block' | 'footnote';
+
+/** Show a linked quote in another form: quote + citation, citation only, block quote, footnote. */
+export function setQuoteForm(editor: Editor, pos: number, form: QuoteForm) {
+  const node = editor.state.doc.nodeAt(pos);
+  if (!node) return false;
+  const id = String(node.attrs.id);
+  const range = { from: pos, to: pos + node.nodeSize };
+  const ref = (mode: 'inline' | 'cite') => ({ type: 'quoteRef', attrs: { id, mode } });
+  const chain = editor.chain().focus();
+  if (node.type.name === 'quoteRef') {
+    if (form === 'inline' || form === 'cite') return chain.command(({ tr }) => (tr.setNodeMarkup(pos, undefined, { ...node.attrs, mode: form }), true)).run();
+    if (form === 'block') return chain.insertContentAt(range, { type: 'quoteBlock', attrs: { id } }).run();
+    return chain.insertContentAt(range, { type: 'footnote', attrs: { content: [ref('inline')] } }).run();
+  }
+  if (node.type.name === 'quoteBlock') {
+    if (form === 'block') return true;
+    const inner = form === 'footnote' ? { type: 'footnote', attrs: { content: [ref('inline')] } } : ref(form);
+    return chain.insertContentAt(range, { type: 'paragraph', content: [inner] }).run();
+  }
+  return false;
+}
 
 function quoteMenu(e: MouseEvent, editor: Editor, getPos: (() => number | undefined) | boolean) {
   const pos = typeof getPos === 'function' ? getPos() : undefined;
   if (pos == null) return;
-  ui.openContext(e, [
-    { label: t('Convert to editable text'), icon: 'edit', run: () => makeEditable(editor, pos) },
-    { label: t('Edit quote in library'), icon: 'quote', run: () => (ui.editArtifact = { id: String(editor.state.doc.nodeAt(pos)?.attrs.id) }) },
+  const node = editor.state.doc.nodeAt(pos);
+  if (!node) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const id = String(node.attrs.id);
+  const a = db.get('artifacts', id);
+  const cur: QuoteForm = node.type.name === 'quoteBlock' ? 'block' : node.attrs.mode === 'cite' ? 'cite' : 'inline';
+  const forms: { f: QuoteForm; label: string; icon: string }[] = [
+    { f: 'inline', label: 'Quote + citation', icon: 'quote' },
+    { f: 'cite', label: 'Citation only', icon: 'link' },
+    ...(editor.schema.nodes.quoteBlock ? [{ f: 'block' as const, label: 'Block quote', icon: 'paraphrase' }] : []),
+    ...(editor.schema.nodes.footnote ? [{ f: 'footnote' as const, label: 'In a footnote', icon: 'note' }] : [])
+  ];
+  const items: MenuItem[] = forms.map((x) => ({
+    label: t(x.label),
+    icon: x.f === cur ? 'check' : x.icon,
+    run: () => {
+      if (x.f !== cur) setQuoteForm(editor, pos, x.f);
+    }
+  }));
+  items.push(
+    { label: t('As editable text'), icon: 'edit', run: () => (cur === 'cite' ? setQuoteForm(editor, pos, 'inline') && makeEditable(editor, pos) : makeEditable(editor, pos)) },
     null,
-    { label: t('Remove'), icon: 'trash', danger: true, run: () => editor.chain().focus().deleteRange({ from: pos, to: pos + 1 }).run() }
-  ]);
+    ...(a ? [{ label: t('Edit quote in library'), icon: 'quote', run: () => (ui.editArtifact = { id }) }] : []),
+    { label: t('Remove'), icon: 'trash', danger: true, run: () => editor.chain().focus().deleteRange({ from: pos, to: pos + node.nodeSize }).run() }
+  );
+  ui.contextMenu = { x: e.clientX, y: e.clientY, items, title: a ? shortCite(a) || artifactLabel(a, 40) : undefined };
+}
+
+/** Right-click, double-click and (touch) long-press open the quote menu; returns a cleanup. */
+function menuEvents(dom: HTMLElement, editor: Editor, getPos: (() => number | undefined) | boolean) {
+  dom.addEventListener('contextmenu', (e) => quoteMenu(e, editor, getPos));
+  dom.addEventListener('dblclick', (e) => quoteMenu(e, editor, getPos));
+  let at = { x: 0, y: 0 };
+  dom.addEventListener('pointerdown', (e) => (at = { x: e.clientX, y: e.clientY }));
+  const lp = longpress(dom, { run: () => quoteMenu(new MouseEvent('contextmenu', { clientX: at.x, clientY: at.y }), editor, getPos) });
+  return () => lp.destroy();
 }
 
 /** Mount a reactive renderer into a node view; returns a cleanup function. */
@@ -62,7 +119,7 @@ export const QuoteRef = Node.create({
     return ({ node, editor, getPos }) => {
       const dom = document.createElement('span');
       dom.className = 'qref';
-      dom.addEventListener('contextmenu', (e) => attrs.mode !== 'cite' && quoteMenu(e, editor, getPos));
+      const unmenu = menuEvents(dom, editor, getPos);
       dom.contentEditable = 'false';
       let attrs = $state({ ...node.attrs });
       const stop = live(() => {
@@ -79,7 +136,7 @@ export const QuoteRef = Node.create({
           q.textContent = text;
           dom.append(l, q, r, cite ? ' ' + cite : '');
         }
-        dom.title = a ? `${a.text}${a.page ? ` – S. ${a.page}` : ''}` : '';
+        dom.title = (a ? `${a.text}${a.page ? ` – S. ${a.page}` : ''}\n\n` : '') + t('Right-click or double-click: show differently');
       });
       return {
         dom,
@@ -88,7 +145,7 @@ export const QuoteRef = Node.create({
           attrs = { ...n.attrs };
           return true;
         },
-        destroy: stop
+        destroy: () => (stop(), unmenu())
       };
     };
   }
@@ -114,7 +171,7 @@ export const QuoteBlock = Node.create({
     return ({ node, editor, getPos }) => {
       const dom = document.createElement('div');
       dom.className = 'qblock';
-      dom.addEventListener('contextmenu', (e) => quoteMenu(e, editor, getPos));
+      const unmenu = menuEvents(dom, editor, getPos);
       dom.contentEditable = 'false';
       let attrs = $state({ ...node.attrs });
       const stop = live(() => {
@@ -127,6 +184,7 @@ export const QuoteBlock = Node.create({
         c.className = 'qb-cite';
         c.textContent = cite;
         dom.replaceChildren(t, c);
+        dom.title = tr('Right-click or double-click: show differently');
       });
       return {
         dom,
@@ -135,7 +193,7 @@ export const QuoteBlock = Node.create({
           attrs = { ...n.attrs };
           return true;
         },
-        destroy: stop
+        destroy: () => (stop(), unmenu())
       };
     };
   }

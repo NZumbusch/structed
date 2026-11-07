@@ -1,5 +1,5 @@
 import { db } from './db.svelte';
-import { flatten, placementsOf, shortCite } from './ops';
+import { flatten, placementsOf, shortCite, sourcesOf } from './ops';
 import { bibliography, citeArtifact, toBibtex, toCslJson } from './cite';
 import { settings } from './settings.svelte';
 import type { Artifact, Project, Source } from './types';
@@ -33,7 +33,7 @@ function usedSources(projectId: string): Source[] {
   for (const p of db.all('placements')) {
     if (p.projectId !== projectId || !db.get('headings', p.headingId)) continue;
     const a = db.get('artifacts', p.artifactId);
-    if (a?.sourceId) ids.add(a.sourceId);
+    if (a) for (const x of sourcesOf(a)) ids.add(x.id);
   }
   return [...ids].map((id) => db.get('sources', id)).filter((s): s is Source => !!s);
 }

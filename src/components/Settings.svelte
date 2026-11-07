@@ -6,7 +6,7 @@
   import { t } from '../lib/i18n';
   import { db } from '../lib/db.svelte';
   import { sync } from '../lib/sync.svelte';
-  import { LOCALES, STYLES } from '../lib/cite';
+  import { LOCALES, STYLES, secondaryWords } from '../lib/cite';
   import { exportBackup, importBackup } from '../lib/backup';
   import ShortcutSettings from './ShortcutSettings.svelte';
   import ZoteroSyncSettings from './ZoteroSyncSettings.svelte';
@@ -132,6 +132,12 @@
           </select>
         </label>
         <p class="small muted">{t('Used for “Copy with citation”, reference previews and exports.')}</p>
+        <h4 class="sh4">{t('Secondary citations')}</h4>
+        <label class="field"><span>{t('Words between original and source')}</span>
+          <input class="input" bind:value={settings.secondaryText} placeholder={secondaryWords(settings.citationLocale)} />
+        </label>
+        <label class="chk"><input type="checkbox" bind:checked={settings.secondaryInBib} />{t('List the original work in the bibliography too')}</label>
+        <p class="small muted">{t('A quote you know only from another work: open it, set its source to the work you read and add the original under “Secondary citation”. It is cited as “(Kaufmann, 1996, col. 1121, as cited in Lotz-Heumann, 2001, p. 108)”.')}</p>
       {:else if ui.settingsTab === 'editor'}
         <h4 class="sh4">{t('Quotes in the text')}</h4>
         <label class="field"><span>{t('Insert quotes by default')}</span>

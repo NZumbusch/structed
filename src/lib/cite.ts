@@ -1,5 +1,5 @@
 // Citation formatting + bibliography parsing via citation-js (lazy-loaded).
-import type { Artifact, CSLItem, Source } from './types';
+import type { Artifact, CSLItem, LocatorLabel, Source } from './types';
 import { db } from './db.svelte';
 import { settings } from './settings.svelte';
 
@@ -39,11 +39,12 @@ async function ensureStyle(core: CiteMod, id: string) {
     try {
       const r = await fetch(`${import.meta.env.BASE_URL}csl/${id}.csl`);
       if (r.ok) {
-        cfg.templates.add(id, await r.text());
+        // the registry is called `styles` (older citation-js versions: `templates`)
+        (cfg.styles ?? cfg.templates).add(id, await r.text());
         loadedStyles.add(id);
       }
-    } catch {
-      /* use builtin */
+    } catch (e) {
+      console.warn('citation style not loaded:', id, e); // falls back to APA
     }
   }
   return loadedStyles.has(id) ? id : 'apa';
@@ -70,8 +71,30 @@ function cslFor(s: Source): CSLItem {
   return { ...c, id: s.id };
 }
 
-function pageLabel(p: string) {
-  return { locator: p, label: 'page' as const };
+const entryFor = (id: string, page?: string, label?: LocatorLabel) => ({ id, ...(page?.trim() ? { locator: page.trim(), label: label ?? 'page' } : {}) });
+
+/** The words of a secondary citation: "zit. nach" / "as cited in" (or the user's own). */
+export function secondaryWords(locale: string): string {
+  if (settings.secondaryText.trim()) return settings.secondaryText.trim();
+  const l = locale.toLowerCase();
+  return l.startsWith('de') ? 'zit. nach' : l.startsWith('fr') ? 'cité par' : l.startsWith('it') ? 'cit. in' : l.startsWith('es') ? 'citado en' : 'as cited in';
+}
+
+/** "(A, 1996, Sp. 1)" → ["(", "A, 1996, Sp. 1", ")"]; a note citation loses its final period. */
+function unwrap(c: string): [string, string, string] {
+  const m = c.match(/^([([])(.*)([)\]])$/s);
+  if (m && (m[1] === '(') === (m[3] === ')')) return [m[1], m[2], m[3]];
+  return ['', c.replace(/\.$/, ''), ''];
+}
+
+/** One citation "original, zit. nach source": both parts formatted by the style, joined inside one pair of brackets. */
+export function joinSecondary(original: string, main: string, words: string): string {
+  if (!original) return main;
+  if (!main) return original;
+  const [o1, o, o3] = unwrap(original);
+  const [m1, m, m3] = unwrap(main);
+  if (o1 && o1 === m1) return `${o1}${o}, ${words} ${m}${m3}`;
+  return `${o}, ${words} ${m1 ? m1 + m + m3 : main}`;
 }
 
 export interface CiteOpts {
@@ -86,19 +109,34 @@ async function prep(o: CiteOpts) {
   return { core, style, lang };
 }
 
-/** In-text citation (or note text for note styles) for an artifact incl. page. */
-export async function citeArtifact(a: Artifact, o: CiteOpts = {}): Promise<string> {
-  const s = db.get('sources', a.sourceId);
-  if (!s) return '';
-  const { core, style, lang } = await prep(o);
+
+function citeOne(core: CiteMod, style: string, lang: string, s: Source, page?: string, label?: LocatorLabel): string {
   const cite = new core.Cite([cslFor(s)]);
-  const entry = [{ id: s.id, ...(a.page ? pageLabel(a.page) : {}) }];
   try {
-    return String(cite.format('citation', { format: 'text', template: style, lang, entry } as never)).trim();
+    return String(cite.format('citation', { format: 'text', template: style, lang, entry: [entryFor(s.id, page, label)] } as never)).trim();
   } catch (e) {
     console.warn(e);
     return '';
   }
+}
+
+/** In-text citation (or note text for note styles) for an artifact incl. page – and the original it is quoted from. */
+export async function citeArtifact(a: Artifact, o: CiteOpts = {}): Promise<string> {
+  const s = db.get('sources', a.sourceId);
+  if (!s) return '';
+  const { core, style, lang } = await prep(o);
+  const main = citeOne(core, style, lang, s, a.page, a.pageLabel);
+  const orig = a.original ? db.get('sources', a.original.sourceId) : undefined;
+  if (!orig) return main;
+  return joinSecondary(citeOne(core, style, lang, orig, a.original!.page, a.original!.pageLabel), main, secondaryWords(lang));
+}
+
+/** For a Zotero field: the original as plain text before the live source ("Kaufmann, 1996, Sp. 1121, zit. nach"). */
+export async function secondaryPrefix(a: Artifact, o: CiteOpts = {}): Promise<string> {
+  const orig = a.original ? db.get('sources', a.original.sourceId) : undefined;
+  if (!orig || !db.get('sources', a.sourceId)) return '';
+  const { core, style, lang } = await prep(o);
+  return `${unwrap(citeOne(core, style, lang, orig, a.original!.page, a.original!.pageLabel))[1]}, ${secondaryWords(lang)}`;
 }
 
 export async function bibliography(sources: Source[], o: CiteOpts & { format?: 'text' | 'html' } = {}): Promise<string> {

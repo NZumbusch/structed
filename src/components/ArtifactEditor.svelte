@@ -8,7 +8,9 @@
   import { t } from '../lib/i18n';
   import { cleanText } from '../lib/ocr';
   import { addToProject, deleteArtifact, place } from '../lib/ops';
-  import type { ArtifactKind } from '../lib/types';
+  import { citeArtifact } from '../lib/cite';
+  import { settings } from '../lib/settings.svelte';
+  import { LOCATOR_LABELS, type ArtifactKind, type LocatorLabel } from '../lib/types';
 
   const req = ui.editArtifact!;
   const existing = req.id ? db.get('artifacts', req.id) : undefined;
@@ -19,6 +21,21 @@
   let text = $state(existing?.text ?? '');
   let fullText = $state(existing?.fullText ?? '');
   let page = $state(existing?.page ?? '');
+  let pageLabel = $state<LocatorLabel>(existing?.pageLabel ?? 'page');
+  // secondary citation: the work quoted, as found in this source
+  let origOpen = $state(!!existing?.original);
+  let origId = $state<string | null>(existing?.original?.sourceId ?? null);
+  let origPage = $state(existing?.original?.page ?? '');
+  let origLabel = $state<LocatorLabel>(existing?.original?.pageLabel ?? 'page');
+  const original = $derived(origOpen && origId && origId !== sourceId ? { sourceId: origId, page: origPage.trim(), pageLabel: origLabel === 'page' ? undefined : origLabel } : null);
+  /** how it will be cited, with the current citation style */
+  let preview = $state('');
+  $effect(() => {
+    const a = { id: '', kind, sourceId, text: '', tags: [], page: page.trim(), pageLabel: pageLabel === 'page' ? undefined : pageLabel, original, createdAt: 0, updatedAt: 0, device: '' };
+    const o = { style: settings.citationStyle, locale: settings.citationLocale, words: settings.secondaryText };
+    if (!sourceId) return void (preview = '');
+    citeArtifact(a, o).then((c) => (preview = c)).catch(() => (preview = ''));
+  });
   let comment = $state(existing?.comment ?? '');
   let tags = $state<string[]>([...(existing?.tags ?? [])]);
   let color = $state(existing?.color ?? '');
@@ -37,6 +54,22 @@
   });
 
   const KINDS: ArtifactKind[] = ['quote', 'paraphrase', 'note', 'image'];
+  const LABEL_NAMES: Record<LocatorLabel, string> = {
+    page: 'Page',
+    column: 'Column',
+    paragraph: 'Paragraph',
+    section: 'Section',
+    line: 'Line',
+    chapter: 'Chapter',
+    volume: 'Volume',
+    folio: 'Folio',
+    note: 'Note (n.)',
+    number: 'Number',
+    verse: 'Verse',
+    'sub-verbo': 'Sub verbo (s.v.)',
+    figure: 'Figure',
+    table: 'Table'
+  };
 
   function close() {
     ui.editArtifact = null;
@@ -51,6 +84,8 @@
       text,
       fullText,
       page: page.trim(),
+      pageLabel: pageLabel === 'page' ? undefined : pageLabel,
+      original,
       comment,
       tags,
       color,
@@ -71,6 +106,7 @@
       text = '';
       fullText = '';
       page = '';
+      origPage = '';
       comment = '';
       title = '';
       imageId = '';
@@ -110,8 +146,36 @@
 
     <div class="row two">
       <label class="field grow"><span>{t('Source')}</span><SourceSelect bind:value={sourceId} /></label>
-      <label class="field page"><span>{t('Page')}</span><input class="input" bind:value={page} placeholder="12–14" /></label>
+      <div class="field page">
+        <select class="select lsel" bind:value={pageLabel} aria-label={t('Kind of location')}>
+          {#each LOCATOR_LABELS as l (l)}<option value={l}>{t(LABEL_NAMES[l])}</option>{/each}
+        </select>
+        <input class="input" bind:value={page} placeholder="12–14" aria-label={t(LABEL_NAMES[pageLabel])} />
+      </div>
     </div>
+    {#if sourceId && kind !== 'note' && kind !== 'image'}
+      {#if origOpen}
+        <div class="orig card">
+          <div class="row">
+            <span class="small grow"><b>{t('Secondary citation')}</b> – {t('the work quoted in this source:')}</span>
+            <button class="icon-btn sm" title={t('Not a secondary citation')} aria-label={t('Not a secondary citation')} onclick={() => ((origOpen = false), (origId = null))}><Icon name="x" size={14} /></button>
+          </div>
+          <div class="row two">
+            <label class="field grow"><span>{t('Original source')}</span><SourceSelect bind:value={origId} /></label>
+            <div class="field page">
+              <select class="select lsel" bind:value={origLabel} aria-label={t('Kind of location in the original')}>
+                {#each LOCATOR_LABELS as l (l)}<option value={l}>{t(LABEL_NAMES[l])}</option>{/each}
+              </select>
+              <input class="input" bind:value={origPage} placeholder="1121" aria-label={t('Location in the original')} />
+            </div>
+          </div>
+          {#if origId === sourceId}<p class="tiny err">{t('The original has to be another source.')}</p>{/if}
+        </div>
+      {:else}
+        <button class="btn ghost sm more" onclick={() => (origOpen = true)}><Icon name="quote" size={13} />{t('Secondary citation (quoted from another work)…')}</button>
+      {/if}
+      {#if preview}<p class="tiny muted cprev" aria-label={t('Citation')}>{preview}</p>{/if}
+    {/if}
 
     {#if kind === 'image'}
       <div class="img">
@@ -171,7 +235,37 @@
     align-items: end;
   }
   .page {
+    width: 220px;
+    display: flex;
+    gap: 4px;
+  }
+  .page .lsel {
     width: 110px;
+    flex: none;
+  }
+  .page .input {
+    min-width: 0;
+    flex: 1;
+  }
+  .orig {
+    display: grid;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .cprev {
+    margin: -4px 0 0;
+  }
+  .err {
+    margin: 0;
+    color: var(--danger);
+  }
+  @media (max-width: 520px) {
+    .two {
+      flex-wrap: wrap;
+    }
+    .page {
+      width: 100%;
+    }
   }
   .lbl {
     font-size: 0.8125rem;

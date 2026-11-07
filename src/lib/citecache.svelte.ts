@@ -11,7 +11,9 @@ const pending = new Set<string>();
 
 function key(a: Artifact, style: string, locale: string, page: string) {
   const s = db.get('sources', a.sourceId);
-  return `${a.sourceId}|${s?.updatedAt}|${page}|${style}|${locale}`;
+  const o = a.original ? db.get('sources', a.original.sourceId) : undefined;
+  const orig = o ? `${o.id}|${o.updatedAt}|${a.original!.page ?? ''}|${a.original!.pageLabel ?? ''}` : '';
+  return `${a.sourceId}|${s?.updatedAt}|${page}|${a.pageLabel ?? ''}|${orig}|${style}|${locale}|${settings.secondaryText}`;
 }
 
 /** Formatted in-text citation, e.g. "(Dürr, 1971, S. 796)". Reactive: re-renders when ready. */

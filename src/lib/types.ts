@@ -60,6 +60,10 @@ export interface Source extends EntityBase {
   reading?: ReadingStatus | null;
 }
 
+/** CSL locator labels offered for quotes */
+export const LOCATOR_LABELS = ['page', 'column', 'paragraph', 'section', 'line', 'chapter', 'volume', 'folio', 'note', 'number', 'verse', 'sub-verbo', 'figure', 'table'] as const;
+export type LocatorLabel = (typeof LOCATOR_LABELS)[number];
+
 export type ArtifactKind = 'quote' | 'paraphrase' | 'note' | 'image';
 
 export interface Artifact extends EntityBase {
@@ -69,6 +73,10 @@ export interface Artifact extends EntityBase {
   text: string; // the quote / paraphrase / note (markdown allowed for notes)
   fullText?: string; // optional longer context
   page?: string; // "12", "12-14", "xiv"
+  /** what `page` counts: page (default), column, paragraph… (CSL locator label) */
+  pageLabel?: LocatorLabel;
+  /** secondary citation: the work quoted, as found in `sourceId` ("Kaufmann 1996, Sp. 1121, zit. nach …") */
+  original?: { sourceId: string; page?: string; pageLabel?: LocatorLabel } | null;
   comment?: string;
   tags: string[];
   color?: string;
