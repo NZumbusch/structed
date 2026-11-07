@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { keepScroll } from '../lib/keepScroll';
   import { SvelteSet } from 'svelte/reactivity';
   import Icon from './Icon.svelte';
   import Menu from './Menu.svelte';
@@ -190,7 +191,7 @@
     {/if}
   </div>
 
-  <div class="list scroll">
+  <div class="list scroll" use:keepScroll={'panel:' + (ui.projectId ?? 'library') + ':' + (scoped ? 'p' : 'l')}>
     {#if !groups.length}
       <div class="empty small">
         {#if scoped && !projectCount && db.all('artifacts').length}

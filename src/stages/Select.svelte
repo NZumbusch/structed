@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { keepScroll } from '../lib/keepScroll';
   // "Auswählen": pick the sources and quotes this project needs, from the whole library.
   import { SvelteSet } from 'svelte/reactivity';
   import Icon from '../components/Icon.svelte';
@@ -107,7 +108,7 @@
       </div>
       <label class="row small"><input type="checkbox" bind:checked={onlyMissing} />{t('Only items not in this project')}</label>
     </header>
-    <div class="list scroll">
+    <div class="list scroll" use:keepScroll={'select-lib:' + project.id}>
       {#each library as [sid, items] (sid)}
         {@const st = srcState(sid, items)}
         <div class="src" class:open={openSrc.has(sid) || !!q.trim()}>
@@ -164,7 +165,7 @@
       <h2>{t('In this project')}</h2>
       <p class="small muted">{t('{n} items · {p} placed under headings', { n: chosen.length, p: placedCount })}</p>
     </header>
-    <div class="list scroll">
+    <div class="list scroll" use:keepScroll={'select-proj:' + project.id}>
       {#each chosenGroups as [sid, items] (sid)}
         {@const whole = sid !== NONE && sourceSelected(sid, project.id)}
         <div class="src open">

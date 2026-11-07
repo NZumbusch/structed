@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { keepScroll } from '../lib/keepScroll';
   // "Schreiben": the final text, one editor per heading of the outline.
   import type { Editor } from '@tiptap/core';
   import { untrack } from 'svelte';
@@ -273,6 +274,7 @@
   class:tw={focus && settings.focusTypewriter}
   data-tour="compose"
   bind:this={scroller}
+  use:keepScroll={'write:' + project.id}
 >
   {#if focus}
     <div class="fbar" class:idle={typing} role="toolbar" aria-label={t('Focus mode')}>
