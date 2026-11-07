@@ -1,5 +1,6 @@
 // German UI strings. Keys are the English originals (see i18n.ts).
 export const de: Record<string, string> = {
+  'Section': 'Abschnitt',
   'Switch on the Zotero sync in Settings and your sources stay up to date by themselves. Highlights from your PDFs you go through per source, taking or skipping each one. Files (BibTeX, RIS, CSL-JSON) can be imported here too.': 'Schalte in den Einstellungen den Zotero-Abgleich ein, dann bleiben deine Quellen von selbst aktuell. Markierungen aus deinen PDFs gehst du pro Quelle durch und übernimmst oder überspringst jede einzeln. Dateien (BibTeX, RIS, CSL-JSON) lassen sich hier ebenfalls importieren.',
   'Import sources…': 'Quellen importieren…',
   'Import sources (file / paste)': 'Quellen importieren (Datei / Einfügen)',

@@ -1,5 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
+import type { Locator } from '@playwright/test';
 import { open, seedDemo, stage } from './helpers';
+
+/** Cited / source / tag sit behind the "Filter" button of the quote search. */
+async function openFilter(dlg: Locator) {
+  if (!(await dlg.locator('.fpop').isVisible())) await dlg.getByRole('button', { name: /^Filter/ }).click();
+}
 
 async function setup(page: Page) {
   await open(page);
@@ -48,8 +54,9 @@ test('quote search: preview, groups, tag and "already in the text" filters, edit
   await expect(dlg).toBeVisible();
   await expect(ed.locator('.qref')).toHaveCount(1);
   await expect(dlg.getByRole('listbox', { name: 'Quotes' }).getByRole('option').first()).toContainText('in text');
+  await openFilter(dlg);
   await dlg.getByLabel('Cited in the text').selectOption('unused');
-  await expect(dlg.locator('.count')).toHaveText('0 found');
+  await expect(dlg.locator('.count')).toContainText(/^0 found/);
   await dlg.getByLabel('Cited in the text').selectOption('all');
   // a quote from a source not selected for the project: pointed out, one click away
   await dlg.getByLabel('Search quotes').fill('karlstadt');
@@ -62,9 +69,10 @@ test('quote search: preview, groups, tag and "already in the text" filters, edit
   await dlg.getByLabel('Group by').selectOption('source');
   await expect(dlg.locator('.gh').first()).toBeVisible();
   await expect(dlg.locator('.gh', { hasText: 'Nora 1984' })).toBeVisible();
+  await openFilter(dlg);
   await dlg.getByLabel('Tag').selectOption('places');
   await expect(dlg.getByRole('listbox', { name: 'Quotes' }).getByRole('option')).toHaveCount(1);
-  await dlg.getByRole('button', { name: 'Reset' }).click();
+  await dlg.getByRole('button', { name: 'Reset', exact: true }).click();
   // edit the marked quote without losing the search; Esc closes only the editor
   await dlg.getByLabel('Search quotes').fill('remains');
   await pv.getByRole('button', { name: 'Edit' }).click();
@@ -155,4 +163,24 @@ test('copying text takes the citations and footnotes along; pasting back keeps t
   await expect(ed2.locator('.qref')).toHaveCount(1);
   await expect(ed2.locator('sup.fn')).toHaveCount(1);
   await expect(ed2).toContainText('Memory is social (Nora, 1984, p. 12) indeed.');
+});
+
+test('group headings keep their height in a long list', async ({ page }) => {
+  await open(page);
+  await seedDemo(page);
+  await page.evaluate(() => {
+    const { db, ui } = (window as any).__structed;
+    for (const fam of ['Nora', 'Halbwachs', 'Assmann2']) {
+      const s = db.create('sources', { csl: { id: fam, type: 'book', title: 'Book of ' + fam, author: [{ family: fam }], issued: { 'date-parts': [[1990]] } }, tags: [] });
+      db.create('selections', { projectId: ui.projectId, refType: 'source', refId: s.id });
+      for (let i = 0; i < 8; i++) db.create('artifacts', { kind: 'quote', sourceId: s.id, text: `${fam} quote ${i}`, page: String(i), tags: [] });
+    }
+  });
+  await stage(page, 'Write');
+  await page.locator('.compose .ProseMirror').first().click();
+  await page.keyboard.press('Control+Alt+z');
+  await page.locator('.modal').getByLabel('Group by').selectOption('source');
+  const heights = await page.locator('.modal .gh').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().height));
+  expect(heights.length).toBe(4);
+  for (const h of heights) expect(h).toBeGreaterThan(18);
 });

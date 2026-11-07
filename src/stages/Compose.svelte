@@ -371,13 +371,8 @@
 <CiteSuggest />
 {#if picking}
   <Modal title={t('Insert quote')} onclose={() => (picking = false)} width="980px">
-    <div class="pickhead row small">
-      <label class="row" for="pick-mode">{t('Insert as')}</label>
-      <select id="pick-mode" class="select mode" bind:value={settings.insertMode}>
-        {#each MODES as m (m.id)}<option value={m.id}>{t(m.label)}</option>{/each}
-      </select>
-    </div>
-    <QuotePicker headingId={editorState.active?.headingId ?? null} onpick={pickQuote} />
+
+    <QuotePicker headingId={editorState.active?.headingId ?? null} onpick={pickQuote} showMode />
   </Modal>
 {/if}
 
@@ -402,10 +397,6 @@
   .fmt {
     font-family: var(--font-serif);
     font-size: 1rem;
-  }
-  .pickhead {
-    gap: 8px;
-    margin-bottom: 10px;
   }
   .sep {
     width: 1px;

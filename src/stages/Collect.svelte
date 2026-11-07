@@ -415,7 +415,7 @@
           {#if sel === '~dupes'}<p class="small muted">{t('Items with (almost) the same text, sorted next to each other.')}</p>{/if}
           {#if sel === '~zunused'}
             <p class="small muted">{t('Quotes imported from Zotero highlights that are not placed under a heading, not cited in a text and not picked for a project. Deleted ones do not come back when you go through the highlights again.')}</p>
-            {#if items.length}<button class="btn sm danger" onclick={() => deleteUnused(items)}><Icon name="trash" size={14} />{t('Delete all {n}', { n: items.length })}</button>{/if}
+            {#if items.length}<button class="btn sm danger delall" onclick={() => deleteUnused(items)}><Icon name="trash" size={14} />{t('Delete all {n}', { n: items.length })}</button>{/if}
           {/if}
         {/if}
 
@@ -567,6 +567,10 @@
     font-size: 0.78rem;
     color: var(--muted);
   }
+  .delall {
+    justify-self: start;
+    margin-bottom: 8px;
+  }
   .zrow {
     flex-wrap: wrap;
     gap: 6px;
@@ -691,6 +695,13 @@
   }
   .page {
     width: 90px;
+  }
+  /* page, tags and Add share one height */
+  .crow {
+    align-items: stretch;
+  }
+  .crow .btn {
+    height: auto;
   }
   .bulk {
     gap: 12px;
