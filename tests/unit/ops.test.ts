@@ -314,3 +314,41 @@ describe('project selection', () => {
     expect(db.all('selections')).toHaveLength(0);
   });
 });
+
+import { sourceVia, projectSources } from '../../src/lib/ops';
+describe('project linked to a Zotero collection', () => {
+  function lib() {
+    const p = createProject('P', 'blank', 'en');
+    db.update('projects', p.id, { zoteroCollection: { library: 'users/1', key: 'C1', name: 'Paper', keys: ['C1', 'C1a'] } });
+    const z = (key: string, cols: string[], library = 'users/1') =>
+      db.create('sources', { csl: { id: key, type: 'book', title: key }, tags: [], zoteroKey: key, zoteroLibrary: library, zoteroCollections: cols });
+    return { p, inCol: z('A', ['C1']), inSub: z('B', ['X', 'C1a']), outside: z('C', ['X']), otherLib: z('D', ['C1'], 'groups/9') };
+  }
+  it('sources in the collection or a subcollection belong to the project, with their quotes', () => {
+    const { p, inCol, inSub, outside, otherLib } = lib();
+    expect(sourceVia(inCol.id, p.id)).toBe('collection');
+    expect(sourceVia(inSub.id, p.id)).toBe('collection');
+    expect(sourceVia(outside.id, p.id)).toBeNull();
+    expect(sourceVia(otherLib.id, p.id)).toBeNull();
+    const q = db.create('artifacts', { kind: 'quote', text: 'q', tags: [], sourceId: inCol.id });
+    expect(membership(q, p.id)).toBe('source');
+    expect(projectSources(p.id).map((s) => s.zoteroKey).sort()).toEqual(['A', 'B']);
+    // taken out of the collection in Zotero → out of the project
+    db.update('sources', inCol.id, { zoteroCollections: [] });
+    expect(membership(q, p.id)).toBeNull();
+  });
+  it('a source of the collection can be left out here and brought back', () => {
+    const { p, inCol } = lib();
+    removeSourceFromProject(p.id, inCol.id);
+    expect(sourceVia(inCol.id, p.id)).toBeNull();
+    expect(db.all('selections').filter((x) => x.excluded)).toHaveLength(1);
+    addToProject(p.id, 'source', inCol.id);
+    expect(sourceVia(inCol.id, p.id)).toBe('collection');
+    expect(db.all('selections')).toHaveLength(0);
+    // picked by hand and in the collection: removing it keeps it out
+    db.create('selections', { projectId: p.id, refType: 'source', refId: inCol.id });
+    expect(sourceVia(inCol.id, p.id)).toBe('picked');
+    removeSourceFromProject(p.id, inCol.id);
+    expect(sourceVia(inCol.id, p.id)).toBeNull();
+  });
+});

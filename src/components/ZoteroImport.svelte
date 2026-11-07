@@ -8,7 +8,7 @@
   import { ui } from '../lib/ui.svelte';
   import { t } from '../lib/i18n';
   import { parseBibliography } from '../lib/cite';
-  import { authorsShort, yearOf } from '../lib/ops';
+  import { addToProject, authorsShort, yearOf } from '../lib/ops';
   import { findDuplicate } from '../lib/zotero';
   import { zoteroSyncActive } from '../lib/zoterosync.svelte';
   import type { CSLItem, Source } from '../lib/types';
@@ -46,8 +46,8 @@
     db.batch('file import', () => {
       for (const x of chosen) {
         const csl = $state.snapshot(x.csl) as CSLItem;
-        if (x.dup) db.update('sources', x.dup.id, { csl: { ...csl, id: x.dup.csl.id || csl.id } });
-        else db.create('sources', { csl, tags: [] });
+        const s = x.dup ? (db.update('sources', x.dup.id, { csl: { ...csl, id: x.dup.csl.id || csl.id } }), x.dup) : db.create('sources', { csl, tags: [] });
+        if (ui.projectId) addToProject(ui.projectId, 'source', s.id);
       }
     });
     ui.toast(t('{n} sources imported', { n: chosen.length }), { kind: 'ok' });

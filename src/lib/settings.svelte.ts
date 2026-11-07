@@ -24,6 +24,10 @@ export interface Settings {
   zoteroSyncCollection?: string;
   zoteroSyncTags: boolean; // also take over Zotero tags
   zoteroSyncVersions: Record<string, number>; // last library version seen, per scope
+  /** Select: show how many Zotero highlights of a source are not gone through yet */
+  zoteroHighlightCounts: boolean;
+  /** Select: a reading status per source (to read, reading, read) */
+  readingStatus: boolean;
   citationStyle: string;
   citationLocale: string;
   panelGroupBy: GroupBy;
@@ -105,6 +109,8 @@ const defaults: Settings = {
   zoteroSyncCollections: [],
   zoteroSyncTags: false,
   zoteroSyncVersions: {},
+  zoteroHighlightCounts: true,
+  readingStatus: true,
   citationStyle: 'apa',
   citationLocale: 'en-US',
   panelGroupBy: 'source',

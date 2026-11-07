@@ -8,6 +8,7 @@ import { settings } from './settings.svelte';
 import { ui } from './ui.svelte';
 import { t } from './i18n';
 import { sync } from './sync.svelte';
+import { refreshLink } from './zoterolink.svelte';
 import { deletedZoteroKeys, items as fetchItems, upsertSource, zoteroConfigured, type ZItem } from './zotero';
 
 const EVERY = 10 * 60_000; // in the background
@@ -82,6 +83,9 @@ export async function syncZotero(quiet = true): Promise<void> {
     zsync.added = added;
     zsync.updated = updated;
     zsync.lastRun = Date.now();
+    // the open project's linked collection: items saved to it in Zotero join the project
+    const p = db.get('projects', ui.projectId);
+    if (p?.zoteroCollection) await refreshLink(p);
     if (added) ui.toast(t('Zotero: {n} new sources', { n: added }), { kind: 'ok' });
     else if (!quiet) ui.toast(updated ? t('Zotero: {n} sources updated', { n: updated }) : t('Zotero: everything up to date'), { kind: 'ok' }, 2500);
   } catch (e) {

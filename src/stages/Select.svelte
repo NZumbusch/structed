@@ -1,8 +1,15 @@
 <script lang="ts">
   import { keepScroll } from '../lib/keepScroll';
   // "Auswählen": pick the sources and quotes this project needs, from the whole library.
+  import { untrack } from 'svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import Icon from '../components/Icon.svelte';
+  import ZoteroLinkDialog from '../components/ZoteroLinkDialog.svelte';
+  import { settings } from '../lib/settings.svelte';
+  import { zoteroConfigured, zoteroSelectUrl } from '../lib/zotero';
+  import { openPdf, refreshLink, zlink } from '../lib/zoterolink.svelte';
+  import { newHighlights, refreshHighlights, seenHighlights } from '../lib/zhighlights.svelte';
+  import type { MenuItem } from '../lib/ui.svelte';
   import { db } from '../lib/db.svelte';
   import { ui } from '../lib/ui.svelte';
   import { t } from '../lib/i18n';
@@ -12,15 +19,17 @@
     artifactLabel,
     authorsFull,
     membership,
+    projectSources,
     removeFromProject,
     removeSourceFromProject,
     shortCite,
     sourceLabel,
     sourceSelected,
+    sourceVia,
     visibleTags,
     yearOf
   } from '../lib/ops';
-  import type { Artifact, Project, Source } from '../lib/types';
+  import type { Artifact, Project, ReadingStatus, Source } from '../lib/types';
 
   let { project }: { project: Project } = $props();
 
@@ -67,8 +76,7 @@
   const chosen = $derived(db.all('artifacts').filter((a) => membership(a, project.id)));
   const chosenGroups = $derived.by(() => {
     const g = groupBySource(chosen);
-    for (const x of db.all('selections'))
-      if (x.projectId === project.id && x.refType === 'source' && db.get('sources', x.refId) && !g.has(x.refId)) g.set(x.refId, []);
+    for (const s of projectSources(project.id)) if (!g.has(s.id)) g.set(s.id, []);
     return [...g.entries()].sort((a, b) => (a[0] === NONE ? 1 : b[0] === NONE ? -1 : label(a[0]).localeCompare(label(b[0]))));
   });
   const placedCount = $derived(chosen.filter((a) => membership(a, project.id) === 'placed').length);
@@ -89,6 +97,59 @@
     ui.toast(t('Removed from project'), { action: { label: t('Undo'), run: () => db.undo() } });
   }
   const why = (a: Artifact) => membership(a, project.id);
+
+  // ---------- Zotero: linked collection, highlights not gone through yet, open in Zotero ----------
+  let linkOpen = $state(false);
+  const zotero = $derived(zoteroConfigured());
+  const link = $derived(project.zoteroCollection);
+  $effect(() => {
+    const id = project.id;
+    if (link?.key && zotero) untrack(() => refreshLink(db.get('projects', id)!));
+  });
+  const projSources = $derived(chosenGroups.map(([sid]) => db.get('sources', sid)).filter((x): x is Source => !!x));
+  const hlLibs = $derived([...new Set(projSources.filter((x) => x.zoteroKey).map((x) => x.zoteroLibrary ?? ''))].filter(Boolean).join(' '));
+  $effect(() => {
+    if (!settings.zoteroHighlightCounts || !zotero) return;
+    for (const l of hlLibs.split(' ')) if (l) untrack(() => refreshHighlights(l));
+  });
+  const seen = $derived(settings.zoteroHighlightCounts ? seenHighlights() : new Set<string>());
+  const fresh = (s: Source | undefined) => (s && settings.zoteroHighlightCounts ? newHighlights(s.zoteroLibrary, s.zoteroKey, seen) : 0);
+  const freshTotal = $derived(projSources.reduce((n, x) => n + fresh(x), 0));
+  function reviewAll() {
+    ui.reviewSources = projSources.filter((x) => fresh(x) > 0).map((x) => x.id);
+  }
+  const openUrl = (url: string) => (location.href = url);
+
+  // ---------- reading status ----------
+  const READING: { v: ReadingStatus; label: string }[] = [
+    { v: 'toread', label: 'To read' },
+    { v: 'reading', label: 'Reading' },
+    { v: 'read', label: 'Read' }
+  ];
+  const readingLabel = (r: ReadingStatus | null | undefined) => t(READING.find((x) => x.v === r)?.label ?? 'No reading status');
+  function setReading(s: Source, r: ReadingStatus | null) {
+    db.update('sources', s.id, { reading: r });
+  }
+  function nextReading(s: Source) {
+    const i = READING.findIndex((x) => x.v === s.reading);
+    setReading(s, i === READING.length - 1 ? null : READING[i + 1].v);
+  }
+  const readCount = $derived(projSources.filter((x) => x.reading === 'read').length);
+
+  function srcMenu(e: MouseEvent, s: Source) {
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const list: MenuItem[] = [];
+    if (s.zoteroKey) {
+      list.push({ label: t('Show in Zotero'), icon: 'book', run: () => openUrl(zoteroSelectUrl(s)) });
+      list.push({ label: t('Open PDF in Zotero'), icon: 'file', run: () => openPdf(s) });
+      list.push({ label: t('Go through highlights…'), icon: 'download', run: () => (ui.reviewSources = [s.id]) });
+    }
+    if (settings.readingStatus) {
+      if (list.length) list.push(null);
+      for (const x of READING) list.push({ label: t(x.label), icon: s.reading === x.v ? 'check' : 'eye', run: () => setReading(s, s.reading === x.v ? null : x.v) });
+    }
+    ui.contextMenu = { x: r.left, y: r.bottom + 4, items: list, title: sourceLabel(s) };
+  }
 </script>
 
 <div class="select" data-side={side} data-tour="select">
@@ -163,17 +224,50 @@
   >
     <header>
       <h2>{t('In this project')}</h2>
-      <p class="small muted">{t('{n} items · {p} placed under headings', { n: chosen.length, p: placedCount })}</p>
+      <p class="small muted">
+        {t('{n} items · {p} placed under headings', { n: chosen.length, p: placedCount })}{#if settings.readingStatus && readCount}{' · ' + t('{r} of {s} sources read', { r: readCount, s: projSources.length })}{/if}
+      </p>
+      {#if zotero}
+        <div class="zl small">
+          {#if link}
+            <Icon name="folder" size={14} />
+            <span class="grow ellipsis" title={t('Everything in this Zotero collection belongs to the project')}>{t('Zotero collection')}: <b>{link.name}</b></span>
+            <button class="icon-btn sm" title={t('Check the collection now')} aria-label={t('Check the collection now')} disabled={zlink.checking === project.id} onclick={() => refreshLink(project, true)}><Icon name="refresh" size={14} /></button>
+            <button class="btn ghost sm" onclick={() => (linkOpen = true)}>{t('Change')}</button>
+          {:else}
+            <button class="btn ghost sm" onclick={() => (linkOpen = true)}><Icon name="link" size={14} />{t('Link a Zotero collection…')}</button>
+          {/if}
+          {#if freshTotal}
+            <button class="btn sm hlall" onclick={reviewAll} title={t('Go through the highlights not gone through yet')}><Icon name="sparkle" size={13} />{t('{n} new highlights', { n: freshTotal })}</button>
+          {/if}
+        </div>
+        {#if zlink.error && link}<p class="tiny err">{zlink.error}</p>{/if}
+      {/if}
     </header>
     <div class="list scroll" use:keepScroll={'select-proj:' + project.id}>
       {#each chosenGroups as [sid, items] (sid)}
-        {@const whole = sid !== NONE && sourceSelected(sid, project.id)}
+        {@const via = sid !== NONE ? sourceVia(sid, project.id) : null}
+        {@const s = db.get('sources', sid)}
+        {@const nh = fresh(s)}
         <div class="src open">
           <div class="srow">
+            {#if s && settings.readingStatus}
+              <button class="rd r-{s.reading ?? 'none'}" title={readingLabel(s.reading) + ' – ' + t('click to change')} aria-label={t('Reading status') + ': ' + readingLabel(s.reading)} onclick={() => nextReading(s)}>
+                {#if s.reading === 'read'}<Icon name="check" size={11} />{/if}
+              </button>
+            {:else if settings.readingStatus}
+              <span class="rd-sp"></span>
+            {/if}
             <span class="sname static">
-              <span class="grow ellipsis"><strong>{label(sid)}</strong> {#if whole}<span class="chip">{t('whole source')}</span>{/if}</span>
+              <span class="grow ellipsis"><strong>{label(sid)}</strong> {#if via === 'collection'}<span class="chip" title={t('Through the linked Zotero collection')}>{t('Zotero collection')}</span>{:else if via}<span class="chip">{t('whole source')}</span>{/if}</span>
               <span class="cnt">{items.length}</span>
             </span>
+            {#if nh}
+              <button class="hl" onclick={() => (ui.reviewSources = [sid])} title={t('{n} highlights not gone through yet', { n: nh })}><Icon name="sparkle" size={11} />{nh}</button>
+            {/if}
+            {#if s && (s.zoteroKey || settings.readingStatus)}
+              <button class="icon-btn sm" title={t('More')} aria-label={t('More')} onclick={(e) => srcMenu(e, s)}><Icon name="more" size={14} /></button>
+            {/if}
             <button class="icon-btn sm" title={t('Remove source from project')} onclick={() => removeSource(sid, items)}><Icon name="x" size={14} /></button>
           </div>
           <div class="items">
@@ -200,6 +294,7 @@
         </div>
       {/each}
     </div>
+    {#if linkOpen}<ZoteroLinkDialog {project} onclose={() => (linkOpen = false)} />{/if}
     {#if chosen.length}
       <footer class="small"><button class="btn sm" onclick={() => (ui.stage = 'arrange')}>{t('Continue to Arrange')} <Icon name="chevron-right" size={14} /></button></footer>
     {/if}
@@ -369,6 +464,100 @@
     justify-items: center;
     gap: 8px;
     color: var(--muted);
+  }
+  .zl {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+    color: var(--muted);
+  }
+  .zl b {
+    color: var(--text);
+    font-weight: 500;
+  }
+  .hlall {
+    margin-left: auto;
+  }
+  .err {
+    margin: 0;
+    color: var(--danger);
+  }
+  /* reading status: a quiet dot in front of the source */
+  .rd {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    margin-right: -4px;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    color: var(--muted);
+  }
+  .rd::before {
+    content: '';
+    grid-area: 1 / 1;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    border: 1.5px solid currentColor;
+    box-sizing: border-box;
+  }
+  .rd-sp {
+    flex: none;
+    width: 20px;
+  }
+  .rd.r-none {
+    opacity: 0.35;
+  }
+  .rd.r-none::before {
+    border-style: dotted;
+  }
+  .rd.r-toread {
+    color: var(--accent);
+  }
+  .rd.r-reading {
+    color: var(--accent);
+  }
+  .rd.r-reading::before {
+    background: linear-gradient(90deg, currentColor 50%, transparent 50%);
+  }
+  .rd.r-read {
+    color: var(--ok);
+  }
+  .rd.r-read::before {
+    width: 15px;
+    height: 15px;
+    background: currentColor;
+  }
+  .rd :global(svg) {
+    grid-area: 1 / 1;
+    color: var(--bg, #fff);
+    stroke-width: 3.5;
+  }
+  .rd:hover {
+    opacity: 1;
+  }
+  .hl {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    height: 22px;
+    padding: 0 7px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface-2);
+    color: var(--text);
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+  .hl:hover {
+    border-color: var(--accent);
   }
   footer {
     padding: 8px 16px;

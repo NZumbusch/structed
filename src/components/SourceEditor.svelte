@@ -5,7 +5,7 @@
   import { db } from '../lib/db.svelte';
   import { ui } from '../lib/ui.svelte';
   import { t } from '../lib/i18n';
-  import { deleteSource, mergeSource, sourceLabel, yearOf } from '../lib/ops';
+  import { addToProject, deleteSource, mergeSource, sourceLabel, yearOf } from '../lib/ops';
   import { referenceOf } from '../lib/cite';
   import type { CSLItem, CSLName } from '../lib/types';
 
@@ -111,7 +111,11 @@
     }
     if (existing) db.update('sources', existing.id, { csl, tags, note });
     else {
-      const s = db.create('sources', { csl, tags, note });
+      const s = db.batch('new source', () => {
+        const s = db.create('sources', { csl, tags, note });
+        if (ui.projectId) addToProject(ui.projectId, 'source', s.id);
+        return s;
+      });
       ui.collectSourceId = s.id;
     }
     ui.editSource = null;

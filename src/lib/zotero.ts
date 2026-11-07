@@ -26,6 +26,7 @@ export interface ZItem {
   tags: string[];
   csl: CSLItem;
   numChildren: number;
+  collections: string[];
 }
 export interface ZAnnotation {
   key: string;
@@ -52,7 +53,7 @@ export const ZCOLORS: Record<string, string> = {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function z(path: string, attempt = 0): Promise<{ data: unknown; total: number; version: number }> {
+async function z(path: string, attempt = 0, text = false): Promise<{ data: unknown; total: number; version: number }> {
   const r = await fetch(BASE + path, {
     headers: { 'Zotero-API-Key': settings.zoteroApiKey.trim(), 'Zotero-API-Version': '3' }
   });
@@ -60,7 +61,7 @@ async function z(path: string, attempt = 0): Promise<{ data: unknown; total: num
   if ((r.status === 429 || r.status === 503) && attempt < 4) {
     const wait = Number(r.headers.get('Retry-After') ?? r.headers.get('Backoff') ?? 2 ** attempt);
     await sleep(Math.min(30, wait || 1) * 1000);
-    return z(path, attempt + 1);
+    return z(path, attempt + 1, text);
   }
   if (r.status === 403) throw new Error('Zotero: access denied – check user ID and API key permissions.');
   if (r.status === 404) throw new Error('Zotero: library not found – check the user/group ID.');
@@ -68,7 +69,7 @@ async function z(path: string, attempt = 0): Promise<{ data: unknown; total: num
   if (!r.ok) throw new Error(`Zotero ${r.status}: ${await r.text()}`);
   const backoff = Number(r.headers.get('Backoff') ?? 0);
   if (backoff) await sleep(Math.min(30, backoff) * 1000);
-  const data = await r.json();
+  const data = text ? await r.text() : await r.json();
   // If Total-Results is unreadable, a full page means "there may be more".
   const start = Number(new URLSearchParams(path.split('?')[1] ?? '').get('start') ?? 0);
   const header = r.headers.get('Total-Results');
@@ -120,6 +121,20 @@ export async function collections(lib: string): Promise<ZCollection[]> {
   return out.sort((a, b) => a.name.localeCompare(b.name));
 }
 
+const toZItem = (lib: string, it: { key: string; version: number; data: Record<string, unknown>; csljson: CSLItem; meta: { creatorSummary?: string; parsedDate?: string; numChildren?: number } }): ZItem => ({
+  key: it.key,
+  library: lib,
+  version: it.version,
+  itemType: String(it.data.itemType),
+  title: String(it.data.title ?? ''),
+  creators: it.meta?.creatorSummary ?? '',
+  year: (it.meta?.parsedDate ?? '').slice(0, 4),
+  tags: ((it.data.tags as { tag: string }[]) ?? []).map((t) => t.tag),
+  csl: it.csljson,
+  numChildren: it.meta?.numChildren ?? 0,
+  collections: ((it.data.collections as string[]) ?? []).slice()
+});
+
 export async function items(
   lib: string,
   opts: { collection?: string; q?: string; start?: number; since?: number }
@@ -131,21 +146,80 @@ export async function items(
   if (opts.since) qs.set('since', String(opts.since));
   const { data, total, version } = await z(`${base}?${qs}`);
   const raw = (data as unknown[]).length; // before filtering out standalone attachments/notes
-  const list = (data as { key: string; version: number; data: Record<string, unknown>; csljson: CSLItem; meta: { creatorSummary?: string; parsedDate?: string; numChildren?: number } }[])
-    .filter((it) => it.data.itemType !== 'attachment' && it.data.itemType !== 'note')
-    .map((it) => ({
-      key: it.key,
-      library: lib,
-      version: it.version,
-      itemType: String(it.data.itemType),
-      title: String(it.data.title ?? ''),
-      creators: it.meta.creatorSummary ?? '',
-      year: (it.meta.parsedDate ?? '').slice(0, 4),
-      tags: ((it.data.tags as { tag: string }[]) ?? []).map((t) => t.tag),
-      csl: it.csljson,
-      numChildren: it.meta.numChildren ?? 0
-    }));
+  const list = (data as Parameters<typeof toZItem>[1][]).filter((it) => it.data.itemType !== 'attachment' && it.data.itemType !== 'note').map((it) => toZItem(lib, it));
   return { items: list, total, raw, version };
+}
+
+/** Keys of the top-level items in a collection (one cheap request). */
+export async function collectionItemKeys(lib: string, collection: string): Promise<string[]> {
+  const { data } = await z(`/${lib}/collections/${collection}/items/top?format=keys`, 0, true);
+  return String(data).split(/\s+/).filter(Boolean);
+}
+
+/** Top-level items by key, 50 per request. */
+export async function itemsByKey(lib: string, keys: string[]): Promise<ZItem[]> {
+  const out: ZItem[] = [];
+  for (let i = 0; i < keys.length; i += 50) {
+    const qs = new URLSearchParams({ format: 'json', include: 'data,csljson', itemKey: keys.slice(i, i + 50).join(',') });
+    const { data } = await z(`/${lib}/items?${qs}`);
+    for (const it of data as Parameters<typeof toZItem>[1][]) if (it.data.itemType !== 'attachment' && it.data.itemType !== 'note' && it.data.itemType !== 'annotation') out.push(toZItem(lib, it));
+  }
+  return out;
+}
+
+/** Annotations changed since a library version (highlights cache), with the version of the answer. */
+export async function annotationChanges(lib: string, since: number): Promise<{ items: { key: string; attachment: string; type: string; hasText: boolean }[]; version: number }> {
+  const items: { key: string; attachment: string; type: string; hasText: boolean }[] = [];
+  let version = 0;
+  for (let start = 0; ; start += 100) {
+    const qs = new URLSearchParams({ itemType: 'annotation', format: 'json', limit: '100', start: String(start) });
+    if (since) qs.set('since', String(since));
+    const r = await z(`/${lib}/items?${qs}`);
+    if (!start) version = r.version;
+    const list = r.data as ZRaw[];
+    for (const a of list)
+      items.push({
+        key: a.key,
+        attachment: String(a.data.parentItem ?? ''),
+        type: String(a.data.annotationType ?? ''),
+        hasText: !!`${a.data.annotationText ?? ''}${a.data.annotationComment ?? ''}`.trim()
+      });
+    if (start + 100 >= r.total || !list.length) break;
+  }
+  return { items, version };
+}
+
+/** The parent item of each attachment key (50 per request). */
+export async function parentsOf(lib: string, keys: string[]): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  for (let i = 0; i < keys.length; i += 50) {
+    const { data } = await z(`/${lib}/items?format=json&itemKey=${keys.slice(i, i + 50).join(',')}`);
+    for (const a of data as ZRaw[]) out[a.key] = String(a.data.parentItem ?? '');
+  }
+  return out;
+}
+
+/** Keys of items deleted since a library version. */
+export async function deletedSince(lib: string, since: number): Promise<string[]> {
+  const { data } = await z(`/${lib}/deleted?since=${since}`);
+  return ((data as { items?: string[] }).items ?? []).slice();
+}
+
+/** zotero:// links that open the desktop app ("library" is the own library, groups keep their id). */
+const appLib = (lib: string) => (lib.startsWith('groups/') ? lib : 'library');
+export const zoteroSelectUrl = (s: Source) => `zotero://select/${appLib(s.zoteroLibrary ?? '')}/items/${s.zoteroKey}`;
+export const zoteroPdfUrl = (s: Source, attachment: string) => `zotero://open-pdf/${appLib(s.zoteroLibrary ?? '')}/items/${attachment}`;
+
+const pdfs = new Map<string, string | null>();
+/** The first PDF/EPUB of an item (looked up once per session). */
+export async function pdfOf(s: Source): Promise<string | null> {
+  const id = `${s.zoteroLibrary}/${s.zoteroKey}`;
+  if (pdfs.has(id)) return pdfs.get(id)!;
+  const kids = await all<ZRaw>(`/${s.zoteroLibrary}/items/${s.zoteroKey}/children`);
+  const ok = (k: ZRaw) => k.data.itemType === 'attachment' && /pdf|epub/.test(String(k.data.contentType ?? ''));
+  const key = kids.find(ok)?.key ?? null;
+  pdfs.set(id, key);
+  return key;
 }
 
 function htmlToText(html: string): string {
@@ -259,10 +333,10 @@ export function upsertSource(it: ZItem, update = true, importTags = false): Sour
   const existing = db.all('sources').find((s) => s.zoteroKey === it.key && s.zoteroLibrary === it.library);
   const csl = { ...it.csl, id: it.key };
   if (existing) {
-    if (update) db.update('sources', existing.id, { csl, tags: importTags ? [...new Set([...existing.tags, ...it.tags])] : existing.tags });
+    if (update) db.update('sources', existing.id, { csl, tags: importTags ? [...new Set([...existing.tags, ...it.tags])] : existing.tags, zoteroCollections: it.collections });
     return existing;
   }
-  return db.create('sources', { csl, tags: importTags ? it.tags : [], zoteroKey: it.key, zoteroLibrary: it.library });
+  return db.create('sources', { csl, tags: importTags ? it.tags : [], zoteroKey: it.key, zoteroLibrary: it.library, zoteroCollections: it.collections });
 }
 
 export function findDuplicate(c: CSLItem): Source | undefined {

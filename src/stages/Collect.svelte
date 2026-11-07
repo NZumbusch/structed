@@ -7,7 +7,7 @@
   import { db } from '../lib/db.svelte';
   import { ui } from '../lib/ui.svelte';
   import { t } from '../lib/i18n';
-  import { addToProject, authorsFull, deleteArtifact, deleteSource, mergeSource, projectsOf, removeFromProject, sourceLabel, yearOf } from '../lib/ops';
+  import { addToProject, inProject, authorsFull, deleteArtifact, deleteSource, mergeSource, projectsOf, removeFromProject, sourceLabel, yearOf } from '../lib/ops';
   import Modal from '../components/Modal.svelte';
   import type { MenuItem } from '../lib/ui.svelte';
   import { referenceOf } from '../lib/cite';
@@ -15,6 +15,8 @@
   import type { Artifact, ArtifactKind } from '../lib/types';
   import { longpress } from '../lib/longpress';
   import { unusedImported } from '../lib/footnote';
+  import { zoteroSelectUrl } from '../lib/zotero';
+  import { openPdf } from '../lib/zoterolink.svelte';
 
   let q = $state('');
   let sort = $state<'author' | 'year' | 'added' | 'items'>('author');
@@ -135,13 +137,17 @@
 
   function capture() {
     if (!qText.trim()) return;
-    db.create('artifacts', {
-      kind: qKind,
-      sourceId: source?.id ?? null,
-      text: qKind === 'note' ? qText.trim() : cleanText(qText),
-      page: qPage.trim(),
-      tags: qTags.split(/[,\s]+/).map((x) => x.replace(/^#/, '')).filter(Boolean),
-      comment: ''
+    db.batch('capture', () => {
+      const a = db.create('artifacts', {
+        kind: qKind,
+        sourceId: source?.id ?? null,
+        text: qKind === 'note' ? qText.trim() : cleanText(qText),
+        page: qPage.trim(),
+        tags: qTags.split(/[,\s]+/).map((x) => x.replace(/^#/, '')).filter(Boolean),
+        comment: ''
+      });
+      // collected while a project is open → part of it (unless its whole source already is)
+      if (ui.projectId && !inProject(a, ui.projectId)) addToProject(ui.projectId, 'artifact', a.id);
     });
     qText = '';
     qPage = '';
@@ -401,6 +407,8 @@
                 <button class="btn sm" onclick={() => (ui.reviewSources = [source.id])}>
                   <Icon name="download" size={14} />{t('Go through highlights…')}
                 </button>
+                <a class="btn ghost sm" href={zoteroSelectUrl(source)} title={t('Show in Zotero')}><Icon name="book" size={14} />{t('Zotero')}</a>
+                <button class="btn ghost sm" onclick={() => openPdf(source)} title={t('Open PDF in Zotero')}><Icon name="file" size={14} />{t('PDF')}</button>
                 {#if unusedHere.length}
                   <button class="btn ghost sm" onclick={() => deleteUnused(unusedHere)} title={t('Imported highlights not placed, cited or picked anywhere')}>
                     <Icon name="trash" size={14} />{t('Delete {n} unused highlights', { n: unusedHere.length })}
