@@ -33,6 +33,8 @@ export interface Settings {
   panelOpen: boolean; // (before panels were remembered per stage)
   /** library panel open per stage; unset = open, except in Write where it starts closed */
   panelOpenIn: Record<string, boolean>;
+  /** the library panel in Write; off = quotes come in through the quote search (button, shortcut, @) */
+  writePanel: boolean;
   outlineVisits: number; // the shortcut hints under the outline show for the first few visits
   /** the quote picker (insert a citation): remembered filters and order */
   picker: PickerPrefs;
@@ -108,6 +110,7 @@ const defaults: Settings = {
   panelWidth: 360,
   panelOpen: true,
   panelOpenIn: {},
+  writePanel: false,
   outlineVisits: 0,
   picker: { ...PICKER_DEFAULTS },
   recentQuotes: [],

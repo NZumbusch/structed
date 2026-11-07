@@ -156,6 +156,7 @@
         </label>
         <h4 class="sh4">{t('Writing')}</h4>
         <label class="chk"><input type="checkbox" bind:checked={settings.editorSpellcheck} />{t('Spell check')}</label>
+        <label class="chk"><input type="checkbox" bind:checked={settings.writePanel} />{t('Library panel next to the text in Write (otherwise: “Insert quote”, its shortcut or @)')}</label>
         <label class="chk"><input type="checkbox" bind:checked={settings.editorAutoDash} />{t('Turn “ - ” into a dash “ – ” while typing')}</label>
         <label class="field"><span>{t('Language of the text (spell check)')}</span>
           <select class="select" bind:value={settings.editorLang}>

@@ -1,5 +1,8 @@
 // German UI strings. Keys are the English originals (see i18n.ts).
 export const de: Record<string, string> = {
+  'Insert a quote (search)': 'Zitat einfügen (Suche)',
+  'Library panel next to the text in Write (otherwise: “Insert quote”, its shortcut or @)': 'Bibliothek neben dem Text beim Schreiben (sonst: „Zitat einfügen“, sein Kürzel oder @)',
+  'In Write, quotes come in through “Insert quote” ({k}) or @. The panel can be switched on in Settings → Editor.': 'Beim Schreiben kommen Zitate über „Zitat einfügen“ ({k}) oder @. Die Seitenleiste lässt sich unter Einstellungen → Editor einschalten.',
   'Search text, author, title, page, tag…': 'Text, Autor:in, Titel, Seite, Tag suchen…',
   'Search quotes': 'Zitate durchsuchen',
   'Clear search': 'Suche leeren',

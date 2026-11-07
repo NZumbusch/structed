@@ -41,7 +41,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'write.goal', label: 'Choose session goal', group: 'Writing', default: null },
   { id: 'write.sprint', label: 'Start / stop writing sprint', group: 'Writing', default: null },
   { id: 'write.footnote', label: 'Insert footnote', group: 'Writing', default: 'Mod+Alt+F' },
-  { id: 'write.insertQuote', label: 'Insert a quote placed here', group: 'Writing', default: null },
+  { id: 'write.insertQuote', label: 'Insert a quote (search)', group: 'Writing', default: 'Mod+Alt+Z' },
   { id: 'write.insertMode', label: 'Switch how quotes are inserted', group: 'Writing', default: null },
   { id: 'write.editQuote', label: 'Edit quote text', group: 'Writing', default: null },
   { id: 'write.bulletList', label: 'Bullet list', group: 'Writing', default: null },

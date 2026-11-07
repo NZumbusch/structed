@@ -34,7 +34,8 @@
     { id: 'arrange', label: 'Arrange', icon: 'layers', tourKey: 'stageArrange' },
     { id: 'write', label: 'Write', icon: 'edit', tourKey: 'stageWrite' }
   ];
-  const panelStage = $derived(ui.stage !== 'collect' && ui.stage !== 'select');
+  // no panel in Collect/Select (they show the library themselves), and in Write only when switched on
+  const panelStage = $derived(ui.stage !== 'collect' && ui.stage !== 'select' && (ui.stage !== 'write' || settings.writePanel));
   /** distraction-free writing: no header, library panel only on request */
   const focusOn = $derived(ui.focus && ui.stage === 'write' && !!project);
   const panelVisible = $derived((focusOn ? settings.focusQuotes : panelOpenIn(ui.stage)) && panelStage && !!project);
@@ -61,7 +62,9 @@
     search: { run: () => (ui.dialog = ui.dialog === 'search' ? null : 'search'), inFields: true },
     togglePanel: {
       run: () =>
-        ui.narrow
+        ui.stage === 'write' && !settings.writePanel
+          ? ui.toast(t('In Write, quotes come in through “Insert quote” ({k}) or @. The panel can be switched on in Settings → Editor.', { k: displayCombo(comboFor('write.insertQuote')) || '–' }), {}, 5000)
+          : ui.narrow
           ? (ui.panelMobileOpen = !ui.panelMobileOpen)
           : focusOn
             ? (settings.focusQuotes = !settings.focusQuotes)
