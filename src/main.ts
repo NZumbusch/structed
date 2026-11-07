@@ -28,7 +28,8 @@ const update = registerSW({
     ui.toast(t('A new version is available.'), { action: { label: t('Reload'), run: () => update(true) } }, 60_000);
   },
   onOfflineReady() {
-    ui.toast(t('Ready to work offline.'), { kind: 'ok' });
+    // shown in Settings → About instead of a toast on every first start
+    ui.offlineReady = true;
   }
 });
 

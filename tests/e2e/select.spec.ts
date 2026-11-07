@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { center, mouseDrag, open, seedDemo, stage } from './helpers';
+import { center, mouseDrag, open, seedDemo, stage, openFilters } from './helpers';
 
 /** Demo project + an unrelated source with quotes from another topic. */
 async function seed(page: Page) {
@@ -22,6 +22,7 @@ test('side panel shows only this project by default; can switch to the library',
   await expect(lib.locator('.gh', { hasText: 'Other 1999' })).toBeVisible();
   // usage filter: unused / all / used
   await lib.locator('.scopes button', { hasText: 'Project' }).click();
+  await openFilters(page);
   await lib.locator('.select').selectOption('none');
   await lib.locator('.usage').getByRole('button', { name: 'Used', exact: true }).click();
   await expect(lib.locator('.art')).toHaveCount(1);

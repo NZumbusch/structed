@@ -6,7 +6,7 @@
   import { t } from '../lib/i18n';
   import { draggable } from '../lib/dnd';
   import { longpress } from '../lib/longpress';
-  import { addToProject, artifactLabel, deleteArtifact, membership, projectsOf, removeFromProject, shortCite, sourceLabel, tagColor, usageCount } from '../lib/ops';
+  import { addToProject, artifactLabel, deleteArtifact, membership, projectsOf, removeFromProject, shortCite, sourceLabel, tagColor, usageCount, visibleTags } from '../lib/ops';
   import { copyText } from '../lib/clipboard';
   import { citeArtifact } from '../lib/cite';
   import { settings } from '../lib/settings.svelte';
@@ -128,7 +128,7 @@
   class:expanded
   class:selected
   class:selecting
-  style:--tag={a.color || (a.tags[0] && tagColor(a.tags[0])) || undefined}
+  style:--tag={a.color || (visibleTags(a.tags)[0] && tagColor(visibleTags(a.tags)[0])) || undefined}
   use:draggable={{ payload, disabled: context === 'collect' }}
   use:longpress={{ run: () => onselect?.(!selected), disabled: !selectable }}
   role="group"
@@ -160,7 +160,7 @@
   {#if !expanded}
     <div class="meta">
       {#if a.sourceId}<span class="cite">{shortCite(a)}</span>{/if}
-      {#each a.tags.slice(0, 3) as tg (tg)}<span class="tg">#{tg}</span>{/each}
+      {#each visibleTags(a.tags).slice(0, 3) as tg (tg)}<span class="tg">#{tg}</span>{/each}
       {#if context === 'panel' && used}<span class="used" title={t('Placed in this project')}>×{used}</span>{/if}
       {#if context === 'collect'}
         {#each projectsOf(a) as pr (pr.id)}<span class="proj" title={t('Part of project')}>{pr.title || t('Untitled project')}</span>{/each}

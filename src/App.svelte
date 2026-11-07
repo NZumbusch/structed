@@ -14,17 +14,17 @@
   import Menu from './components/Menu.svelte';
   import Outline from './stages/Outline.svelte';
   import Collect from './stages/Collect.svelte';
-  import Write from './stages/Write.svelte';
   import Select from './stages/Select.svelte';
   import { db } from './lib/db.svelte';
   import { ui, type Stage } from './lib/ui.svelte';
-  import { settings } from './lib/settings.svelte';
+  import { panelOpenIn, setPanelOpen, settings } from './lib/settings.svelte';
   import { sync } from './lib/sync.svelte';
   import { t } from './lib/i18n';
   import { matches, comboFor, displayCombo } from './lib/shortcuts';
   import Tour from './components/Tour.svelte';
   import ContextMenu from './components/ContextMenu.svelte';
   import AskDialog from './components/AskDialog.svelte';
+  import WordExport from './components/WordExport.svelte';
   import { askRemoveDemo, hasDemo } from './lib/demo';
 
   const project = $derived(db.get('projects', ui.projectId));
@@ -33,13 +33,12 @@
     { id: 'collect', label: 'Collect', icon: 'book', tourKey: 'stageCollect' },
     { id: 'select', label: 'Select', icon: 'check', tourKey: 'stageSelect' },
     { id: 'arrange', label: 'Arrange', icon: 'layers', tourKey: 'stageArrange' },
-    { id: 'draft', label: 'Draft', icon: 'note', tourKey: 'stageDraft' },
     { id: 'write', label: 'Write', icon: 'edit', tourKey: 'stageWrite' }
   ];
   const panelStage = $derived(ui.stage !== 'collect' && ui.stage !== 'select');
   /** distraction-free writing: no header, library panel only on request */
   const focusOn = $derived(ui.focus && ui.stage === 'write' && !!project);
-  const panelVisible = $derived((focusOn ? settings.focusQuotes : settings.panelOpen) && panelStage && !!project);
+  const panelVisible = $derived((focusOn ? settings.focusQuotes : panelOpenIn(ui.stage)) && panelStage && !!project);
   $effect(() => {
     // leaving focus mode (button, Esc or another stage) also leaves full screen
     if (!focusOn && document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
@@ -67,7 +66,7 @@
           ? (ui.panelMobileOpen = !ui.panelMobileOpen)
           : focusOn
             ? (settings.focusQuotes = !settings.focusQuotes)
-            : (settings.panelOpen = !settings.panelOpen),
+            : setPanelOpen(ui.stage, !panelOpenIn(ui.stage)),
       inFields: true
     },
     'write.focus': {
@@ -104,7 +103,7 @@
     toggleContrast: { run: () => (settings.contrast = settings.contrast === 'high' ? 'normal' : 'high'), inFields: true },
     focusLibrary: {
       run: () => {
-        settings.panelOpen = true;
+        setPanelOpen(ui.stage, true);
         if (ui.narrow) ui.panelMobileOpen = true;
         setTimeout(() => document.querySelector<HTMLInputElement>('[data-tour="library"] .search input')?.focus(), 30);
       },
@@ -116,7 +115,6 @@
     stageCollect: { run: () => (ui.stage = 'collect'), inFields: true, needsProject: true },
     stageSelect: { run: () => (ui.stage = 'select'), inFields: true, needsProject: true },
     stageArrange: { run: () => (ui.stage = 'arrange'), inFields: true, needsProject: true },
-    stageDraft: { run: () => (ui.stage = 'draft'), inFields: true, needsProject: true },
     stageWrite: { run: () => (ui.stage = 'write'), inFields: true, needsProject: true },
     newQuote: { run: () => (ui.editArtifact = { kind: 'quote' }), inFields: true },
     newParaphrase: { run: () => (ui.editArtifact = { kind: 'paraphrase' }), inFields: true },
@@ -235,8 +233,8 @@
         {#if project && panelStage}
           <button
             class="icon-btn"
-            class:active={ui.narrow ? ui.panelMobileOpen : settings.panelOpen}
-            onclick={() => (ui.narrow ? (ui.panelMobileOpen = !ui.panelMobileOpen) : (settings.panelOpen = !settings.panelOpen))}
+            class:active={ui.narrow ? ui.panelMobileOpen : panelOpenIn(ui.stage)}
+            onclick={() => (ui.narrow ? (ui.panelMobileOpen = !ui.panelMobileOpen) : setPanelOpen(ui.stage, !panelOpenIn(ui.stage)))}
             title="{t('Library panel')} ({displayCombo(comboFor('togglePanel'))})"
           ><Icon name="panel" /></button>
         {/if}
@@ -267,8 +265,6 @@
         <Collect />
       {:else if ui.stage === 'select'}
         <Select {project} />
-      {:else if ui.stage === 'draft'}
-        <Write {project} />
       {:else if ui.stage === 'write'}
         {#await import('./stages/Compose.svelte') then m}
           <m.default {project} />
@@ -302,6 +298,7 @@
   {#if ui.tour}<Tour />{/if}
   <ContextMenu />
   {#if ui.question}<AskDialog />{/if}
+  {#if ui.wordExport && project}<WordExport {project} onclose={() => (ui.wordExport = false)} />{/if}
 
   <div class="toasts" aria-live="polite">
     {#each ui.toasts as tt (tt.id)}
@@ -496,15 +493,21 @@
     }
   }
   @media (max-width: 900px) {
+    /* icons only – except the current stage, which shows its name */
     .sl {
       display: none;
+    }
+    .stages button.on .sl {
+      display: inline;
+      font-size: 0.8rem;
+      font-weight: 600;
     }
     .stages button {
       padding: 0 12px;
     }
   }
   @media (max-width: 600px) {
-    /* two rows on phones: project + icons on top, the six stages full width below */
+    /* two rows on phones: project + icons on top, the five stages full width below */
     .top {
       grid-template-columns: minmax(0, 1fr) auto;
       grid-template-areas: 'left right' 'stages stages';
@@ -530,6 +533,9 @@
       justify-content: center;
       padding: 0 4px;
       height: 32px;
+    }
+    .stages button.on {
+      flex: 2.4;
     }
     .pname {
       max-width: 48vw;

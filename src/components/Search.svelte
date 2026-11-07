@@ -36,8 +36,8 @@
     const stages: [Stage, string][] = [
       ['outline', t('Outline')],
       ['collect', t('Collect')],
+      ['select', t('Select')],
       ['arrange', t('Arrange')],
-      ['draft', t('Draft')],
       ['write', t('Write')]
     ];
     for (const [s, l] of stages) {

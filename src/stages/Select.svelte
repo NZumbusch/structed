@@ -16,6 +16,7 @@
     shortCite,
     sourceLabel,
     sourceSelected,
+    visibleTags,
     yearOf
   } from '../lib/ops';
   import type { Artifact, Project, Source } from '../lib/types';
@@ -131,7 +132,7 @@
                 <div class="it k-{a.kind}" class:in={!!m} use:draggable={{ payload: { type: 'artifact', id: a.id, label: artifactLabel(a, 60) }, disabled: !!m }}>
                   <button class="itext" onclick={() => (openItem.has(a.id) ? openItem.delete(a.id) : openItem.add(a.id))}>
                     <span class:clamp={!openItem.has(a.id)}>{a.title || a.text}</span>
-                    <span class="tiny muted">{a.page ? `${t('p.')} ${a.page}` : ''}{a.tags.length ? ' · #' + a.tags.join(' #') : ''}</span>
+                    <span class="tiny muted">{a.page ? `${t('p.')} ${a.page}` : ''}{visibleTags(a.tags).length ? ' · #' + visibleTags(a.tags).join(' #') : ''}</span>
                   </button>
                   {#if m}
                     <span class="state" title={m === 'placed' ? t('Placed under a heading') : t('In this project')}><Icon name="check" size={14} /></span>

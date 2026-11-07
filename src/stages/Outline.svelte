@@ -8,6 +8,8 @@
   import { autosize } from '../lib/autosize';
   import { comboFor, displayCombo } from '../lib/shortcuts';
   import { addHeading, children, flatten, moveHeading, wordCount } from '../lib/ops';
+  import { settings } from '../lib/settings.svelte';
+  import { onMount, untrack } from 'svelte';
   import type { Project } from '../lib/types';
 
   let { project, mode }: { project: Project; mode: 'outline' | 'arrange' } = $props();
@@ -17,6 +19,13 @@
   const words = $derived(all.reduce((n, h) => n + wordCount(h.body), 0));
   const placed = $derived(new Set(db.all('placements').filter((p) => p.projectId === project.id && db.get('headings', p.headingId)).map((p) => p.artifactId)).size);
   const done = $derived(all.filter((h) => h.status === 'done').length);
+
+  /** shortcut hints: shown for the first few visits, then on request (the ? button) */
+  const HINT_VISITS = 5;
+  let hintsOn = $state(untrack(() => settings.outlineVisits) < HINT_VISITS);
+  onMount(() => {
+    if (mode === 'outline') settings.outlineVisits = (settings.outlineVisits ?? 0) + 1;
+  });
 
   function addTop() {
     const roots = children(project.id, null);
@@ -58,13 +67,14 @@
       <div class="stats row small muted">
         <span>{all.length} {t('headings')}</span>·
         <span>{words.toLocaleString()} {t('words')}{project.targetWords ? ` / ${project.targetWords.toLocaleString()}` : ''}</span>·
-        <span>{placed} {t('items placed')}</span>·
+        <span>{placed} {t(placed === 1 ? 'item placed' : 'items placed')}</span>·
         <span>{done}/{all.length} {t('done')}</span>
         <span class="grow"></span>
         <button class="btn ghost sm" onclick={expandAll} title={t('Expand all')}><Icon name="chevron-down" size={14} /></button>
         <button class="btn ghost sm" onclick={collapseAll} title={t('Collapse all')}><Icon name="chevron-right" size={14} /></button>
         {#if mode === 'outline'}
           <button class="btn ghost sm" onclick={toggleBodies}><Icon name="note" size={14} />{t('Notes')}</button>
+          <button class="btn ghost sm" class:on={hintsOn} aria-pressed={hintsOn} onclick={() => (hintsOn = !hintsOn)} title={t('Keyboard shortcuts')} aria-label={t('Keyboard shortcuts')}>?</button>
         {/if}
       </div>
       {#if mode === 'arrange'}
@@ -93,7 +103,7 @@
       <Icon name="plus" size={16} />{t('Add heading')}
     </button>
 
-    {#if mode === 'outline'}
+    {#if mode === 'outline' && hintsOn}
       <div class="keys tiny muted">
         {#each [['outline.newHeading', 'new heading'], ['outline.indent', 'indent'], ['outline.outdent', 'outdent'], ['outline.moveUp', 'move'], ['outline.notes', 'notes'], ['outline.collapse', 'collapse'], ['search', 'search']] as [id, label] (id)}
           {#if comboFor(id)}<span><span class="kbd">{displayCombo(comboFor(id))}</span> {t(label)}</span>{/if}

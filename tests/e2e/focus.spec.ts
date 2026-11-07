@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { open, seedDemo, stage } from './helpers';
+import { open, seedDemo, stage, settingsTab } from './helpers';
 
 test.beforeEach(async ({ page }) => {
   await open(page, { settings: { language: 'en' } });
@@ -19,6 +19,7 @@ test('notes under the headings can be toggled in the Write stage', async ({ page
 });
 
 test('focus mode hides everything but the text; notes and quotes can be toggled', async ({ page }) => {
+  await page.getByRole('button', { name: /^Library panel/ }).click(); // closed in Write by default
   await expect(page.locator('.app .panel')).toBeVisible();
   await page.locator('.bar').getByRole('button', { name: 'Focus mode' }).click();
 
@@ -150,7 +151,7 @@ test('every Write / focus-mode button has a configurable shortcut', async ({ pag
 
   // the extras are listed in the settings and can be assigned
   await page.evaluate(() => ((window as any).__structed.ui.dialog = 'settings'));
-  await page.locator('.modal nav button', { hasText: 'Keyboard shortcuts' }).click();
+  await settingsTab(page, 'Keyboard shortcuts');
   for (const id of ['togglePanel', 'write.notes', 'write.dim', 'write.typewriter', 'write.fullscreen', 'write.goal', 'write.sprint', 'write.insertQuote', 'write.insertMode', 'write.editQuote', 'write.bulletList', 'write.blockquote', 'write.export'])
     await expect(page.locator(`[data-shortcut="${id}"]`)).toBeVisible();
   await expect(page.locator('[data-shortcut="togglePanel"]')).toContainText('Show / hide library panel (quotes)');

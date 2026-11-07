@@ -1,6 +1,6 @@
 import { SvelteSet } from 'svelte/reactivity';
 
-export type Stage = 'outline' | 'collect' | 'select' | 'arrange' | 'draft' | 'write';
+export type Stage = 'outline' | 'collect' | 'select' | 'arrange' | 'write';
 
 function ls<T>(k: string, d: T): T {
   try {
@@ -29,7 +29,8 @@ export interface Toast {
 
 class UI {
   projectId: string | null = $state(ls('projectId', null));
-  stage: Stage = $state(ls('stage', 'outline'));
+  // ('draft' was a separate overview until it merged into the outline)
+  stage: Stage = $state(((s) => (s === 'draft' ? 'outline' : s))(ls<string>('stage', 'outline')) as Stage);
   // (until v0.x the overview was called 'write'; the editor now has that id)
   dialog: null | 'settings' | 'zotero' | 'export' | 'projects' | 'snapshots' | 'search' | 'help' = $state(null);
   settingsTab = $state('appearance');
@@ -66,6 +67,10 @@ class UI {
   }
   /** ends the current multi-selection (set by the view that has one) */
   selection: (() => void) | null = $state(null);
+  /** the Word export dialog (template, title page…) */
+  wordExport = $state(false);
+  /** the app is cached for offline use (service worker ready) */
+  offlineReady = $state(false);
   recordingShortcut = $state(false);
   toasts: Toast[] = $state([]);
   collapsed = new SvelteSet<string>(ls<string[]>('collapsed', []));

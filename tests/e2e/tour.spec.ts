@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { open } from './helpers';
+import { open, settingsTab } from './helpers';
 
 test('first use: tour starts, creates a demo, highlights every step, can remove demo', async ({ page }) => {
   await open(page, { tour: true });
@@ -42,7 +42,7 @@ test('tour can be skipped with Escape and restarted from settings', async ({ pag
   await page.keyboard.press('Escape');
   await expect(page.locator('.tour')).toHaveCount(0);
   await page.getByTitle('Settings').click();
-  await page.locator('.modal nav button', { hasText: 'About & help' }).click();
+  await settingsTab(page, 'About & help');
   await page.getByRole('button', { name: 'Start guided tour' }).click();
   await expect(page.locator('.tour .bubble h3')).toHaveText('Welcome to Structed');
   await page.keyboard.press('ArrowRight');

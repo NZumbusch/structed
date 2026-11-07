@@ -1,5 +1,5 @@
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
-import { headingTitles, open } from './helpers';
+import { headingTitles, open, settingsTab } from './helpers';
 
 /** In-memory fake of the Drive v3 appDataFolder API + Google Identity Services. */
 function fakeDrive() {
@@ -60,7 +60,7 @@ async function device(ctx: BrowserContext): Promise<Page> {
 }
 async function connect(p: Page) {
   await p.getByTitle('Settings').click();
-  await p.locator('.modal nav button', { hasText: 'Sync' }).click();
+  await settingsTab(p, 'Sync');
   await p.getByRole('button', { name: 'Connect Google Drive' }).click();
   await expect(p.locator('.modal')).toContainText('me@example.com');
   await expect(p.locator('.modal')).toContainText('Last sync');
@@ -220,7 +220,7 @@ test('auth server: connects with code flow and refreshes silently without popups
   await connect(page);
   expect(calls).toEqual(['/token']);
   await page.getByTitle('Settings').click();
-  await page.locator('.modal nav button', { hasText: 'Sync' }).click();
+  await settingsTab(page, 'Sync');
   await expect(page.locator('.modal')).toContainText('Stays signed in automatically');
   await page.keyboard.press('Escape');
 
@@ -244,7 +244,7 @@ test('auth server: revoked access asks to reconnect', async ({ page, context }) 
   await reload(page);
   await expect(page.locator('[data-tour="sync"]')).toHaveAttribute('title', /expired/);
   await page.getByTitle('Settings').click();
-  await page.locator('.modal nav button', { hasText: 'Sync' }).click();
+  await settingsTab(page, 'Sync');
   await expect(page.locator('.modal .err')).toContainText('expired or was revoked');
 });
 
@@ -254,7 +254,7 @@ test('auth server: missing refresh token asks for one more reconnect', async ({ 
   const calls = await fakeWorker(context, { refreshToken: null });
   await open(page, { settings: { googleClientId: 'x', authWorkerUrl: 'https://auth.test', autoSync: false } });
   await page.getByTitle('Settings').click();
-  await page.locator('.modal nav button', { hasText: 'Sync' }).click();
+  await settingsTab(page, 'Sync');
   await page.getByRole('button', { name: 'Connect Google Drive' }).click();
   await expect(page.locator('.modal .notice')).toContainText('once more');
   await expect(page.locator('.modal').getByRole('button', { name: 'Reconnect' })).toBeVisible();
@@ -322,7 +322,7 @@ test('connecting Drive for the first time offers to remove the demo first', asyn
     s.db.create('projects', { title: 'Real work', kind: 'thesis' });
   });
   await a.getByTitle('Settings').click();
-  await a.locator('.modal nav button', { hasText: 'Sync' }).click();
+  await settingsTab(a, 'Sync');
   await a.getByRole('button', { name: 'Connect Google Drive' }).click();
   const ask = a.locator('.modal', { hasText: 'Remove the demo project?' });
   await expect(ask).toContainText('Remove it before the first sync');

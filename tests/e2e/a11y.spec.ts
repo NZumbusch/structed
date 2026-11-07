@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
-import { open, seedDemo, stage } from './helpers';
+import { open, seedDemo, stage, settingsTab } from './helpers';
 
 const THEMES = [
   { theme: 'light', contrast: 'normal' },
@@ -43,8 +43,6 @@ for (const th of THEMES) {
       await stage(page, 'Arrange');
       if (await page.locator('.lib .gh').first().isVisible()) await page.locator('.lib .gh').first().click();
       await audit(page, 'arrange');
-      await stage(page, 'Draft');
-      await audit(page, 'write');
       await stage(page, 'Write');
       await expect(page.locator('.compose .ProseMirror').first()).toBeVisible();
       await audit(page, 'compose');
@@ -61,7 +59,7 @@ for (const th of THEMES) {
       await seedDemo(page);
       await page.getByTitle('Settings').click();
       for (const tab of ['Appearance', 'Citations', 'Keyboard shortcuts', 'Zotero', 'Sync', 'Backup & data', 'About & help']) {
-        await page.locator('.modal nav button', { hasText: tab }).click();
+        await settingsTab(page, tab);
         await audit(page, `settings/${tab}`);
       }
       await page.keyboard.press('Escape');

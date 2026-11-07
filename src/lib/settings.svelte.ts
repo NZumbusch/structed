@@ -30,7 +30,10 @@ export interface Settings {
   panelScope: 'project' | 'library';
   panelUsage: 'unused' | 'all' | 'used';
   panelWidth: number;
-  panelOpen: boolean;
+  panelOpen: boolean; // (before panels were remembered per stage)
+  /** library panel open per stage; unset = open, except in Write where it starts closed */
+  panelOpenIn: Record<string, boolean>;
+  outlineVisits: number; // the shortcut hints under the outline show for the first few visits
   showAllProjectsInPanel: boolean;
   snapshotOnBigChange: boolean;
   shortcuts: Record<string, string | null>;
@@ -42,7 +45,8 @@ export interface Settings {
   editorSpellcheck: boolean;
   editorAutoDash: boolean; // " - " becomes " – " while typing
   editorLang: string;
-  editorWidth: 'narrow' | 'normal' | 'wide';
+  /** @deprecated merged into lineWidth (one width for every view) */
+  editorWidth?: 'narrow' | 'normal' | 'wide';
   // Write stage: notes (gist) under the headings, and focus mode
   writeNotes: boolean;
   focusNotes: boolean; // show the notes in focus mode
@@ -91,6 +95,8 @@ const defaults: Settings = {
   panelUsage: 'all',
   panelWidth: 360,
   panelOpen: true,
+  panelOpenIn: {},
+  outlineVisits: 0,
   showAllProjectsInPanel: true,
   snapshotOnBigChange: true,
   shortcuts: {},
@@ -101,7 +107,6 @@ const defaults: Settings = {
   editorSpellcheck: true,
   editorAutoDash: true,
   editorLang: 'de',
-  editorWidth: 'normal',
   writeNotes: true,
   focusNotes: false,
   focusQuotes: false,
@@ -127,6 +132,9 @@ function load(): Settings {
     // one collection → several
     if (s.zoteroSyncCollection) s.zoteroSyncCollections = [...new Set([...(s.zoteroSyncCollections ?? []), s.zoteroSyncCollection])];
     delete s.zoteroSyncCollection;
+    // the editor's own page width became the one line width
+    if (s.editorWidth && s.editorWidth !== 'normal' && s.lineWidth === 'normal') s.lineWidth = s.editorWidth;
+    delete s.editorWidth;
     return s;
   } catch {
     return { ...defaults };
@@ -134,6 +142,12 @@ function load(): Settings {
 }
 
 export const settings: Settings = $state(load());
+
+/** Is the library panel open in this stage? (each stage remembers its own choice) */
+export const panelOpenIn = (stage: string) => settings.panelOpenIn?.[stage] ?? (stage === 'write' ? false : settings.panelOpen);
+export function setPanelOpen(stage: string, open: boolean) {
+  settings.panelOpenIn = { ...settings.panelOpenIn, [stage]: open };
+}
 
 export const BUILD_CLIENT_ID: string = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 export const clientId = () => settings.googleClientId.trim() || BUILD_CLIENT_ID;

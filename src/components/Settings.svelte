@@ -11,6 +11,8 @@
   import ShortcutSettings from './ShortcutSettings.svelte';
   import ZoteroSyncSettings from './ZoteroSyncSettings.svelte';
 
+  /** a section was chosen (or the dialog was opened at one, e.g. Sync) */
+  let picked = $state(ui.settingsTab !== 'appearance');
   const TABS = [
     ['appearance', 'Appearance', 'eye'],
     ['writing', 'Citations', 'quote'],
@@ -54,19 +56,24 @@
 </script>
 
 <Modal title={t('Settings')} onclose={() => (ui.dialog = null)} width="820px">
-  <div class="set">
+  <!-- phones: first the list of sections, then one section with a way back -->
+  <div class="set" class:list={ui.narrow && !picked} class:one={ui.narrow && picked}>
     <nav>
       {#each TABS as [id, label, icon] (id)}
         <button
           class:on={ui.settingsTab === id}
-          onclick={(e) => {
+          onclick={() => {
             ui.settingsTab = id;
-            e.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+            picked = true;
           }}
-        ><Icon name={icon} size={16} />{t(label)}</button>
+        ><Icon name={icon} size={16} /><span class="grow">{t(label)}</span>{#if ui.narrow}<Icon name="chevron-right" size={16} />{/if}</button>
       {/each}
     </nav>
     <div class="pane">
+      {#if ui.narrow}
+        <button class="btn ghost sm back" onclick={() => (picked = false)}><Icon name="chevron-left" size={14} />{t('All settings')}</button>
+        <h3 class="ptitle">{t(TABS.find(([id]) => id === ui.settingsTab)?.[1] ?? '')}</h3>
+      {/if}
       {#if ui.settingsTab === 'appearance'}
         <div class="f"><span>{t('Theme')}</span>
           <div class="seg">
@@ -150,18 +157,11 @@
         <h4 class="sh4">{t('Writing')}</h4>
         <label class="chk"><input type="checkbox" bind:checked={settings.editorSpellcheck} />{t('Spell check')}</label>
         <label class="chk"><input type="checkbox" bind:checked={settings.editorAutoDash} />{t('Turn “ - ” into a dash “ – ” while typing')}</label>
-        <label class="field"><span>{t('Language of the text (spell check, hyphenation)')}</span>
+        <label class="field"><span>{t('Language of the text (spell check)')}</span>
           <select class="select" bind:value={settings.editorLang}>
             {#each [['de', 'Deutsch'], ['de-CH', 'Deutsch (Schweiz)'], ['en', 'English'], ['fr', 'Français'], ['it', 'Italiano']] as [v, l] (v)}<option value={v}>{l}</option>{/each}
           </select>
         </label>
-        <div class="f"><span>{t('Page width')}</span>
-          <div class="seg">
-            {#each ['narrow', 'normal', 'wide'] as w (w)}
-              <button class:on={settings.editorWidth === w} onclick={() => (settings.editorWidth = w as typeof settings.editorWidth)}>{t(w)}</button>
-            {/each}
-          </div>
-        </div>
         <h4 class="sh4">{t('Word export')}</h4>
         <label class="chk"><input type="checkbox" bind:checked={settings.exportZotero} />{t('Live Zotero citations (refresh in Word)')}</label>
         <label class="chk"><input type="checkbox" bind:checked={settings.exportCover} />{t('Title page')}</label>
@@ -254,11 +254,13 @@
         <h3>Structed</h3>
         <button class="btn primary tourbtn" onclick={() => { ui.dialog = null; ui.tour = true; }}><Icon name="sparkle" size={15} />{t('Start guided tour')}</button>
         <p class="small">{t('A minimalist tool to structure academic writing: build an outline, collect quotes from your sources, arrange them under headings, and write with everything at hand.')}</p>
+        {#if ui.offlineReady || navigator.serviceWorker?.controller}<p class="small muted">{t('Works offline: the app is stored on this device.')}</p>{/if}
         <ul class="small">
           <li><b>{t('Outline')}</b> – {t('headings, subheadings and the gist of each section.')}</li>
           <li><b>{t('Collect')}</b> – {t('sources (Zotero) and quotes, paraphrases, notes, images.')}</li>
+          <li><b>{t('Select')}</b> – {t('choose the sources and quotes this project needs.')}</li>
           <li><b>{t('Arrange')}</b> – {t('drag items from the library onto headings.')}</li>
-          <li><b>{t('Write')}</b> – {t('overview with texts, quotes, comments; copy with citation.')}</li>
+          <li><b>{t('Write')}</b> – {t('the final text with linked quotes and footnotes; Word export.')}</li>
         </ul>
         <p class="small muted">{t('All data is stored locally in your browser (IndexedDB) and works offline. Install it via your browser’s “Install app” / “Add to Home Screen”.')}</p>
         <p class="small legal">
@@ -396,26 +398,30 @@
     .set {
       grid-template-columns: 1fr;
     }
-    nav {
-      /* full-bleed sticky tab bar: covers the dialog body's padding so nothing peeks through */
-      top: -4px;
-      z-index: 2;
-      display: flex;
-      gap: 4px;
-      margin: -4px -20px 0;
-      padding: 8px 20px;
-      overflow-x: auto;
-      scrollbar-width: none;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      scroll-padding-inline: 20px;
-    }
-    nav::-webkit-scrollbar {
+    .set.list .pane,
+    .set.one nav {
       display: none;
     }
-    nav button {
-      flex: none;
-      white-space: nowrap;
+    .set.list nav {
+      position: static;
+      display: grid;
+      gap: 2px;
+    }
+    .set.list nav button {
+      min-height: 46px;
+      font-size: 0.95rem;
+      color: var(--text);
+    }
+    .set.list nav button.on {
+      background: none;
+      color: inherit;
+    }
+    .back {
+      margin: -4px 0 4px -6px;
+    }
+    .ptitle {
+      margin: 0 0 12px;
+      font-size: 1.05rem;
     }
   }
 </style>

@@ -1,10 +1,12 @@
 <script lang="ts">
-  import { allTagNames, tagColor } from '../lib/ops';
+  import { allTagNames, tagColor, visibleTags } from '../lib/ops';
   import { t } from '../lib/i18n';
   let { tags = $bindable([]) }: { tags: string[] } = $props();
   let text = $state('');
   let focused = $state(false);
   const all = $derived(allTagNames());
+  // hidden bookkeeping tags stay on the item but are not shown or removable here
+  const shown = $derived(visibleTags(tags));
   const suggestions = $derived(
     text.trim() ? all.filter((x) => x.toLowerCase().includes(text.trim().toLowerCase()) && !tags.includes(x)).slice(0, 6) : []
   );
@@ -17,12 +19,12 @@
     if ((e.key === 'Enter' || e.key === ',') && text.trim()) {
       e.preventDefault();
       add(suggestions[0] && e.key === 'Enter' && suggestions[0].toLowerCase().startsWith(text.toLowerCase()) ? suggestions[0] : text);
-    } else if (e.key === 'Backspace' && !text && tags.length) tags = tags.slice(0, -1);
+    } else if (e.key === 'Backspace' && !text && shown.length) tags = tags.filter((x) => x !== shown[shown.length - 1]);
   }
 </script>
 
 <div class="tagin input" class:focused>
-  {#each tags as tg (tg)}
+  {#each shown as tg (tg)}
     <span class="chip" style:background={tagColor(tg) ? `color-mix(in srgb, ${tagColor(tg)} 22%, transparent)` : undefined}>
       #{tg}<button onclick={() => (tags = tags.filter((x) => x !== tg))} aria-label="remove">×</button>
     </span>
@@ -35,7 +37,7 @@
       focused = false;
       if (text.trim()) add(text);
     }}
-    placeholder={tags.length ? '' : t('Add tags…')}
+    placeholder={shown.length ? '' : t('Add tags…')}
   />
   {#if focused && suggestions.length}
     <div class="sugg">

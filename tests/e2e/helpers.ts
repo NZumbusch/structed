@@ -33,8 +33,27 @@ export async function newProject(page: Page, title = 'Test project', template = 
   await expect(page.locator('textarea.ptitle')).toHaveValue(title);
 }
 
-export const stage = (page: Page, name: 'Outline' | 'Collect' | 'Select' | 'Arrange' | 'Draft' | 'Write') =>
+export const stage = (page: Page, name: 'Outline' | 'Collect' | 'Select' | 'Arrange' | 'Write') =>
   page.locator('nav.stages button', { hasText: name }).click();
+
+/** Open a settings section (on phones the sections are a list: go back to it first). */
+export async function settingsTab(page: Page, name: string) {
+  const back = page.locator('.modal .pane .back');
+  if (await back.isVisible()) await back.click();
+  await page.locator('.modal nav button', { hasText: name }).click();
+}
+
+/** The library panel is closed in Write by default: open it. */
+export async function openPanel(page: Page) {
+  if (!(await page.locator('.app .panel').isVisible())) await page.getByRole('button', { name: /^Library panel/ }).click();
+  await expect(page.locator('.app .panel .lib')).toBeVisible();
+}
+/** Filters and grouping of the library panel sit behind one button. */
+export async function openFilters(page: Page) {
+  const pop = page.locator('.lib .fpop');
+  if (!(await pop.isVisible())) await page.locator('.lib').getByRole('button', { name: 'Filter & grouping' }).click();
+  await expect(pop).toBeVisible();
+}
 
 export async function stageByIndex(page: Page, i: number) {
   await page.locator('nav.stages button').nth(i).click();

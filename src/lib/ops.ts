@@ -402,12 +402,16 @@ export function headingWords(projectId: string, h: Heading): number {
 }
 
 // ---------------- tags ----------------
+/** Bookkeeping tags the app sets itself (the demo's marker); never shown. */
+const HIDDEN_TAGS = new Set(['structed-demo']);
+export const visibleTags = (tags: string[] | undefined) => (tags ?? []).filter((x) => !HIDDEN_TAGS.has(x));
+
 export function allTagNames(): string[] {
   const s = new Set<string>();
   for (const a of db.all('artifacts')) a.tags?.forEach((t) => s.add(t));
   for (const x of db.all('sources')) x.tags?.forEach((t) => s.add(t));
   for (const t of db.all('tags')) s.add(t.name);
-  return [...s].sort((a, b) => a.localeCompare(b));
+  return [...s].filter((x) => !HIDDEN_TAGS.has(x)).sort((a, b) => a.localeCompare(b));
 }
 export function tagColor(name: string): string | undefined {
   return db.all('tags').find((t) => t.name === name)?.color;
