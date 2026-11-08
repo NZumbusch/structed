@@ -62,3 +62,18 @@ describe('typing helpers', () => {
     expect(charCount('  a b  ')).toBe(3);
   });
 });
+
+import { joinPdfLines } from '../../src/lib/ocr';
+describe('pasting text from a PDF', () => {
+  it('joins broken lines and undoes line-end hyphenation, keeps paragraphs', () => {
+    const pdf = 'Die Erinnerungskultur einer Gesellschaft ist nicht einfach\ngegeben, sondern wird in Ritualen und Medien immer wie-\nder neu hergestellt und verhandelt.\n\nZweiter Absatz mit einer weiteren langen Zeile hier\nund dem Ende des Satzes.';
+    expect(joinPdfLines(pdf)).toBe(
+      'Die Erinnerungskultur einer Gesellschaft ist nicht einfach gegeben, sondern wird in Ritualen und Medien immer wieder neu hergestellt und verhandelt.\n\nZweiter Absatz mit einer weiteren langen Zeile hier und dem Ende des Satzes.'
+    );
+  });
+  it('leaves short lines and finished sentences alone', () => {
+    expect(joinPdfLines('Milch\nEier\nMehl')).toBe('Milch\nEier\nMehl');
+    const sentences = 'Das ist ein vollständiger Satz mit genug Länge hier.\nUnd das ist noch ein vollständiger Satz mit Länge.';
+    expect(joinPdfLines(sentences)).toBe(sentences);
+  });
+});

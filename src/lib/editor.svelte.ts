@@ -19,6 +19,8 @@ import type { EditorView } from '@tiptap/pm/view';
 export { editableQuote };
 import { t } from './i18n';
 import { FindHighlight, NonBreaking, SmartQuotes } from './typing';
+import { joinPdfLines } from './ocr';
+import { CrossRefKey, SectionRef } from './xref.svelte';
 const tr = t; // where `t` is shadowed
 
 type QuoteForm = 'inline' | 'cite' | 'block' | 'footnote';
@@ -365,12 +367,25 @@ function pasteOwn(view: EditorView, e: ClipboardEvent) {
   }
 }
 const clipboardProps = {
+  // text from a PDF: join its broken lines (Ctrl+Shift+V pastes without formatting, as in Word)
+  transformPastedText: (text: string) => joinPdfLines(text),
   handleDOMEvents: {
     copy: (view: EditorView, e: Event) => copySelection(view, e as ClipboardEvent, false),
     cut: (view: EditorView, e: Event) => copySelection(view, e as ClipboardEvent, true)
   },
   handlePaste: (view: EditorView, e: ClipboardEvent) => pasteOwn(view, e)
 };
+
+/** Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y go through the shared history of all sections (Write). */
+const SharedUndo = Extension.create({
+  name: 'sharedUndo',
+  priority: 1000,
+  addKeyboardShortcuts() {
+    const undo = () => editorState.history?.undo() ?? false;
+    const redo = () => editorState.history?.redo() ?? false;
+    return { 'Mod-z': undo, 'Shift-Mod-z': redo, 'Mod-y': redo };
+  }
+});
 
 /** Marks the top-level block holding the caret with `.focus-cur` (focus mode dims the rest). */
 export const CurrentBlock = Extension.create({
@@ -418,6 +433,8 @@ export function createFootnoteEditor(opts: { element: HTMLElement; content: PMNo
       }),
       Placeholder.configure({ placeholder: opts.placeholder }),
       QuoteRef,
+      SectionRef,
+      CrossRefKey,
       AutoDash,
       SmartQuotes,
       NonBreaking,
@@ -469,8 +486,11 @@ export function createEditor(opts: {
       Placeholder.configure({ placeholder: opts.placeholder }),
       QuoteRef,
       QuoteBlock,
+      SectionRef,
+      CrossRefKey,
       Footnote,
       CurrentBlock,
+      SharedUndo,
       AutoDash,
       SmartQuotes,
       NonBreaking,
@@ -540,33 +560,7 @@ export function selectedQuotePos(editor: Editor): number | null {
   return null;
 }
 
-/** Plain text of a draft (for word and character counts): linked quotes count with their text, footnotes do not. */
-export function draftText(json: string | undefined): string {
-  if (!json) return '';
-  try {
-    let out = '';
-    const walk = (n: { type?: string; text?: string; attrs?: Record<string, unknown>; content?: unknown[] }) => {
-      if (n.text) out += n.text;
-      else if (n.type === 'quoteRef' || n.type === 'quoteBlock') {
-        const a = db.get('artifacts', String(n.attrs?.id));
-        if (a && n.attrs?.mode !== 'cite') {
-          const [l, r] = marks();
-          const q = l + oneLine(a.text) + r;
-          out += n.type === 'quoteBlock' ? `\n${q}\n` : q;
-        }
-      } else if (n.type === 'hardBreak') out += '\n';
-      (n.content as (typeof n)[] | undefined)?.forEach(walk);
-      if (n.type === 'paragraph') out += '\n';
-    };
-    walk(JSON.parse(json));
-    return out;
-  } catch {
-    return '';
-  }
-}
-
-/** Characters with spaces, as Word counts them: line breaks between paragraphs do not count. */
-export const charCount = (text: string) => text.replace(/\s*\n\s*/g, '\n').trim().replace(/\n/g, '').length;
+export { draftText, charCount } from './draft';
 
 /** Plain text of the editor's current selection (quotes with their text), '' if nothing is selected. */
 export function selectionText(editor: Editor): string {

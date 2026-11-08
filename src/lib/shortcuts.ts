@@ -49,6 +49,8 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'write.find', label: 'Find in the text', group: 'Writing', default: 'Mod+F' },
   { id: 'write.replace', label: 'Find and replace', group: 'Writing', default: 'Mod+H' },
   { id: 'write.countUnit', label: 'Count words / characters', group: 'Writing', default: null },
+  { id: 'write.crossRef', label: 'Insert cross-reference to a section', group: 'Writing', default: 'Mod+Alt+R' },
+  { id: 'write.copyAll', label: 'Copy whole text with citations', group: 'Writing', default: null },
   { id: 'write.blockquote', label: 'Block quote (own text)', group: 'Writing', default: null },
   { id: 'write.export', label: 'Word export', group: 'Writing', default: null },
   { id: 'newQuote', label: 'New quote', group: 'Create', default: null },

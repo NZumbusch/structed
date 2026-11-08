@@ -67,6 +67,13 @@ export interface FlatHeading {
   num: string;
   hasChildren: boolean;
 }
+/** The current number of a heading in its outline ("2.1"), null if it is gone. */
+export function sectionNumber(headingId: string): string | null {
+  const h = db.get('headings', headingId);
+  if (!h) return null;
+  return flatten(h.projectId).find((f) => f.h.id === headingId)?.num ?? null;
+}
+
 export function flatten(projectId: string, collapsed?: Set<string>): FlatHeading[] {
   const all = db.all('headings').filter((h) => h.projectId === projectId);
   const byParent = new Map<string | null, Heading[]>();

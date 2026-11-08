@@ -41,6 +41,8 @@ class UI {
   /** sources whose Zotero highlights are being gone through one by one */
   reviewSources: string[] | null = $state(null);
   focusHeading: string | null = $state(null);
+  /** Write: put the cursor on the `nth` occurrence of `text` in a section (from the search palette) */
+  writeJump: { headingId: string; text: string; nth: number } | null = $state(null);
   focusBody: string | null = $state(null);
   tour = $state(false);
   /** distraction-free writing in the Write stage */
