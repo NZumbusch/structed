@@ -129,7 +129,7 @@ describe('Word export with the Seminararbeit template', () => {
     expect(doc).not.toContain('ZOTERO_ITEM');
     expect(doc).not.toContain('TOC \\o');
     expect(doc).not.toContain('Max Muster');
-    expect(doc).toMatch(/\(Dürr, 1971, S\. 797\)/);
+    expect(doc).toMatch(/\(Dürr, 1971, S\.\u00a0797\)/); // the page stays with its label (non-breaking space)
     settings.exportZotero = true;
   });
 
@@ -161,7 +161,7 @@ describe('Word export with the Seminararbeit template', () => {
     const q = db.create('artifacts', { kind: 'quote', text: 'Zitat', page: '108', tags: [], sourceId: dürr.id, original: { sourceId: orig.id, page: '1121', pageLabel: 'column' } });
     db.update('headings', sub.id, { draft: JSON.stringify({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'quoteRef', attrs: { id: q.id, mode: 'cite' } }] }] }) });
     const { doc } = await unzip(await buildWordDocument(p, { templateBytes: bytes, cover: false, toc: false, style: 'apa', locale: 'de-DE' }));
-    expect(doc).toContain('(Kaufmann, 1996, Spalte 1121, zit. nach Dürr, 1971, S. 108)');
+    expect(doc).toContain('(Kaufmann, 1996, Spalte\u00a01121, zit. nach Dürr, 1971, S.\u00a0108)');
     expect(doc).toContain('&quot;prefix&quot;:&quot;Kaufmann, 1996, Spalte 1121, zit. nach&quot;');
     // Kaufmann has no field of its own: listed as "uncited" so a Zotero refresh keeps it in the bibliography
     expect(doc).toContain('&quot;uncited&quot;:[[&quot;http://zotero.org/users/42/items/KAUF0001&quot;]]');

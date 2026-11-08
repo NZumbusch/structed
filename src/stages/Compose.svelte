@@ -9,12 +9,13 @@
   import FootnoteDialog from '../components/FootnoteDialog.svelte';
   import QuotePicker from '../components/QuotePicker.svelte';
   import CiteSuggest from '../components/CiteSuggest.svelte';
+  import FindBar from '../components/FindBar.svelte';
   import Modal from '../components/Modal.svelte';
   import { ui } from '../lib/ui.svelte';
   import { settings } from '../lib/settings.svelte';
   import { t } from '../lib/i18n';
   import { flatten, wordCount } from '../lib/ops';
-  import { draftText, insertArtifact as insertArtifactInto, makeEditable, selectedQuotePos } from '../lib/editor.svelte';
+  import { charCount, draftText, insertArtifact as insertArtifactInto, makeEditable, selectedQuotePos, selectionText } from '../lib/editor.svelte';
   import { editorState, type InsertMode } from '../lib/editorState.svelte';
   import { matches, hint } from '../lib/shortcuts';
   import { renderMd } from '../lib/markdown';
@@ -26,6 +27,42 @@
   let tick = $state(0); // re-render toolbar state on selection changes
 
   const total = $derived(flat.reduce((n, f) => n + wordCount(draftText(f.h.draft)), 0));
+  const chars = $derived(settings.wordCountUnit === 'chars' ? flat.reduce((n, f) => n + charCount(draftText(f.h.draft)), 0) : 0);
+  /** the text selected in the active section, for "12 of 3,400 words" */
+  const selected = $derived.by(() => {
+    void tick;
+    const e = activeEditor();
+    return e && e.isFocused ? selectionText(e) : '';
+  });
+  const counter = $derived.by(() => {
+    const byChars = settings.wordCountUnit === 'chars';
+    const all = byChars ? chars : total;
+    const unit = byChars ? t('characters') : t('words');
+    if (!selected) return `${all.toLocaleString()} ${unit}`;
+    const part = byChars ? charCount(selected) : wordCount(selected);
+    return t('{part} of {all} {unit}', { part: part.toLocaleString(), all: all.toLocaleString(), unit });
+  });
+  function toggleUnit() {
+    settings.wordCountUnit = settings.wordCountUnit === 'chars' ? 'words' : 'chars';
+  }
+
+  // ---- find & replace ----
+  let finding = $state(false);
+  let findReplace = $state(false);
+  let findInitial = $state('');
+  let findBar = $state<{ focus: () => void } | null>(null);
+  function openFind(withReplace: boolean) {
+    const e = activeEditor();
+    const sel = e ? selectionText(e) : '';
+    if (withReplace) findReplace = true;
+    if (finding) {
+      findBar?.focus();
+      return;
+    }
+    findInitial = sel && !sel.includes('\n') && sel.length <= 80 ? sel : '';
+    finding = true;
+  }
+  const orderedEditors = () => flat.map((f) => editors.get(f.h.id)).filter((e): e is Editor => !!e);
   const activeEditor = () => (editorState.active ? editors.get(editorState.active.headingId) : undefined);
 
   function reg(id: string, e: Editor) {
@@ -218,6 +255,10 @@
     },
     'write.editQuote': () => cmd((e) => { const p = selectedQuotePos(e); if (p != null) makeEditable(e, p); }),
     'write.bulletList': () => cmd((e) => e.chain().focus().toggleBulletList().run()),
+    'write.orderedList': () => cmd((e) => e.chain().focus().toggleOrderedList().run()),
+    'write.find': () => openFind(false),
+    'write.replace': () => openFind(true),
+    'write.countUnit': () => toggleUnit(),
     'write.blockquote': () => cmd((e) => e.chain().focus().toggleBlockquote().run()),
     'write.export': () => (ui.wordExport = true)
   };
@@ -306,6 +347,7 @@
     <button class="icon-btn fmt" class:active={is('underline')} title="{t('Underline')} (Ctrl+U)" aria-label={t('Underline')} onclick={() => cmd((e) => e.chain().focus().toggleUnderline().run())}><u>U</u></button>
     <span class="sep"></span>
     <button class="icon-btn" class:active={is('bulletList')} title="{t('Bullet list')}{hint('write.bulletList')}" aria-label={t('Bullet list')} onclick={() => cmd((e) => e.chain().focus().toggleBulletList().run())}><Icon name="menu" size={16} /></button>
+    <button class="icon-btn" class:active={is('orderedList')} title="{t('Numbered list')}{hint('write.orderedList')}" aria-label={t('Numbered list')} onclick={() => cmd((e) => e.chain().focus().toggleOrderedList().run())}><Icon name="list-ordered" size={16} /></button>
     <button class="icon-btn" class:active={is('blockquote')} title="{t('Block quote (own text)')}{hint('write.blockquote')}" aria-label={t('Block quote (own text)')} onclick={() => cmd((e) => e.chain().focus().toggleBlockquote().run())}><Icon name="quote" size={16} /></button>
     <button class="btn sm" title="{t('Footnote')}{hint('write.footnote')}" onclick={footnote}><sup>1</sup><span class="wide-only"> {t('Footnote')}</span></button>
     {#if quoteSelected()}
@@ -321,7 +363,7 @@
       </select>
     {/if}
     <span class="grow"></span>
-    <span class="tiny muted wc">{total.toLocaleString()} {t('words')}</span>
+    <button class="tiny muted wc" title="{t('Count words or characters (with spaces)')}{hint('write.countUnit')}" onclick={toggleUnit}>{counter}</button>
     <button class="icon-btn" class:active={settings.writeNotes} aria-pressed={settings.writeNotes} title="{settings.writeNotes ? t('Hide notes') : t('Show notes')}{hint('write.notes')}" aria-label={t('Notes')} onclick={() => (settings.writeNotes = !settings.writeNotes)}><Icon name="note" size={16} /></button>
     {#if !ui.narrow}
       <button class="icon-btn" title="{t('Undo')}" aria-label={t('Undo')} onclick={() => cmd((e) => e.chain().focus().undo().run())}><Icon name="undo" size={16} /></button>
@@ -333,6 +375,10 @@
       <Menu items={moreMenu} label={t('More')} />
     {/if}
   </div>
+  {/if}
+
+  {#if finding}
+    <FindBar bind:this={findBar} editors={orderedEditors} {tick} bind:replace={findReplace} initial={findInitial} onclose={() => ((finding = false), (findReplace = false))} />
   {/if}
 
   <article class="paper">
@@ -363,7 +409,7 @@
     {:else}
       <span>+{sessionWords.toLocaleString()}</span>
     {/if}
-    <span class="muted">· {total.toLocaleString()} {t('words')}</span>
+    <span class="muted">· {counter}</span>
   </div>
 {/if}
 
@@ -413,6 +459,28 @@
   }
   .wc {
     margin-right: 6px;
+    padding: 2px 4px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .wc:hover {
+    color: var(--text);
+  }
+  .compose :global(.find-hit) {
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+  .compose :global(.find-cur) {
+    background: color-mix(in srgb, var(--accent) 55%, transparent);
+    outline: 1px solid var(--accent);
+  }
+  /* non-breaking space: a faint dot underneath, so it can be told from a normal space */
+  .compose :global(.nbsp) {
+    background: radial-gradient(circle at 50% 85%, var(--faint) 0 1px, transparent 1.5px);
   }
   .paper {
     max-width: var(--measure);

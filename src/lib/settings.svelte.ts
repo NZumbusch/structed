@@ -58,6 +58,9 @@ export interface Settings {
   autoBlockWords: number; // inline quotes with at least this many words become block quotes (0 = off)
   editorSpellcheck: boolean;
   editorAutoDash: boolean; // " - " becomes " – " while typing
+  editorSmartQuotes: boolean; // typed " and ' become typographic quotes, ... becomes …
+  editorNbsp: boolean; // non-breaking space after "S.", "§", inside "z. B."
+  wordCountUnit: 'words' | 'chars'; // the counter in Write: words or characters with spaces
   editorLang: string;
   /** @deprecated merged into lineWidth (one width for every view) */
   editorWidth?: 'narrow' | 'normal' | 'wide';
@@ -138,6 +141,9 @@ const defaults: Settings = {
   autoBlockWords: 40,
   editorSpellcheck: true,
   editorAutoDash: true,
+  editorSmartQuotes: true,
+  editorNbsp: true,
+  wordCountUnit: 'words',
   editorLang: 'de',
   writeNotes: true,
   focusNotes: false,

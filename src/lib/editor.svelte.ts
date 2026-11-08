@@ -18,6 +18,7 @@ import { Slice } from '@tiptap/pm/model';
 import type { EditorView } from '@tiptap/pm/view';
 export { editableQuote };
 import { t } from './i18n';
+import { FindHighlight, NonBreaking, SmartQuotes } from './typing';
 const tr = t; // where `t` is shadowed
 
 type QuoteForm = 'inline' | 'cite' | 'block' | 'footnote';
@@ -418,6 +419,8 @@ export function createFootnoteEditor(opts: { element: HTMLElement; content: PMNo
       Placeholder.configure({ placeholder: opts.placeholder }),
       QuoteRef,
       AutoDash,
+      SmartQuotes,
+      NonBreaking,
       CiteTrigger
     ],
     editorProps: {
@@ -469,6 +472,9 @@ export function createEditor(opts: {
       Footnote,
       CurrentBlock,
       AutoDash,
+      SmartQuotes,
+      NonBreaking,
+      FindHighlight,
       CiteTrigger
     ],
     editorProps: {
@@ -534,23 +540,45 @@ export function selectedQuotePos(editor: Editor): number | null {
   return null;
 }
 
-/** Plain text of a draft (for word counts and search). */
+/** Plain text of a draft (for word and character counts): linked quotes count with their text, footnotes do not. */
 export function draftText(json: string | undefined): string {
   if (!json) return '';
   try {
-    const out: string[] = [];
+    let out = '';
     const walk = (n: { type?: string; text?: string; attrs?: Record<string, unknown>; content?: unknown[] }) => {
-      if (n.text) out.push(n.text);
-      if (n.type === 'quoteRef' || n.type === 'quoteBlock') {
+      if (n.text) out += n.text;
+      else if (n.type === 'quoteRef' || n.type === 'quoteBlock') {
         const a = db.get('artifacts', String(n.attrs?.id));
-        if (a && n.attrs?.mode !== 'cite') out.push(a.text);
-      }
+        if (a && n.attrs?.mode !== 'cite') {
+          const [l, r] = marks();
+          const q = l + oneLine(a.text) + r;
+          out += n.type === 'quoteBlock' ? `\n${q}\n` : q;
+        }
+      } else if (n.type === 'hardBreak') out += '\n';
       (n.content as (typeof n)[] | undefined)?.forEach(walk);
-      if (n.type === 'paragraph') out.push('\n');
+      if (n.type === 'paragraph') out += '\n';
     };
     walk(JSON.parse(json));
-    return out.join(' ');
+    return out;
   } catch {
     return '';
   }
+}
+
+/** Characters with spaces, as Word counts them: line breaks between paragraphs do not count. */
+export const charCount = (text: string) => text.replace(/\s*\n\s*/g, '\n').trim().replace(/\n/g, '').length;
+
+/** Plain text of the editor's current selection (quotes with their text), '' if nothing is selected. */
+export function selectionText(editor: Editor): string {
+  const sel = editor.state.selection;
+  // a clicked quote (node selection) is not "selected text"
+  if (sel.empty || 'node' in sel) return '';
+  const { from, to } = sel;
+  return editor.state.doc.textBetween(from, to, '\n', (n) => {
+    if (n.type.name !== 'quoteRef' && n.type.name !== 'quoteBlock') return n.type.name === 'hardBreak' ? '\n' : '';
+    const a = db.get('artifacts', String(n.attrs.id));
+    if (!a || n.attrs.mode === 'cite') return '';
+    const [l, r] = marks();
+    return l + oneLine(a.text) + r;
+  });
 }

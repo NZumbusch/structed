@@ -7,6 +7,8 @@
     'chevron-right': 'm9 18 6-6-6-6',
     'chevron-down': 'm6 9 6 6 6-6',
     'chevron-left': 'm15 18-6-6 6-6',
+    'chevron-up': 'm18 15-6-6-6 6',
+    'list-ordered': 'M10 6h11M10 12h11M10 18h11M4 6h1v4M4 10h2M6 18H4c0-1 2-2 2-3s-1-1.5-2-1',
     grip: 'M9 5h.01M9 12h.01M9 19h.01M15 5h.01M15 12h.01M15 19h.01',
     search: 'M21 21l-4.3-4.3M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z',
     settings:
