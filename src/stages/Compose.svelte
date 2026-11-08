@@ -62,6 +62,7 @@
   let findBar = $state<{ focus: () => void } | null>(null);
   function openFind(withReplace: boolean) {
     const e = activeEditor();
+    if (e) syncSelection(e);
     const sel = e ? selectionText(e) : '';
     if (withReplace) findReplace = true;
     if (finding) {
@@ -139,8 +140,11 @@
   // comments on passages of the text
   let commentCard = $state<{ start: (e: Editor) => Promise<boolean> } | null>(null);
   let scrollTick = $state(0);
+  /** the editor reads a keyboard selection a moment later: take the current one now */
+  const syncSelection = (e: Editor) => (e.view as unknown as { domObserver?: { flush?: () => void } }).domObserver?.flush?.();
   function comment() {
     const e = activeEditor();
+    if (e) syncSelection(e);
     if (!e || e.state.selection.empty) return void ui.toast(t('Select the words you want to comment on first'), {}, 2500);
     commentCard?.start(e);
   }

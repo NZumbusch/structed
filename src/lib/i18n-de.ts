@@ -927,4 +927,5 @@ export const de: Record<string, string> = {
   'Readability hints: long sentences, repeated words': 'Lesbarkeitshinweise: lange Sätze, Wortwiederholungen',
   'Readability hints': 'Lesbarkeitshinweise',
   'Print or save as PDF': 'Drucken oder als PDF speichern',
+  'Saved automatically': 'Wird automatisch gespeichert',
 };

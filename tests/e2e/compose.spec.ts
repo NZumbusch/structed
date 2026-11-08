@@ -115,7 +115,7 @@ test('footnotes from before (text, one quote, text) open as free text', async ({
   await expect(fed).toContainText('Cf. „The past is […] reconstructed.“');
   await expect(fed.locator('.qref.cite-only')).toHaveCount(1);
   await expect(fed).toContainText('Emphasis mine.');
-  await page.locator('.modal').getByRole('button', { name: 'Save' }).click();
+  await page.locator('.modal').getByRole('button', { name: 'Done' }).click();
   await expect(fn).toHaveAttribute('title', /^Cf\. „The past is \[…\] reconstructed\.“ \(Assmann, 2011, p\. 18\) Emphasis mine\.$/);
 });
 
@@ -307,7 +307,7 @@ test('the quote in a footnote can be shortened; the citation stays linked', asyn
     sel.addRange(r);
   });
   await page.keyboard.type('[…] ');
-  await dlg.getByRole('button', { name: 'Save' }).click();
+  await dlg.getByRole('button', { name: 'Done' }).click();
   const fn = ed.locator('sup.fn');
   await expect(fn).toHaveAttribute('title', /„The past is not \[…\] reconstructed\.“ \(Assmann, 2011, p\. 18\)/);
   // the page number still follows the library

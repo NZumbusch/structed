@@ -33,7 +33,8 @@ class EditorState {
   footnote: {
     /** free text with linked quotes and citations (inline ProseMirror JSON) */
     content: import('./footnote').PMNode[];
-    save: (content: import('./footnote').PMNode[]) => void;
+    /** history: false = not an undo step of its own (autosave while typing) */
+    save: (content: import('./footnote').PMNode[], history?: boolean) => void;
     remove: () => void;
   } | null = $state(null);
 }

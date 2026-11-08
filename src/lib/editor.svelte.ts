@@ -239,10 +239,15 @@ export const Footnote = Node.create({
         if (pos == null) return;
         editorState.footnote = {
           content: footnoteContent(attrs),
-          save: (content) =>
+          // history: false while typing (autosave); the last save is one undo step
+          save: (content, history = true) =>
             editor
               .chain()
-              .command(({ tr }) => (tr.setNodeMarkup(pos, undefined, { content, before: '', quoteId: null, quoteText: null, after: '' }), true))
+              .command(({ tr }) => {
+                tr.setNodeMarkup(pos, undefined, { content, before: '', quoteId: null, quoteText: null, after: '' });
+                if (!history) tr.setMeta('addToHistory', false);
+                return true;
+              })
               .run(),
           remove: () => editor.chain().deleteRange({ from: pos, to: pos + 1 }).run()
         };

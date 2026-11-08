@@ -174,3 +174,35 @@ test('printing shows only the text, with the footnotes at the end', async ({ pag
   await expect(page.locator('.print-notes li')).toHaveText(['A note.']);
   await expect(ed).toContainText('Printed text.');
 });
+
+test('footnotes save themselves: closing in any way keeps the text', async ({ page }) => {
+  const ed = page.locator('.compose .ProseMirror').first();
+  await ed.click();
+  await page.keyboard.type('Text.');
+  await page.keyboard.press('Control+Alt+f');
+  const fed = page.locator('.modal .fed .ProseMirror');
+  await expect(fed).toBeFocused();
+  await page.keyboard.type('Kept after Esc.');
+  // saved while typing, before the dialog is closed
+  await expect(ed.locator('sup.fn')).toHaveAttribute('title', 'Kept after Esc.');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.modal')).toHaveCount(0);
+  await expect(ed.locator('sup.fn')).toHaveAttribute('title', 'Kept after Esc.');
+  // switching to another stage while editing keeps it too
+  await ed.locator('sup.fn').click();
+  await fed.click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' And more.');
+  // closing the browser tab without closing the footnote: still saved
+  await page.waitForTimeout(1500); // footnote → section → storage
+  await page.reload();
+  await page.waitForFunction(() => (window as any).__structed?.db?.ready);
+  await expect(ed.locator('sup.fn')).toHaveAttribute('title', 'Kept after Esc. And more.');
+  // a new footnote left empty is removed again
+  await ed.click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Control+Alt+f');
+  await expect(fed).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(ed.locator('sup.fn')).toHaveCount(1);
+});
