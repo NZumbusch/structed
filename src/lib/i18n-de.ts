@@ -926,4 +926,5 @@ export const de: Record<string, string> = {
   'Select the words you want to comment on first': 'Markiere zuerst die Wörter, die du kommentieren willst',
   'Readability hints: long sentences, repeated words': 'Lesbarkeitshinweise: lange Sätze, Wortwiederholungen',
   'Readability hints': 'Lesbarkeitshinweise',
+  'Print or save as PDF': 'Drucken oder als PDF speichern',
 };

@@ -12,6 +12,15 @@
   const TEXT_MIN = 3;
   const TEXT_MAX = 8;
 
+  /** the text as a document: Write, then the browser's print dialog (“Save as PDF” there) */
+  function printText() {
+    ui.stage = 'write';
+    ui.focus = false;
+    // wait until the sections are rendered
+    const go = (n = 0) => (document.querySelector('.compose .ProseMirror') || n > 40 ? setTimeout(() => window.print(), 150) : setTimeout(() => go(n + 1), 50));
+    go();
+  }
+
   async function copyAll() {
     if (!ui.projectId) return;
     const { html, text } = wholeText(ui.projectId);
@@ -65,7 +74,12 @@
       [t('Snapshots'), 'history', () => (ui.dialog = 'snapshots')],
       [t('New quote'), 'quote', () => (ui.editArtifact = { kind: 'quote' })],
       [t('New note'), 'note', () => (ui.editArtifact = { kind: 'note' })],
-      ...(ui.projectId ? [[t('Copy whole text with citations'), 'copy', copyAll]] : [])
+      ...(ui.projectId
+        ? [
+            [t('Copy whole text with citations'), 'copy', copyAll],
+            [t('Print or save as PDF'), 'file', printText]
+          ]
+        : [])
     ] as [string, string, () => void][]) {
       const sc = score(lab, qq);
       if (sc && qq) out.push({ icon, label: lab, score: sc - 0.5, run });

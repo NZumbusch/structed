@@ -36,6 +36,7 @@ The **library panel** is available in every stage. It groups items by source, au
 - **Earlier versions** of each section (clock next to the heading): a version is kept after each finished sentence, at least every 30 s while writing, on this device only. Slide through them, see what changed, restore one (Ctrl+Z undoes it). Older versions are thinned out to one per hour, then one per day.
 - **Readability hints** (off by default; focus bar, Settings → Editor): very long sentences, a word repeated close by (small words like “der”, “ist” never count), three sentences in a row starting alike, a sentence that is already in the section.
 - **Pasting** text from a PDF joins its broken lines and removes line-end hyphens; Ctrl+Shift+V pastes without formatting. The cursor comes back where you stopped writing (per project).
+- **Print / PDF**: Ctrl+P in Write (or “Print or save as PDF” in Ctrl+K) prints only the text as a document: black on white, numbered headings, the footnotes at the end and page numbers. Choose “Save as PDF” in the print dialog for a PDF. Comments, hints and other on-screen marks are left out.
 - **Text language per project** (Settings → Editor) for spell check and typed quotes.
 - **Search and command palette**: Ctrl+K – also finds places in the written text (from 3 characters) and can copy the whole text with headings, citations and footnotes.
 - **Undo** with Ctrl+Z (when no text field has focus), plus undo toasts for destructive actions.

@@ -12,7 +12,7 @@
   import FindBar from '../components/FindBar.svelte';
   import { SharedHistory } from '../lib/sharedHistory';
   import { findIn } from '../lib/typing';
-  import { wholeText } from '../lib/footnote';
+  import { footnoteContent, footnotePlain, wholeText, type PMNode } from '../lib/footnote';
   import { pickCrossRef } from '../lib/xref.svelte';
   import CommentCard from '../components/CommentCard.svelte';
   import TextHistory from '../components/TextHistory.svelte';
@@ -97,6 +97,23 @@
     untrack(() => {
       for (const e of editors.values()) e.view.dispatch(e.state.tr.setMeta(hintsKey, true).setMeta('addToHistory', false));
     });
+  });
+
+  // printing: the footnote texts, in order, at the end of the printed text (screen: hidden)
+  const printNotes = $derived.by(() => {
+    const out: string[] = [];
+    const walk = (n: PMNode) => {
+      if (n.type === 'footnote') out.push(footnotePlain(footnoteContent(n.attrs)));
+      n.content?.forEach(walk);
+    };
+    for (const f of flat) {
+      try {
+        if (f.h.draft) walk(JSON.parse(f.h.draft));
+      } catch {
+        /* malformed */
+      }
+    }
+    return out;
   });
 
   // earlier versions of a section
@@ -387,6 +404,7 @@
     'write.replace': () => openFind(true),
     'write.countUnit': () => toggleUnit(),
     'write.copyAll': () => copyAll(),
+    'write.print': () => window.print(),
     'write.history': () => editorState.active && (historyOf = editorState.active.headingId),
     'write.comment': () => comment(),
     'write.blockquote': () => cmd((e) => e.chain().focus().toggleBlockquote().run()),
@@ -536,6 +554,12 @@
     {:else}
       <div class="empty">{t('Add headings in the Outline first – each heading becomes a section here.')}</div>
     {/each}
+    {#if printNotes.length}
+      <!-- only printed (Ctrl+P): the footnotes, numbered like the markers in the text -->
+      <ol class="print-notes" aria-hidden="true">
+        {#each printNotes as n, i (i)}<li>{n}</li>{/each}
+      </ol>
+    {/if}
   </article>
 </div>
 
@@ -653,6 +677,9 @@
   /* non-breaking space: a faint dot underneath, so it can be told from a normal space */
   .compose :global(.nbsp) {
     background: radial-gradient(circle at 50% 85%, var(--faint) 0 1px, transparent 1.5px);
+  }
+  .print-notes {
+    display: none;
   }
   .paper {
     max-width: var(--measure);

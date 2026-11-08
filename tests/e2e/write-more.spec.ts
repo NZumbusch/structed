@@ -157,3 +157,20 @@ test('readability hints mark repeated words and long sentences', async ({ page }
   await page.evaluate(() => ((window as any).__structed.settings.writeHints = false));
   await expect(ed.locator('.hint-rep')).toHaveCount(0);
 });
+
+test('printing shows only the text, with the footnotes at the end', async ({ page }) => {
+  const ed = page.locator('.compose .ProseMirror').first();
+  await ed.click();
+  await page.keyboard.type('Printed text.');
+  await page.keyboard.press('Control+Alt+f');
+  await page.locator('.fed .ProseMirror').click();
+  await page.keyboard.type('A note.');
+  await page.keyboard.press('Control+Enter'); // saves
+  await page.waitForTimeout(400);
+  await expect(page.locator('.print-notes')).toBeHidden();
+  await page.emulateMedia({ media: 'print' });
+  await expect(page.locator('.top')).toBeHidden();
+  await expect(page.locator('.compose .bar')).toBeHidden();
+  await expect(page.locator('.print-notes li')).toHaveText(['A note.']);
+  await expect(ed).toContainText('Printed text.');
+});

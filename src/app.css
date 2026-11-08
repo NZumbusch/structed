@@ -489,3 +489,106 @@ body.dnd-active {
   background: color-mix(in srgb, var(--danger) 15%, transparent);
   color: var(--danger);
 }
+
+/* ---------------- printing (Ctrl+P, or “Print / save as PDF”) ----------------
+   Write prints only the text, like a document: no app bar, panel, toolbar or notes,
+   black on white, the footnotes at the end, page numbers at the bottom. */
+@page {
+  margin: 2.5cm 2.2cm 2.2cm;
+  @bottom-center {
+    content: counter(page);
+    font-size: 9pt;
+  }
+}
+@media print {
+  :root,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    --text: #000;
+    --muted: #444;
+    --faint: #666;
+    --accent-text: #000;
+  }
+  .top,
+  .panel,
+  .resizer,
+  .drawer,
+  .toasts,
+  .bar,
+  .fbar,
+  .fstat,
+  .findwrap,
+  .ccard,
+  .hist,
+  .gist,
+  .cmenu {
+    display: none !important;
+  }
+  /* let the page grow instead of scrolling inside the app */
+  html,
+  body,
+  .app,
+  .main,
+  .scroll,
+  .compose {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+  .compose .paper {
+    max-width: none;
+    margin: 0;
+    padding: 0 !important;
+    font-size: 11.5pt;
+  }
+  .compose .prose {
+    line-height: 1.5;
+    hyphens: auto;
+    orphans: 3;
+    widows: 3;
+  }
+  .compose .ht {
+    break-after: avoid;
+    page-break-after: avoid;
+    margin-top: 1.2em;
+  }
+  .compose .qblock,
+  .compose blockquote {
+    break-inside: avoid;
+  }
+  .compose .hn {
+    color: #000;
+  }
+  /* marks that only help on screen */
+  .compose .qref,
+  .compose .xref,
+  .compose .tc,
+  .compose .find-hit,
+  .compose .hint-rep,
+  .compose .nbsp {
+    background: none !important;
+    border: 0 !important;
+    outline: 0 !important;
+    color: inherit !important;
+  }
+  .compose .hint-long {
+    text-decoration: none !important;
+  }
+  .compose p.is-editor-empty::before {
+    content: none !important;
+  }
+  .compose sup.fn {
+    color: #000;
+  }
+  .compose .print-notes {
+    display: block !important;
+    margin: 2em 0 0;
+    padding: 0.6em 0 0 1.4em;
+    border-top: 0.5pt solid #000;
+    font-size: 9.5pt;
+    line-height: 1.35;
+    break-before: avoid;
+  }
+}

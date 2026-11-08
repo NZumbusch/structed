@@ -53,6 +53,7 @@ export const SHORTCUTS: ShortcutDef[] = [
   { id: 'write.comment', label: 'Comment on the selected text', group: 'Writing', default: 'Mod+Alt+M' },
   { id: 'write.crossRef', label: 'Insert cross-reference to a section', group: 'Writing', default: 'Mod+Alt+R' },
   { id: 'write.history', label: 'Earlier versions of this section', group: 'Writing', default: null },
+  { id: 'write.print', label: 'Print or save as PDF', group: 'Writing', default: null },
   { id: 'write.copyAll', label: 'Copy whole text with citations', group: 'Writing', default: null },
   { id: 'write.blockquote', label: 'Block quote (own text)', group: 'Writing', default: null },
   { id: 'write.export', label: 'Word export', group: 'Writing', default: null },
