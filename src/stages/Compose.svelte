@@ -14,6 +14,10 @@
   import { findIn } from '../lib/typing';
   import { wholeText } from '../lib/footnote';
   import { pickCrossRef } from '../lib/xref.svelte';
+  import CommentCard from '../components/CommentCard.svelte';
+  import TextHistory from '../components/TextHistory.svelte';
+  import { recordVersion } from '../lib/textHistory';
+  import { hintsKey } from '../lib/hints';
   import { copyText } from '../lib/clipboard';
   import Modal from '../components/Modal.svelte';
   import { ui } from '../lib/ui.svelte';
@@ -86,6 +90,43 @@
       if (editorState.history === history) editorState.history = null;
     };
   });
+
+  // readability hints: recompute in every section when switched
+  $effect(() => {
+    void settings.writeHints;
+    untrack(() => {
+      for (const e of editors.values()) e.view.dispatch(e.state.tr.setMeta(hintsKey, true).setMeta('addToHistory', false));
+    });
+  });
+
+  // earlier versions of a section
+  let historyOf = $state<string | null>(null);
+  const historyHeading = $derived(historyOf ? flat.find((f) => f.h.id === historyOf)?.h : undefined);
+  function restoreVersion(draft: string) {
+    const id = historyOf;
+    historyOf = null;
+    const e = id ? editors.get(id) : undefined;
+    if (!e || !id) return;
+    // keep the text as it is now as a version too, then restore (Ctrl+Z undoes it)
+    const now = JSON.stringify(e.getJSON());
+    void recordVersion(id, now, e.getText(), wordCount(e.getText()), Date.now(), true);
+    try {
+      e.chain().setContent(JSON.parse(draft)).run();
+      setTimeout(() => e.commands.focus('start'), 30); // after the dialog gave focus back
+      ui.toast(t('Earlier version restored'), { kind: 'ok', action: { label: t('Undo'), run: () => e.chain().focus().undo().run() } }, 5000);
+    } catch {
+      ui.toast(t('This version could not be read'), { kind: 'error' });
+    }
+  }
+
+  // comments on passages of the text
+  let commentCard = $state<{ start: (e: Editor) => Promise<boolean> } | null>(null);
+  let scrollTick = $state(0);
+  function comment() {
+    const e = activeEditor();
+    if (!e || e.state.selection.empty) return void ui.toast(t('Select the words you want to comment on first'), {}, 2500);
+    commentCard?.start(e);
+  }
 
   async function copyAll() {
     const { html, text } = wholeText(project.id);
@@ -318,6 +359,7 @@
     'write.prevSection': () => gotoSection(-1),
     'write.notes': () => (focus ? (settings.focusNotes = !settings.focusNotes) : (settings.writeNotes = !settings.writeNotes)),
     'write.dim': () => onOff('Highlight current paragraph', (settings.focusDim = !settings.focusDim)),
+    'write.hints': () => onOff('Readability hints', (settings.writeHints = !settings.writeHints)),
     'write.typewriter': () => onOff('Typewriter scrolling', (settings.focusTypewriter = !settings.focusTypewriter)),
     'write.fullscreen': () => canFullscreen && toggleFullscreen(),
     'write.goal': () => (focus ? openMenu((v) => (goalOpen = v)) : ui.toast(t('Session goals are part of focus mode'), {}, 2500)),
@@ -345,6 +387,8 @@
     'write.replace': () => openFind(true),
     'write.countUnit': () => toggleUnit(),
     'write.copyAll': () => copyAll(),
+    'write.history': () => editorState.active && (historyOf = editorState.active.headingId),
+    'write.comment': () => comment(),
     'write.blockquote': () => cmd((e) => e.chain().focus().toggleBlockquote().run()),
     'write.export': () => (ui.wordExport = true)
   };
@@ -352,7 +396,7 @@
   function keys(e: KeyboardEvent) {
     if (focus && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace')) typing = true;
     // the editor already handled it, or a dialog is open
-    if (e.defaultPrevented || ui.recordingShortcut || ui.dialog || ui.editArtifact || ui.editSource || ui.placeTarget || editorState.footnote || ui.wordExport) return;
+    if (e.defaultPrevented || ui.recordingShortcut || ui.dialog || ui.editArtifact || ui.editSource || ui.placeTarget || editorState.footnote || ui.wordExport || historyOf) return;
     for (const id in KEYS) {
       if (!matches(e, id)) continue;
       e.preventDefault();
@@ -405,6 +449,7 @@
   class:tw={focus && settings.focusTypewriter}
   data-tour="compose"
   bind:this={scroller}
+  onscroll={() => scrollTick++}
   use:keepScroll={'write:' + project.id}
 >
   {#if focus}
@@ -415,6 +460,7 @@
       {#if settings.writePanel}<button class="icon-btn" class:active={quotesOpen} aria-pressed={quotesOpen} title="{quotesOpen ? t('Hide quotes') : t('Show quotes')}{hint('togglePanel')}" aria-label={t('Quotes')} onclick={toggleQuotes}><Icon name="quote" size={16} /></button>{/if}
       <span class="sep"></span>
       <button class="icon-btn" class:active={settings.focusDim} aria-pressed={settings.focusDim} title="{t('Dim all but the current paragraph')}{hint('write.dim')}" aria-label={t('Highlight current paragraph')} onclick={() => (settings.focusDim = !settings.focusDim)}><Icon name="eye" size={16} /></button>
+      <button class="icon-btn" class:active={settings.writeHints} aria-pressed={settings.writeHints} title="{t('Readability hints: long sentences, repeated words')}{hint('write.hints')}" aria-label={t('Readability hints')} onclick={() => (settings.writeHints = !settings.writeHints)}><Icon name="sparkle" size={16} /></button>
       <button class="icon-btn" class:active={settings.focusTypewriter} aria-pressed={settings.focusTypewriter} title="{t('Typewriter scrolling: the current line stays in the middle')}{hint('write.typewriter')}" aria-label={t('Typewriter scrolling')} onclick={() => (settings.focusTypewriter = !settings.focusTypewriter)}><Icon name="typewriter" size={16} /></button>
       {#if canFullscreen}
         <button class="icon-btn" class:active={fullscreen} aria-pressed={fullscreen} title="{t('Full screen')}{hint('write.fullscreen')}" aria-label={t('Full screen')} onclick={toggleFullscreen}><Icon name="expand" size={16} /></button>
@@ -437,6 +483,7 @@
     <button class="icon-btn" class:active={is('orderedList')} title="{t('Numbered list')}{hint('write.orderedList')}" aria-label={t('Numbered list')} onclick={() => cmd((e) => e.chain().focus().toggleOrderedList().run())}><Icon name="list-ordered" size={16} /></button>
     <button class="icon-btn" class:active={is('blockquote')} title="{t('Block quote (own text)')}{hint('write.blockquote')}" aria-label={t('Block quote (own text)')} onclick={() => cmd((e) => e.chain().focus().toggleBlockquote().run())}><Icon name="quote" size={16} /></button>
     <button class="btn sm" title="{t('Footnote')}{hint('write.footnote')}" onclick={footnote}><sup>1</sup><span class="wide-only"> {t('Footnote')}</span></button>
+    <button class="icon-btn" title="{t('Comment on the selected text')}{hint('write.comment')}" aria-label={t('Comment on the selected text')} onmousedown={(e) => e.preventDefault()} onclick={comment}><Icon name="comment" size={16} /></button>
     <button class="icon-btn fmt" title="{t('Cross-reference to a section')}{hint('write.crossRef')}" aria-label={t('Cross-reference to a section')} onclick={() => cmd((e) => pickCrossRef(e))}>§</button>
     {#if quoteSelected()}
       <!-- icon only: appearing must not make the toolbar longer than its row -->
@@ -478,6 +525,7 @@
       <section class="sec d{Math.min(f.depth, 2)}" data-sec={f.h.id}>
         <svelte:element this={`h${Math.min(f.depth + 2, 4)}`} class="ht">
           <span class="hn">{f.num}</span>{f.h.title || t('Untitled')}
+          {#if !focus}<button class="icon-btn sm hist" title={t('Earlier versions of this section')} aria-label="{t('Earlier versions of this section')}: {f.h.title || t('Untitled')}" onclick={() => (historyOf = f.h.id)}><Icon name="history" size={14} /></button>{/if}
         </svelte:element>
         {#if showNotes && f.h.body.trim()}
           <!-- the gist from the outline, as a reminder of what this section should say -->
@@ -504,6 +552,16 @@
 {/if}
 
 {#if editorState.footnote}<FootnoteDialog />{/if}
+{#if historyHeading}
+  <TextHistory
+    headingId={historyHeading.id}
+    title={historyHeading.title || t('Untitled')}
+    current={historyHeading.draft ?? ''}
+    onrestore={restoreVersion}
+    onclose={() => (historyOf = null)}
+  />
+{/if}
+<CommentCard bind:this={commentCard} editor={activeEditor} {tick} {scrollTick} />
 <CiteSuggest />
 {#if picking}
   <Modal title={t('Insert quote')} onclose={() => (picking = false)} width="980px">
@@ -568,6 +626,22 @@
   .wc:hover {
     color: var(--text);
   }
+  /* readability hints */
+  .compose :global(.hint-long) {
+    text-decoration: underline dotted color-mix(in srgb, var(--warn) 70%, transparent);
+    text-underline-offset: 3px;
+  }
+  .compose :global(.hint-rep) {
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--k-paraphrase) 18%, transparent);
+  }
+  /* a passage with a comment */
+  .compose :global(.tc) {
+    background: color-mix(in srgb, var(--warn) 16%, transparent);
+    border-bottom: 2px solid color-mix(in srgb, var(--warn) 70%, transparent);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
   .compose :global(.find-hit) {
     border-radius: 2px;
     background: color-mix(in srgb, var(--accent) 22%, transparent);
@@ -599,6 +673,21 @@
   }
   .ht {
     margin: 0 0 6px;
+  }
+  /* the history button shows on hover (always on touch screens) */
+  .hist {
+    vertical-align: middle;
+    margin-left: 4px;
+    opacity: 0;
+  }
+  .ht:hover .hist,
+  .hist:focus-visible {
+    opacity: 1;
+  }
+  @media (pointer: coarse) {
+    .hist {
+      opacity: 0.6;
+    }
   }
   :global(.compose h2.ht) {
     font-size: 1.35em;

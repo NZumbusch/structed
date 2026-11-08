@@ -94,3 +94,66 @@ test('the cursor comes back where you stopped writing', async ({ page }) => {
   await page.keyboard.type('X');
   await expect(eds.nth(1)).toContainText('Hello theXre');
 });
+
+test('comment on a passage: write it, find it again, resolve it', async ({ page }) => {
+  const ed = page.locator('.compose .ProseMirror').first();
+  await ed.click();
+  await page.keyboard.type('Check this source later.');
+  // select "this source"
+  await page.keyboard.press('Home');
+  for (let i = 0; i < 6; i++) await page.keyboard.press('ArrowRight');
+  for (let i = 0; i < 11; i++) await page.keyboard.press('Shift+ArrowRight');
+  await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toBe('this source');
+  await page.keyboard.press('Control+Alt+m');
+  const card = page.getByRole('group', { name: 'Comment' });
+  await card.getByRole('textbox').fill('Is the page right?');
+  await card.getByRole('textbox').press('Control+Enter');
+  await expect(card).toHaveCount(0);
+  await expect(ed.locator('.tc')).toHaveText('this source');
+  await expect(ed.locator('.tc')).toHaveAttribute('title', 'Is the page right?');
+  // back in the passage: the card shows the comment
+  await ed.locator('.tc').click();
+  await expect(card.getByRole('textbox')).toHaveValue('Is the page right?');
+  await card.getByRole('button', { name: 'Resolve' }).click();
+  await expect(ed.locator('.tc')).toHaveCount(0);
+  await expect(ed).toContainText('Check this source later.');
+  // an empty comment is dropped again when left
+  await ed.click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Shift+Home');
+  await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toBe('Check this source later.');
+  await page.keyboard.press('Control+Alt+m');
+  await expect(card).toBeVisible();
+  await card.getByRole('button', { name: 'Close' }).click();
+  await expect(ed.locator('.tc')).toHaveCount(0);
+});
+
+test('earlier versions of a section: slide back, see the change, restore', async ({ page }) => {
+  test.skip(!!(await page.evaluate(() => matchMedia('(pointer: coarse)').matches)) && page.viewportSize()!.width <= 700, 'same on phones');
+  const ed = page.locator('.compose .ProseMirror').first();
+  await ed.click();
+  await page.keyboard.type('First sentence.');
+  await page.waitForTimeout(3600); // a finished sentence after more than 3 s: a new version
+  await page.keyboard.type(' Second sentence.');
+  await page.waitForTimeout(600);
+  await page.locator('.compose .sec').first().locator('.ht').hover();
+  await page.getByRole('button', { name: /Earlier versions of this section: Introduction/ }).click();
+  const dlg = page.getByRole('dialog');
+  await expect(dlg.getByText('First sentence.')).toBeVisible();
+  await expect(dlg.locator('ins')).toContainText('First sentence.');
+  await dlg.getByRole('button', { name: 'Restore this version' }).click();
+  await expect(ed).toHaveText('First sentence.');
+  await expect(ed).toBeFocused();
+  await page.keyboard.press('Control+z');
+  await expect(ed).toContainText('Second sentence.');
+});
+
+test('readability hints mark repeated words and long sentences', async ({ page }) => {
+  await page.evaluate(() => ((window as any).__structed.settings.writeHints = true));
+  const ed = page.locator('.compose .ProseMirror').first();
+  await ed.click();
+  await page.keyboard.type('Das Gedächtnis ist sozial und das Gedächtnis ist medial.');
+  await expect(ed.locator('.hint-rep')).toHaveCount(2);
+  await page.evaluate(() => ((window as any).__structed.settings.writeHints = false));
+  await expect(ed.locator('.hint-rep')).toHaveCount(0);
+});

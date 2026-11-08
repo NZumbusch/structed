@@ -21,6 +21,8 @@ import { t } from './i18n';
 import { FindHighlight, NonBreaking, SmartQuotes } from './typing';
 import { joinPdfLines } from './ocr';
 import { CrossRefKey, SectionRef } from './xref.svelte';
+import { TextComment } from './textComment';
+import { ReadabilityHints } from './hints';
 const tr = t; // where `t` is shadowed
 
 type QuoteForm = 'inline' | 'cite' | 'block' | 'footnote';
@@ -486,6 +488,7 @@ export function createEditor(opts: {
       Placeholder.configure({ placeholder: opts.placeholder }),
       QuoteRef,
       QuoteBlock,
+      TextComment,
       SectionRef,
       CrossRefKey,
       Footnote,
@@ -495,6 +498,7 @@ export function createEditor(opts: {
       SmartQuotes,
       NonBreaking,
       FindHighlight,
+      ReadabilityHints,
       CiteTrigger
     ],
     editorProps: {

@@ -167,6 +167,7 @@
         <label class="chk"><input type="checkbox" bind:checked={settings.writePanel} />{t('Library panel next to the text in Write (otherwise: “Insert quote”, its shortcut or @)')}</label>
         <label class="chk"><input type="checkbox" bind:checked={settings.editorAutoDash} />{t('Turn “ - ” into a dash “ – ” while typing')}</label>
         <label class="chk"><input type="checkbox" bind:checked={settings.editorSmartQuotes} />{t('Typographic quotes while typing (" becomes „ “ as set under quotation marks, ... becomes …)')}</label>
+        <label class="chk"><input type="checkbox" bind:checked={settings.writeHints} />{t('Readability hints in Write: very long sentences, words repeated close by, sentences that start alike')}</label>
         <label class="chk"><input type="checkbox" bind:checked={settings.editorNbsp} />{t('Keep “S. 12”, “z. B.” and “§ 5” together at line ends (non-breaking space; Ctrl+Shift+Space inserts one)')}</label>
         <label class="field"><span>{t('Language of the text (spell check)')}</span>
           <select class="select" bind:value={settings.editorLang}>

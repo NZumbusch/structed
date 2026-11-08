@@ -30,7 +30,14 @@ The **library panel** is available in every stage. It groups items by source, au
 - **Typing like in Word**: typed quotes become typographic ones in the style set for quotation marks („…“, “…”, «…»), `...` becomes `…`, and “S. 12”, “z. B.”, “§ 5” get a non-breaking space so they never break across lines (Ctrl+Shift+Space inserts one; shown with a faint dot). Page numbers in citations stay with their label the same way. Backspace right after a change undoes it; each can be switched off in Settings → Editor. Bullet and numbered lists (or type `- ` / `1. `).
 - **Counting**: the counter in Write shows “12 of 3,400 words” while text is selected; click it to count characters with spaces instead (as Word counts them; footnotes are not counted).
 - **Find and replace** in the text of all sections: Ctrl+F (Ctrl+H opens it with replace). Enter / Shift+Enter jump between matches, “Aa” matches case, Ctrl+Enter replaces all. Linked quotes and footnotes are not searched, their text lives in the library.
-- **Search and command palette**: Ctrl+K.
+- **One undo history** in Write: Ctrl+Z / Ctrl+Shift+Z (or the buttons) undo and redo the latest change in whichever section it happened, and jump there.
+- **Comments on passages**: select words and press Ctrl+Alt+M (or the speech-bubble button); the comment shows below the passage whenever the cursor is in it. ✓ resolves it. Comments stay in the text (so undo and sync keep them) and are left out of every export.
+- **Cross-references**: § (Ctrl+Alt+R) inserts the number of a section, e.g. “see section 2.1”; it follows when the outline is renumbered, in footnotes and in Word too.
+- **Earlier versions** of each section (clock next to the heading): a version is kept after each finished sentence, at least every 30 s while writing, on this device only. Slide through them, see what changed, restore one (Ctrl+Z undoes it). Older versions are thinned out to one per hour, then one per day.
+- **Readability hints** (off by default; focus bar, Settings → Editor): very long sentences, a word repeated close by (small words like “der”, “ist” never count), three sentences in a row starting alike, a sentence that is already in the section.
+- **Pasting** text from a PDF joins its broken lines and removes line-end hyphens; Ctrl+Shift+V pastes without formatting. The cursor comes back where you stopped writing (per project).
+- **Text language per project** (Settings → Editor) for spell check and typed quotes.
+- **Search and command palette**: Ctrl+K – also finds places in the written text (from 3 characters) and can copy the whole text with headings, citations and footnotes.
 - **Undo** with Ctrl+Z (when no text field has focus), plus undo toasts for destructive actions.
 - **Settings**: light, dark, sepia or system theme, high contrast, accent color, text size, writing font, line width, reduced motion, and English or German.
 - **Offline and installable**: a service worker plus a manifest, so it can be installed as an app on phones, tablets and desktops.
