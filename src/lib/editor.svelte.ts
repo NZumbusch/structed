@@ -7,7 +7,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { db } from './db.svelte';
-import { settings } from './settings.svelte';
+import { settings, textLang } from './settings.svelte';
 import { citeText, marks, oneLine, wordsOf } from './citecache.svelte';
 import { editorState, type InsertMode } from './editorState.svelte';
 import { ui, type MenuItem } from './ui.svelte';
@@ -425,7 +425,7 @@ export function createFootnoteEditor(opts: { element: HTMLElement; content: PMNo
     ],
     editorProps: {
       ...clipboardProps,
-      attributes: { class: 'prose fnprose', spellcheck: String(settings.editorSpellcheck), lang: settings.editorLang }
+      attributes: { class: 'prose fnprose', spellcheck: String(settings.editorSpellcheck), lang: textLang() }
     }
   });
 }
@@ -482,7 +482,7 @@ export function createEditor(opts: {
       attributes: {
         class: 'prose',
         spellcheck: String(settings.editorSpellcheck),
-        lang: settings.editorLang
+        lang: textLang()
       }
     },
     onUpdate: ({ editor }) => opts.onChange(JSON.stringify(editor.getJSON())),

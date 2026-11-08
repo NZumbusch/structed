@@ -18,6 +18,8 @@ export interface Project extends EntityBase {
   citationStyle?: string;
   citationLocale?: string;
   targetWords?: number;
+  /** language of the text (spell check, typed quotes); empty = the default from Settings */
+  lang?: string;
   /** Word export: title page fields (workType, module, institution, supervisor, title, author, placeDate) */
   cover?: Record<string, string>;
   /** optional motto quote on its own page after the title page */

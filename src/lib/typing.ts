@@ -5,14 +5,17 @@ import { Extension, InputRule } from '@tiptap/core';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import { Plugin, PluginKey, type EditorState } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
-import { settings } from './settings.svelte';
+import { settings, textLang } from './settings.svelte';
 
 export const NBSP = '\u00a0';
 
 /** Quote characters for typing: [open double, close double, open single, close single]. */
 export function typedQuotes(): [string, string, string, string] {
   let style: string = settings.quoteMarks;
-  if (style === 'none') style = settings.editorLang.startsWith('en') ? 'en' : settings.editorLang === 'de-CH' ? 'ch' : 'de';
+  if (style === 'none') {
+    const lang = textLang();
+    style = lang.startsWith('en') ? 'en' : lang === 'de-CH' ? 'ch' : 'de';
+  }
   if (style === 'en') return ['“', '”', '‘', '’'];
   if (style === 'ch') return ['«', '»', '‹', '›'];
   return ['„', '“', '‚', '‘'];

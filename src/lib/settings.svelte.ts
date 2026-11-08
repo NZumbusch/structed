@@ -1,3 +1,5 @@
+import { ui } from './ui.svelte';
+import { db } from './db.svelte';
 export type Theme = 'system' | 'light' | 'dark' | 'sepia';
 export type GroupBy = 'source' | 'author' | 'tag' | 'kind' | 'publication' | 'year' | 'none';
 
@@ -225,4 +227,10 @@ export function applySettings() {
       meta?.setAttribute('content', getComputedStyle(root).getPropertyValue('--bg').trim() || '#1f2430');
     });
   });
+}
+
+/** Language of the text in the open project: its own, or the default from Settings. */
+export function textLang(): string {
+  const id = ui.projectId;
+  return (id && db.get('projects', id)?.lang) || settings.editorLang;
 }

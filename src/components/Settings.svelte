@@ -34,6 +34,8 @@
     items: db.all('artifacts').length
   });
   const origin = location.origin;
+  const LANGS = [['de', 'Deutsch'], ['de-CH', 'Deutsch (Schweiz)'], ['en', 'English'], ['fr', 'Français'], ['it', 'Italiano']];
+  const openProject = $derived(ui.projectId ? db.get('projects', ui.projectId) : undefined);
 
   async function doImport(mode: 'merge' | 'replace') {
     if (mode === 'replace' && !confirm(t('Replace ALL local data with the backup? This cannot be undone.'))) return;
@@ -168,9 +170,17 @@
         <label class="chk"><input type="checkbox" bind:checked={settings.editorNbsp} />{t('Keep “S. 12”, “z. B.” and “§ 5” together at line ends (non-breaking space; Ctrl+Shift+Space inserts one)')}</label>
         <label class="field"><span>{t('Language of the text (spell check)')}</span>
           <select class="select" bind:value={settings.editorLang}>
-            {#each [['de', 'Deutsch'], ['de-CH', 'Deutsch (Schweiz)'], ['en', 'English'], ['fr', 'Français'], ['it', 'Italiano']] as [v, l] (v)}<option value={v}>{l}</option>{/each}
+            {#each LANGS as [v, l] (v)}<option value={v}>{l}</option>{/each}
           </select>
         </label>
+        {#if openProject}
+          <label class="field"><span>{t('Language of “{p}”', { p: openProject.title || t('Untitled project') })}</span>
+            <select class="select" value={openProject.lang ?? ''} onchange={(e) => db.update('projects', openProject.id, { lang: e.currentTarget.value || undefined })}>
+              <option value="">{t('As above ({l})', { l: LANGS.find((x) => x[0] === settings.editorLang)?.[1] ?? settings.editorLang })}</option>
+              {#each LANGS as [v, l] (v)}<option value={v}>{l}</option>{/each}
+            </select>
+          </label>
+        {/if}
         <h4 class="sh4">{t('Word export')}</h4>
         <label class="chk"><input type="checkbox" bind:checked={settings.exportZotero} />{t('Live Zotero citations (refresh in Word)')}</label>
         <label class="chk"><input type="checkbox" bind:checked={settings.exportCover} />{t('Title page')}</label>

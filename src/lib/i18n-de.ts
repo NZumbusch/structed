@@ -892,4 +892,6 @@ export const de: Record<string, string> = {
   'Match case': 'Groß-/Kleinschreibung beachten',
   'No results': 'Keine Treffer',
   'Previous': 'Zurück',
+  'Language of “{p}”': 'Sprache von „{p}“',
+  'As above ({l})': 'Wie oben ({l})',
 };

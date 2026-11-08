@@ -4,7 +4,7 @@
   import { db } from '../lib/db.svelte';
   import { t } from '../lib/i18n';
   import { droppable } from '../lib/dnd';
-  import { settings } from '../lib/settings.svelte';
+  import { settings, textLang } from '../lib/settings.svelte';
   import { createEditor, insertArtifact } from '../lib/editor.svelte';
   import { editorState, type InsertMode } from '../lib/editorState.svelte';
   import type { Heading } from '../lib/types';
@@ -63,7 +63,7 @@
   });
   $effect(() => {
     editor?.view.dom.setAttribute('spellcheck', String(settings.editorSpellcheck));
-    editor?.view.dom.setAttribute('lang', settings.editorLang);
+    editor?.view.dom.setAttribute('lang', textLang());
     editor?.view.dom.setAttribute('aria-label', t('Text for “{h}”', { h: h.title || t('Untitled') }));
   });
 </script>
