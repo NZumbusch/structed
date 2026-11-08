@@ -4,7 +4,7 @@
 import JSZip from 'jszip';
 import { db } from '../db.svelte';
 import { settings } from '../settings.svelte';
-import { flatten, sourcesOf } from '../ops';
+import { flatten, sectionNumber, sourcesOf } from '../ops';
 import { bibliography, secondaryPrefix } from '../cite';
 import { citeTextAsync, marks, oneLine } from '../citecache.svelte';
 import { footnoteContent } from '../footnote';
@@ -136,6 +136,7 @@ async function inline(nodes: PMNode[] | undefined, ctx: Ctx, base: string, noteI
       const m = new Set((n.marks ?? []).map((x) => x.type));
       out += run(n.text ?? '', base, { b: m.has('bold'), i: m.has('italic'), u: m.has('underline') });
     } else if (n.type === 'hardBreak') out += `<w:r>${rpr(base)}<w:br/></w:r>`;
+    else if (n.type === 'sectionRef') out += run(sectionNumber(String(n.attrs?.id)) ?? '?', base);
     else if (n.type === 'quoteRef') {
       const a = db.get('artifacts', String(n.attrs?.id));
       if (!a) continue;

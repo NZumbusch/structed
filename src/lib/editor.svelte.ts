@@ -7,7 +7,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { db } from './db.svelte';
-import { settings } from './settings.svelte';
+import { settings, textLang } from './settings.svelte';
 import { citeText, marks, oneLine, wordsOf } from './citecache.svelte';
 import { editorState, type InsertMode } from './editorState.svelte';
 import { ui, type MenuItem } from './ui.svelte';
@@ -18,6 +18,11 @@ import { Slice } from '@tiptap/pm/model';
 import type { EditorView } from '@tiptap/pm/view';
 export { editableQuote };
 import { t } from './i18n';
+import { FindHighlight, NonBreaking, SmartQuotes } from './typing';
+import { joinPdfLines } from './ocr';
+import { CrossRefKey, SectionRef } from './xref.svelte';
+import { TextComment } from './textComment';
+import { ReadabilityHints } from './hints';
 const tr = t; // where `t` is shadowed
 
 type QuoteForm = 'inline' | 'cite' | 'block' | 'footnote';
@@ -364,12 +369,25 @@ function pasteOwn(view: EditorView, e: ClipboardEvent) {
   }
 }
 const clipboardProps = {
+  // text from a PDF: join its broken lines (Ctrl+Shift+V pastes without formatting, as in Word)
+  transformPastedText: (text: string) => joinPdfLines(text),
   handleDOMEvents: {
     copy: (view: EditorView, e: Event) => copySelection(view, e as ClipboardEvent, false),
     cut: (view: EditorView, e: Event) => copySelection(view, e as ClipboardEvent, true)
   },
   handlePaste: (view: EditorView, e: ClipboardEvent) => pasteOwn(view, e)
 };
+
+/** Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y go through the shared history of all sections (Write). */
+const SharedUndo = Extension.create({
+  name: 'sharedUndo',
+  priority: 1000,
+  addKeyboardShortcuts() {
+    const undo = () => editorState.history?.undo() ?? false;
+    const redo = () => editorState.history?.redo() ?? false;
+    return { 'Mod-z': undo, 'Shift-Mod-z': redo, 'Mod-y': redo };
+  }
+});
 
 /** Marks the top-level block holding the caret with `.focus-cur` (focus mode dims the rest). */
 export const CurrentBlock = Extension.create({
@@ -417,12 +435,16 @@ export function createFootnoteEditor(opts: { element: HTMLElement; content: PMNo
       }),
       Placeholder.configure({ placeholder: opts.placeholder }),
       QuoteRef,
+      SectionRef,
+      CrossRefKey,
       AutoDash,
+      SmartQuotes,
+      NonBreaking,
       CiteTrigger
     ],
     editorProps: {
       ...clipboardProps,
-      attributes: { class: 'prose fnprose', spellcheck: String(settings.editorSpellcheck), lang: settings.editorLang }
+      attributes: { class: 'prose fnprose', spellcheck: String(settings.editorSpellcheck), lang: textLang() }
     }
   });
 }
@@ -466,9 +488,17 @@ export function createEditor(opts: {
       Placeholder.configure({ placeholder: opts.placeholder }),
       QuoteRef,
       QuoteBlock,
+      TextComment,
+      SectionRef,
+      CrossRefKey,
       Footnote,
       CurrentBlock,
+      SharedUndo,
       AutoDash,
+      SmartQuotes,
+      NonBreaking,
+      FindHighlight,
+      ReadabilityHints,
       CiteTrigger
     ],
     editorProps: {
@@ -476,7 +506,7 @@ export function createEditor(opts: {
       attributes: {
         class: 'prose',
         spellcheck: String(settings.editorSpellcheck),
-        lang: settings.editorLang
+        lang: textLang()
       }
     },
     onUpdate: ({ editor }) => opts.onChange(JSON.stringify(editor.getJSON())),
@@ -534,23 +564,19 @@ export function selectedQuotePos(editor: Editor): number | null {
   return null;
 }
 
-/** Plain text of a draft (for word counts and search). */
-export function draftText(json: string | undefined): string {
-  if (!json) return '';
-  try {
-    const out: string[] = [];
-    const walk = (n: { type?: string; text?: string; attrs?: Record<string, unknown>; content?: unknown[] }) => {
-      if (n.text) out.push(n.text);
-      if (n.type === 'quoteRef' || n.type === 'quoteBlock') {
-        const a = db.get('artifacts', String(n.attrs?.id));
-        if (a && n.attrs?.mode !== 'cite') out.push(a.text);
-      }
-      (n.content as (typeof n)[] | undefined)?.forEach(walk);
-      if (n.type === 'paragraph') out.push('\n');
-    };
-    walk(JSON.parse(json));
-    return out.join(' ');
-  } catch {
-    return '';
-  }
+export { draftText, charCount } from './draft';
+
+/** Plain text of the editor's current selection (quotes with their text), '' if nothing is selected. */
+export function selectionText(editor: Editor): string {
+  const sel = editor.state.selection;
+  // a clicked quote (node selection) is not "selected text"
+  if (sel.empty || 'node' in sel) return '';
+  const { from, to } = sel;
+  return editor.state.doc.textBetween(from, to, '\n', (n) => {
+    if (n.type.name !== 'quoteRef' && n.type.name !== 'quoteBlock') return n.type.name === 'hardBreak' ? '\n' : '';
+    const a = db.get('artifacts', String(n.attrs.id));
+    if (!a || n.attrs.mode === 'cite') return '';
+    const [l, r] = marks();
+    return l + oneLine(a.text) + r;
+  });
 }

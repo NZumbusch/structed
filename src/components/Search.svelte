@@ -4,6 +4,29 @@
   import { ui, type Stage } from '../lib/ui.svelte';
   import { t } from '../lib/i18n';
   import { artifactLabel, authorsFull, flatten, sourceLabel } from '../lib/ops';
+  import { draftText } from '../lib/draft';
+  import { wholeText } from '../lib/footnote';
+  import { copyText } from '../lib/clipboard';
+
+  /** the text is searched from this many characters on, and shows at most this many places */
+  const TEXT_MIN = 3;
+  const TEXT_MAX = 8;
+
+  /** the text as a document: Write, then the browser's print dialog (“Save as PDF” there) */
+  function printText() {
+    ui.stage = 'write';
+    ui.focus = false;
+    // wait until the sections are rendered
+    const go = (n = 0) => (document.querySelector('.compose .ProseMirror') || n > 40 ? setTimeout(() => window.print(), 150) : setTimeout(() => go(n + 1), 50));
+    go();
+  }
+
+  async function copyAll() {
+    if (!ui.projectId) return;
+    const { html, text } = wholeText(ui.projectId);
+    const ok = await copyText(text, html);
+    ui.toast(ok ? t('Whole text copied with citations and footnotes') : t('Could not copy'), { kind: ok ? 'ok' : 'error' }, 3000);
+  }
 
   interface Hit {
     icon: string;
@@ -50,12 +73,42 @@
       [t('Import sources…'), 'download', () => (ui.dialog = 'zotero')],
       [t('Snapshots'), 'history', () => (ui.dialog = 'snapshots')],
       [t('New quote'), 'quote', () => (ui.editArtifact = { kind: 'quote' })],
-      [t('New note'), 'note', () => (ui.editArtifact = { kind: 'note' })]
+      [t('New note'), 'note', () => (ui.editArtifact = { kind: 'note' })],
+      ...(ui.projectId
+        ? [
+            [t('Copy whole text with citations'), 'copy', copyAll],
+            [t('Print or save as PDF'), 'file', printText]
+          ]
+        : [])
     ] as [string, string, () => void][]) {
       const sc = score(lab, qq);
       if (sc && qq) out.push({ icon, label: lab, score: sc - 0.5, run });
     }
     if (ui.projectId) {
+      // places in the written text (phrase match)
+      if (qq.length >= TEXT_MIN) {
+        let n = 0;
+        for (const f of flatten(ui.projectId)) {
+          if (n >= TEXT_MAX) break;
+          const text = draftText(f.h.draft).replace(/\s*\n\s*/g, ' ');
+          const low = text.toLowerCase();
+          for (let i = low.indexOf(qq), nth = 0; i >= 0 && nth < 3 && n < TEXT_MAX; i = low.indexOf(qq, i + qq.length), nth++, n++) {
+            const a = Math.max(0, i - 40);
+            const snippet = (a ? '…' : '') + text.slice(a, i + qq.length + 50).trim() + (i + qq.length + 50 < text.length ? '…' : '');
+            const at = nth;
+            out.push({
+              icon: 'edit',
+              label: snippet,
+              sub: `${t('Text')} · ${f.num} ${f.h.title || t('Untitled')}`,
+              score: 2.5,
+              run: () => {
+                ui.stage = 'write';
+                ui.writeJump = { headingId: f.h.id, text: q.trim(), nth: at };
+              }
+            });
+          }
+        }
+      }
       for (const f of flatten(ui.projectId)) {
         const sc = score(f.h.title + ' ' + f.h.body, qq);
         if (sc)

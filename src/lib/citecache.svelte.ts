@@ -24,7 +24,7 @@ export function citeText(a: Artifact, opts: { style?: string; locale?: string; p
   if (!db.get('sources', a.sourceId)) return '';
   const k = key(a, style, locale, page);
   const hit = cache.get(k);
-  if (hit !== undefined) return hit;
+  if (hit !== undefined) return keepTogether(hit);
   if (!pending.has(k)) {
     pending.add(k);
     citeArtifact({ ...a, page }, { style, locale })
@@ -32,7 +32,13 @@ export function citeText(a: Artifact, opts: { style?: string; locale?: string; p
       .catch(() => cache.set(k, fallback(a, page)))
       .finally(() => pending.delete(k));
   }
-  return fallback(a, page);
+  return keepTogether(fallback(a, page));
+}
+
+/** "S. 12", "Sp. 1121", "p. 3" never break across lines (non-breaking space, unless switched off). */
+export function keepTogether(cite: string): string {
+  if (!settings.editorNbsp) return cite;
+  return cite.replace(/(^|[\s(,;\[])(S|Sp|Abs|Nr|Bd|Kap|Anm|Bl|Jg|Vol|No|p|pp|col|para|ch|Seite|Seiten|Spalte|Spalten|page|pages|column|§§?)\.? (?=[\dIVXLivxl])/g, (m, pre, ab) => `${pre}${ab}${m.endsWith('. ') ? '.' : ''}\u00a0`);
 }
 
 const fallback = (a: Artifact, page: string) => `(${shortCite({ ...a, page })})`;
@@ -41,7 +47,7 @@ const fallback = (a: Artifact, page: string) => `(${shortCite({ ...a, page })})`
 export async function citeTextAsync(a: Artifact, opts: { style?: string; locale?: string; page?: string | null } = {}) {
   const page = opts.page ?? a.page ?? '';
   if (!db.get('sources', a.sourceId)) return '';
-  return (await citeArtifact({ ...a, page }, { style: opts.style ?? settings.citationStyle, locale: opts.locale ?? settings.citationLocale }).catch(() => '')) || fallback(a, page);
+  return keepTogether((await citeArtifact({ ...a, page }, { style: opts.style ?? settings.citationStyle, locale: opts.locale ?? settings.citationLocale }).catch(() => '')) || fallback(a, page));
 }
 
 export const MARKS: Record<string, [string, string]> = { de: ['„', '“'], en: ['“', '”'], ch: ['«', '»'], none: ['', ''] };

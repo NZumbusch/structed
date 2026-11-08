@@ -3,6 +3,7 @@
 import { db } from './db.svelte';
 import { settings } from './settings.svelte';
 import { citeText, marks, oneLine } from './citecache.svelte';
+import { flatten, sectionNumber } from './ops';
 
 /** ProseMirror JSON, as stored in drafts. */
 export interface PMNode {
@@ -56,6 +57,7 @@ export function footnotePlain(content: PMNode[]): string {
     .map((n) => {
       if (n.type === 'text') return n.text ?? '';
       if (n.type === 'hardBreak') return ' ';
+      if (n.type === 'sectionRef') return sectionNumber(String(n.attrs?.id)) ?? '?';
       if (n.type === 'quoteRef') {
         const a = db.get('artifacts', String(n.attrs?.id));
         if (!a) return '';
@@ -113,6 +115,10 @@ export function toClipboard(nodes: PMNode[]): { html: string; text: string } {
         }
         html += h;
         text += n.text ?? '';
+      } else if (n.type === 'sectionRef') {
+        const num = sectionNumber(String(n.attrs?.id)) ?? '?';
+        html += esc(num);
+        text += num;
       } else if (n.type === 'hardBreak') {
         html += '<br>';
         text += '\n';
@@ -140,7 +146,11 @@ export function toClipboard(nodes: PMNode[]): { html: string; text: string } {
   const htmlParts: string[] = [];
   const textParts: string[] = [];
   const block = (b: PMNode) => {
-    if (b.type === 'paragraph') {
+    if (b.type === 'heading') {
+      const lv = Math.min(6, Number(b.attrs?.level) || 2);
+      htmlParts.push(`<h${lv}>${esc(String(b.attrs?.text ?? ''))}</h${lv}>`);
+      textParts.push(String(b.attrs?.text ?? ''));
+    } else if (b.type === 'paragraph') {
       const x = inline(b.content);
       htmlParts.push(`<p>${x.html}</p>`);
       textParts.push(x.text);
@@ -174,6 +184,22 @@ export function toClipboard(nodes: PMNode[]): { html: string; text: string } {
     text += '\n\n' + notes.map((x, i) => `${supNum(i + 1)} ${x.text}`).join('\n');
   }
   return { html, text };
+}
+
+/** The whole text of a project, section by section with numbered headings (for the clipboard). */
+export function wholeText(projectId: string): { html: string; text: string } {
+  const p = db.get('projects', projectId);
+  const nodes: PMNode[] = [];
+  if (p?.title) nodes.push({ type: 'heading', attrs: { level: 1, text: p.title } });
+  for (const f of flatten(projectId)) {
+    nodes.push({ type: 'heading', attrs: { level: Math.min(f.depth + 2, 6), text: `${f.num} ${f.h.title}`.trim() } });
+    try {
+      nodes.push(...(((f.h.draft && JSON.parse(f.h.draft).content) || []) as PMNode[]));
+    } catch {
+      /* malformed draft */
+    }
+  }
+  return toClipboard(nodes);
 }
 
 /** Ids of library items cited in any project's text. */

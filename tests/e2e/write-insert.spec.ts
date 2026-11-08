@@ -149,13 +149,13 @@ test('copying text takes the citations and footnotes along; pasting back keeps t
   await page.keyboard.press('Control+a');
   await page.keyboard.press('Control+c');
   const text = await page.evaluate(() => navigator.clipboard.readText());
-  expect(text).toBe('Memory is social (Nora, 1984, p. 12) indeed.¹\n\n¹ See (Assmann, 2011, p. 18)');
+  expect(text).toBe('Memory is social (Nora, 1984, p.\u00a012) indeed.¹\n\n¹ See (Assmann, 2011, p.\u00a018)');
   const html = await page.evaluate(async () => {
     const items = await navigator.clipboard.read();
     return items[0].types.includes('text/html') ? await (await items[0].getType('text/html')).text() : '';
   });
   expect(html).toContain('<sup>1</sup>');
-  expect(html).toContain('(Nora, 1984, p. 12)');
+  expect(html).toContain('(Nora, 1984, p.&nbsp;12)');
   // paste into the next section: the citation stays a linked citation
   const ed2 = page.locator('.compose .ProseMirror').nth(1);
   await ed2.click();

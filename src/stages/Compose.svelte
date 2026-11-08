@@ -9,12 +9,22 @@
   import FootnoteDialog from '../components/FootnoteDialog.svelte';
   import QuotePicker from '../components/QuotePicker.svelte';
   import CiteSuggest from '../components/CiteSuggest.svelte';
+  import FindBar from '../components/FindBar.svelte';
+  import { SharedHistory } from '../lib/sharedHistory';
+  import { findIn } from '../lib/typing';
+  import { footnoteContent, footnotePlain, wholeText, type PMNode } from '../lib/footnote';
+  import { pickCrossRef } from '../lib/xref.svelte';
+  import CommentCard from '../components/CommentCard.svelte';
+  import TextHistory from '../components/TextHistory.svelte';
+  import { recordVersion } from '../lib/textHistory';
+  import { hintsKey } from '../lib/hints';
+  import { copyText } from '../lib/clipboard';
   import Modal from '../components/Modal.svelte';
   import { ui } from '../lib/ui.svelte';
   import { settings } from '../lib/settings.svelte';
   import { t } from '../lib/i18n';
   import { flatten, wordCount } from '../lib/ops';
-  import { draftText, insertArtifact as insertArtifactInto, makeEditable, selectedQuotePos } from '../lib/editor.svelte';
+  import { charCount, draftText, insertArtifact as insertArtifactInto, makeEditable, selectedQuotePos, selectionText } from '../lib/editor.svelte';
   import { editorState, type InsertMode } from '../lib/editorState.svelte';
   import { matches, hint } from '../lib/shortcuts';
   import { renderMd } from '../lib/markdown';
@@ -26,17 +36,187 @@
   let tick = $state(0); // re-render toolbar state on selection changes
 
   const total = $derived(flat.reduce((n, f) => n + wordCount(draftText(f.h.draft)), 0));
+  const chars = $derived(settings.wordCountUnit === 'chars' ? flat.reduce((n, f) => n + charCount(draftText(f.h.draft)), 0) : 0);
+  /** the text selected in the active section, for "12 of 3,400 words" */
+  const selected = $derived.by(() => {
+    void tick;
+    const e = activeEditor();
+    return e && e.isFocused ? selectionText(e) : '';
+  });
+  const counter = $derived.by(() => {
+    const byChars = settings.wordCountUnit === 'chars';
+    const all = byChars ? chars : total;
+    const unit = byChars ? t('characters') : t('words');
+    if (!selected) return `${all.toLocaleString()} ${unit}`;
+    const part = byChars ? charCount(selected) : wordCount(selected);
+    return t('{part} of {all} {unit}', { part: part.toLocaleString(), all: all.toLocaleString(), unit });
+  });
+  function toggleUnit() {
+    settings.wordCountUnit = settings.wordCountUnit === 'chars' ? 'words' : 'chars';
+  }
+
+  // ---- find & replace ----
+  let finding = $state(false);
+  let findReplace = $state(false);
+  let findInitial = $state('');
+  let findBar = $state<{ focus: () => void } | null>(null);
+  function openFind(withReplace: boolean) {
+    const e = activeEditor();
+    const sel = e ? selectionText(e) : '';
+    if (withReplace) findReplace = true;
+    if (finding) {
+      findBar?.focus();
+      return;
+    }
+    findInitial = sel && !sel.includes('\n') && sel.length <= 80 ? sel : '';
+    finding = true;
+  }
+  const orderedEditors = () => flat.map((f) => editors.get(f.h.id)).filter((e): e is Editor => !!e);
   const activeEditor = () => (editorState.active ? editors.get(editorState.active.headingId) : undefined);
+
+  // one undo history for all sections (Ctrl+Z jumps to the section that changed last)
+  const history = new SharedHistory(
+    (id) => editors.get(id),
+    (_id, e) => {
+      if (!e.isFocused) e.commands.focus();
+      e.commands.scrollIntoView();
+    }
+  );
+  const undo = () => history.undo() || (cmd((e) => e.chain().focus().undo().run()), false);
+  const redo = () => history.redo() || (cmd((e) => e.chain().focus().redo().run()), false);
+  $effect(() => {
+    editorState.history = history;
+    return () => {
+      if (editorState.history === history) editorState.history = null;
+    };
+  });
+
+  // readability hints: recompute in every section when switched
+  $effect(() => {
+    void settings.writeHints;
+    untrack(() => {
+      for (const e of editors.values()) e.view.dispatch(e.state.tr.setMeta(hintsKey, true).setMeta('addToHistory', false));
+    });
+  });
+
+  // printing: the footnote texts, in order, at the end of the printed text (screen: hidden)
+  const printNotes = $derived.by(() => {
+    const out: string[] = [];
+    const walk = (n: PMNode) => {
+      if (n.type === 'footnote') out.push(footnotePlain(footnoteContent(n.attrs)));
+      n.content?.forEach(walk);
+    };
+    for (const f of flat) {
+      try {
+        if (f.h.draft) walk(JSON.parse(f.h.draft));
+      } catch {
+        /* malformed */
+      }
+    }
+    return out;
+  });
+
+  // earlier versions of a section
+  let historyOf = $state<string | null>(null);
+  const historyHeading = $derived(historyOf ? flat.find((f) => f.h.id === historyOf)?.h : undefined);
+  function restoreVersion(draft: string) {
+    const id = historyOf;
+    historyOf = null;
+    const e = id ? editors.get(id) : undefined;
+    if (!e || !id) return;
+    // keep the text as it is now as a version too, then restore (Ctrl+Z undoes it)
+    const now = JSON.stringify(e.getJSON());
+    void recordVersion(id, now, e.getText(), wordCount(e.getText()), Date.now(), true);
+    try {
+      e.chain().setContent(JSON.parse(draft)).run();
+      setTimeout(() => e.commands.focus('start'), 30); // after the dialog gave focus back
+      ui.toast(t('Earlier version restored'), { kind: 'ok', action: { label: t('Undo'), run: () => e.chain().focus().undo().run() } }, 5000);
+    } catch {
+      ui.toast(t('This version could not be read'), { kind: 'error' });
+    }
+  }
+
+  // comments on passages of the text
+  let commentCard = $state<{ start: (e: Editor) => Promise<boolean> } | null>(null);
+  let scrollTick = $state(0);
+  function comment() {
+    const e = activeEditor();
+    if (!e || e.state.selection.empty) return void ui.toast(t('Select the words you want to comment on first'), {}, 2500);
+    commentCard?.start(e);
+  }
+
+  async function copyAll() {
+    const { html, text } = wholeText(project.id);
+    const ok = await copyText(text, html);
+    ui.toast(ok ? t('Whole text copied with citations and footnotes') : t('Could not copy'), { kind: ok ? 'ok' : 'error' }, 3000);
+  }
+
+  // a place in the text chosen in the search palette: select it there
+  $effect(() => {
+    const j = ui.writeJump;
+    if (!j) return;
+    let tries = 0;
+    const go = () => {
+      const e = editors.get(j.headingId);
+      if (!e) return void (tries++ < 30 && setTimeout(go, 50));
+      ui.writeJump = null;
+      const ms = findIn(e.state.doc, j.text);
+      const m = ms[Math.min(j.nth, ms.length - 1)];
+      if (m) e.chain().focus().setTextSelection(m).scrollIntoView().run();
+      else e.commands.focus('start');
+      const sec = scroller?.querySelector<HTMLElement>(`[data-sec="${j.headingId}"]`);
+      if (!m) sec?.scrollIntoView({ block: 'start' });
+    };
+    go();
+  });
+
+  // ---- the cursor stays where you stopped writing (per project and device) ----
+  const caretKey = () => 'structed:caret:' + project.id;
+  let caretTimer: ReturnType<typeof setTimeout> | null = null;
+  function saveCaret(id: string, e: Editor) {
+    if (caretTimer) clearTimeout(caretTimer);
+    caretTimer = setTimeout(() => {
+      try {
+        localStorage.setItem(caretKey(), JSON.stringify({ id, pos: e.state.selection.head }));
+      } catch {
+        /* storage blocked */
+      }
+    }, 400);
+  }
+  let caretRestored = false;
+  function restoreCaret(id: string, e: Editor) {
+    if (caretRestored || ui.writeJump || matchMedia('(pointer: coarse)').matches) return; // phones: no keyboard popping up
+    let saved: { id: string; pos: number } | null = null;
+    try {
+      saved = JSON.parse(localStorage.getItem(caretKey()) ?? 'null');
+    } catch {
+      /* ignore */
+    }
+    if (!saved || saved.id !== id) return;
+    caretRestored = true;
+    const pos = Math.min(saved.pos, e.state.doc.content.size);
+    setTimeout(() => {
+      if (!editorState.active && !document.activeElement?.closest('input, textarea, [contenteditable="true"]')) e.commands.focus(pos, { scrollIntoView: false });
+    }, 0);
+  }
 
   function reg(id: string, e: Editor) {
     editors.set(id, e);
+    restoreCaret(id, e);
     e.on('selectionUpdate', () => {
       tick++;
+      if (e.isFocused) saveCaret(id, e);
       typewriter(e);
     });
-    e.on('transaction', () => tick++);
+    e.on('transaction', ({ transaction }) => {
+      history.track(id, e, transaction);
+      tick++;
+    });
     e.on('update', () => typewriter(e));
-    e.on('focus', () => navTarget === id && (navTarget = null));
+    e.on('focus', () => {
+      if (navTarget === id) navTarget = null;
+      history.entered(e);
+    });
   }
 
   // ---- focus mode ----
@@ -196,6 +376,7 @@
     'write.prevSection': () => gotoSection(-1),
     'write.notes': () => (focus ? (settings.focusNotes = !settings.focusNotes) : (settings.writeNotes = !settings.writeNotes)),
     'write.dim': () => onOff('Highlight current paragraph', (settings.focusDim = !settings.focusDim)),
+    'write.hints': () => onOff('Readability hints', (settings.writeHints = !settings.writeHints)),
     'write.typewriter': () => onOff('Typewriter scrolling', (settings.focusTypewriter = !settings.focusTypewriter)),
     'write.fullscreen': () => canFullscreen && toggleFullscreen(),
     'write.goal': () => (focus ? openMenu((v) => (goalOpen = v)) : ui.toast(t('Session goals are part of focus mode'), {}, 2500)),
@@ -218,6 +399,14 @@
     },
     'write.editQuote': () => cmd((e) => { const p = selectedQuotePos(e); if (p != null) makeEditable(e, p); }),
     'write.bulletList': () => cmd((e) => e.chain().focus().toggleBulletList().run()),
+    'write.orderedList': () => cmd((e) => e.chain().focus().toggleOrderedList().run()),
+    'write.find': () => openFind(false),
+    'write.replace': () => openFind(true),
+    'write.countUnit': () => toggleUnit(),
+    'write.copyAll': () => copyAll(),
+    'write.print': () => window.print(),
+    'write.history': () => editorState.active && (historyOf = editorState.active.headingId),
+    'write.comment': () => comment(),
     'write.blockquote': () => cmd((e) => e.chain().focus().toggleBlockquote().run()),
     'write.export': () => (ui.wordExport = true)
   };
@@ -225,7 +414,7 @@
   function keys(e: KeyboardEvent) {
     if (focus && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace')) typing = true;
     // the editor already handled it, or a dialog is open
-    if (e.defaultPrevented || ui.recordingShortcut || ui.dialog || ui.editArtifact || ui.editSource || ui.placeTarget || editorState.footnote || ui.wordExport) return;
+    if (e.defaultPrevented || ui.recordingShortcut || ui.dialog || ui.editArtifact || ui.editSource || ui.placeTarget || editorState.footnote || ui.wordExport || historyOf) return;
     for (const id in KEYS) {
       if (!matches(e, id)) continue;
       e.preventDefault();
@@ -245,7 +434,8 @@
   const moreMenu = $derived([
     ...MODES.map((m) => ({ label: `${t('Insert quotes as')}: ${t(m.label)}`, icon: settings.insertMode === m.id ? 'check' : m.icon, run: () => (settings.insertMode = m.id) })),
     null,
-    { label: t('Undo'), icon: 'undo', run: () => cmd((e) => e.chain().focus().undo().run()) }
+    { label: t('Undo'), icon: 'undo', run: undo },
+    { label: t('Redo'), icon: 'redo', run: redo }
   ]);
 
   // insert a quote: search, filter and sort among all quotes (remembered between uses)
@@ -277,6 +467,7 @@
   class:tw={focus && settings.focusTypewriter}
   data-tour="compose"
   bind:this={scroller}
+  onscroll={() => scrollTick++}
   use:keepScroll={'write:' + project.id}
 >
   {#if focus}
@@ -287,6 +478,7 @@
       {#if settings.writePanel}<button class="icon-btn" class:active={quotesOpen} aria-pressed={quotesOpen} title="{quotesOpen ? t('Hide quotes') : t('Show quotes')}{hint('togglePanel')}" aria-label={t('Quotes')} onclick={toggleQuotes}><Icon name="quote" size={16} /></button>{/if}
       <span class="sep"></span>
       <button class="icon-btn" class:active={settings.focusDim} aria-pressed={settings.focusDim} title="{t('Dim all but the current paragraph')}{hint('write.dim')}" aria-label={t('Highlight current paragraph')} onclick={() => (settings.focusDim = !settings.focusDim)}><Icon name="eye" size={16} /></button>
+      <button class="icon-btn" class:active={settings.writeHints} aria-pressed={settings.writeHints} title="{t('Readability hints: long sentences, repeated words')}{hint('write.hints')}" aria-label={t('Readability hints')} onclick={() => (settings.writeHints = !settings.writeHints)}><Icon name="sparkle" size={16} /></button>
       <button class="icon-btn" class:active={settings.focusTypewriter} aria-pressed={settings.focusTypewriter} title="{t('Typewriter scrolling: the current line stays in the middle')}{hint('write.typewriter')}" aria-label={t('Typewriter scrolling')} onclick={() => (settings.focusTypewriter = !settings.focusTypewriter)}><Icon name="typewriter" size={16} /></button>
       {#if canFullscreen}
         <button class="icon-btn" class:active={fullscreen} aria-pressed={fullscreen} title="{t('Full screen')}{hint('write.fullscreen')}" aria-label={t('Full screen')} onclick={toggleFullscreen}><Icon name="expand" size={16} /></button>
@@ -306,11 +498,15 @@
     <button class="icon-btn fmt" class:active={is('underline')} title="{t('Underline')} (Ctrl+U)" aria-label={t('Underline')} onclick={() => cmd((e) => e.chain().focus().toggleUnderline().run())}><u>U</u></button>
     <span class="sep"></span>
     <button class="icon-btn" class:active={is('bulletList')} title="{t('Bullet list')}{hint('write.bulletList')}" aria-label={t('Bullet list')} onclick={() => cmd((e) => e.chain().focus().toggleBulletList().run())}><Icon name="menu" size={16} /></button>
+    <button class="icon-btn" class:active={is('orderedList')} title="{t('Numbered list')}{hint('write.orderedList')}" aria-label={t('Numbered list')} onclick={() => cmd((e) => e.chain().focus().toggleOrderedList().run())}><Icon name="list-ordered" size={16} /></button>
     <button class="icon-btn" class:active={is('blockquote')} title="{t('Block quote (own text)')}{hint('write.blockquote')}" aria-label={t('Block quote (own text)')} onclick={() => cmd((e) => e.chain().focus().toggleBlockquote().run())}><Icon name="quote" size={16} /></button>
     <button class="btn sm" title="{t('Footnote')}{hint('write.footnote')}" onclick={footnote}><sup>1</sup><span class="wide-only"> {t('Footnote')}</span></button>
+    <button class="icon-btn" title="{t('Comment on the selected text')}{hint('write.comment')}" aria-label={t('Comment on the selected text')} onmousedown={(e) => e.preventDefault()} onclick={comment}><Icon name="comment" size={16} /></button>
+    <button class="icon-btn fmt" title="{t('Cross-reference to a section')}{hint('write.crossRef')}" aria-label={t('Cross-reference to a section')} onclick={() => cmd((e) => pickCrossRef(e))}>§</button>
     {#if quoteSelected()}
-      <button class="btn sm" title="{t('Turn the selected quote into editable text to shorten or adapt it; the citation stays linked')}{hint('write.editQuote')}" onclick={() => cmd((e) => { const p = selectedQuotePos(e); if (p != null) makeEditable(e, p); })}>
-        <Icon name="edit" size={14} />{t('Edit quote text')}
+      <!-- icon only: appearing must not make the toolbar longer than its row -->
+      <button class="icon-btn" title="{t('Edit quote text')}: {t('Turn the selected quote into editable text to shorten or adapt it; the citation stays linked')}{hint('write.editQuote')}" aria-label={t('Edit quote text')} onclick={() => cmd((e) => { const p = selectedQuotePos(e); if (p != null) makeEditable(e, p); })}>
+        <Icon name="edit" size={16} />
       </button>
     {/if}
     <span class="sep"></span>
@@ -321,10 +517,11 @@
       </select>
     {/if}
     <span class="grow"></span>
-    <span class="tiny muted wc">{total.toLocaleString()} {t('words')}</span>
+    <button class="tiny muted wc" title="{t('Count words or characters (with spaces)')}{hint('write.countUnit')}" onclick={toggleUnit}>{counter}</button>
     <button class="icon-btn" class:active={settings.writeNotes} aria-pressed={settings.writeNotes} title="{settings.writeNotes ? t('Hide notes') : t('Show notes')}{hint('write.notes')}" aria-label={t('Notes')} onclick={() => (settings.writeNotes = !settings.writeNotes)}><Icon name="note" size={16} /></button>
     {#if !ui.narrow}
-      <button class="icon-btn" title="{t('Undo')}" aria-label={t('Undo')} onclick={() => cmd((e) => e.chain().focus().undo().run())}><Icon name="undo" size={16} /></button>
+      <button class="icon-btn" title="{t('Undo')} (Ctrl+Z)" aria-label={t('Undo')} onclick={undo}><Icon name="undo" size={16} /></button>
+      <button class="icon-btn" title="{t('Redo')} (Ctrl+Shift+Z)" aria-label={t('Redo')} onclick={redo}><Icon name="redo" size={16} /></button>
     {/if}
     <button class="icon-btn" title="{t('Focus mode')}{hint('write.focus')}" aria-label={t('Focus mode')} onclick={enterFocus}><Icon name="focus" size={16} /></button>
     <button class="btn sm primary" title="{t('Word export')}{hint('write.export')}" onclick={() => (ui.wordExport = true)}><Icon name="file" size={14} /><span class="wide-only">{t('Word export')}</span></button>
@@ -335,6 +532,10 @@
   </div>
   {/if}
 
+  {#if finding}
+    <FindBar bind:this={findBar} editors={orderedEditors} {tick} bind:replace={findReplace} initial={findInitial} onclose={() => ((finding = false), (findReplace = false))} />
+  {/if}
+
   <article class="paper">
     <h1 class="dtitle">{project.title || t('Untitled project')}</h1>
     {#if project.subtitle}<p class="dsub">{project.subtitle}</p>{/if}
@@ -342,6 +543,7 @@
       <section class="sec d{Math.min(f.depth, 2)}" data-sec={f.h.id}>
         <svelte:element this={`h${Math.min(f.depth + 2, 4)}`} class="ht">
           <span class="hn">{f.num}</span>{f.h.title || t('Untitled')}
+          {#if !focus}<button class="icon-btn sm hist" title={t('Earlier versions of this section')} aria-label="{t('Earlier versions of this section')}: {f.h.title || t('Untitled')}" onclick={() => (historyOf = f.h.id)}><Icon name="history" size={14} /></button>{/if}
         </svelte:element>
         {#if showNotes && f.h.body.trim()}
           <!-- the gist from the outline, as a reminder of what this section should say -->
@@ -352,6 +554,12 @@
     {:else}
       <div class="empty">{t('Add headings in the Outline first – each heading becomes a section here.')}</div>
     {/each}
+    {#if printNotes.length}
+      <!-- only printed (Ctrl+P): the footnotes, numbered like the markers in the text -->
+      <ol class="print-notes" aria-hidden="true">
+        {#each printNotes as n, i (i)}<li>{n}</li>{/each}
+      </ol>
+    {/if}
   </article>
 </div>
 
@@ -363,11 +571,21 @@
     {:else}
       <span>+{sessionWords.toLocaleString()}</span>
     {/if}
-    <span class="muted">· {total.toLocaleString()} {t('words')}</span>
+    <span class="muted">· {counter}</span>
   </div>
 {/if}
 
 {#if editorState.footnote}<FootnoteDialog />{/if}
+{#if historyHeading}
+  <TextHistory
+    headingId={historyHeading.id}
+    title={historyHeading.title || t('Untitled')}
+    current={historyHeading.draft ?? ''}
+    onrestore={restoreVersion}
+    onclose={() => (historyOf = null)}
+  />
+{/if}
+<CommentCard bind:this={commentCard} editor={activeEditor} {tick} {scrollTick} />
 <CiteSuggest />
 {#if picking}
   <Modal title={t('Insert quote')} onclose={() => (picking = false)} width="980px">
@@ -386,13 +604,19 @@
     top: 0;
     z-index: 3;
     display: flex;
-    flex-wrap: wrap;
+    /* one row: a button that appears (selected quote, selection count) never pushes the text down */
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
     align-items: center;
     gap: 4px;
     padding: 6px 16px;
     background: color-mix(in srgb, var(--bg) 94%, transparent);
     backdrop-filter: blur(6px);
     border-bottom: 1px solid var(--border);
+  }
+  .bar > :global(*:not(.mode, .grow)) {
+    flex: none;
   }
   .fmt {
     font-family: var(--font-serif);
@@ -406,6 +630,8 @@
   }
   .mode {
     width: auto;
+    min-width: 0;
+    flex: 0 1 auto;
     min-height: 28px;
     height: 28px;
     padding: 0 6px;
@@ -413,6 +639,47 @@
   }
   .wc {
     margin-right: 6px;
+    padding: 2px 4px;
+    border: 0;
+    border-radius: 6px;
+    background: none;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .wc:hover {
+    color: var(--text);
+  }
+  /* readability hints */
+  .compose :global(.hint-long) {
+    text-decoration: underline dotted color-mix(in srgb, var(--warn) 70%, transparent);
+    text-underline-offset: 3px;
+  }
+  .compose :global(.hint-rep) {
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--k-paraphrase) 18%, transparent);
+  }
+  /* a passage with a comment */
+  .compose :global(.tc) {
+    background: color-mix(in srgb, var(--warn) 16%, transparent);
+    border-bottom: 2px solid color-mix(in srgb, var(--warn) 70%, transparent);
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+  .compose :global(.find-hit) {
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+  .compose :global(.find-cur) {
+    background: color-mix(in srgb, var(--accent) 55%, transparent);
+    outline: 1px solid var(--accent);
+  }
+  /* non-breaking space: a faint dot underneath, so it can be told from a normal space */
+  .compose :global(.nbsp) {
+    background: radial-gradient(circle at 50% 85%, var(--faint) 0 1px, transparent 1.5px);
+  }
+  .print-notes {
+    display: none;
   }
   .paper {
     max-width: var(--measure);
@@ -433,6 +700,21 @@
   }
   .ht {
     margin: 0 0 6px;
+  }
+  /* the history button shows on hover (always on touch screens) */
+  .hist {
+    vertical-align: middle;
+    margin-left: 4px;
+    opacity: 0;
+  }
+  .ht:hover .hist,
+  .hist:focus-visible {
+    opacity: 1;
+  }
+  @media (pointer: coarse) {
+    .hist {
+      opacity: 0.6;
+    }
   }
   :global(.compose h2.ht) {
     font-size: 1.35em;
@@ -632,9 +914,6 @@
       overflow-x: auto;
       scrollbar-width: none;
       padding: 6px 8px;
-    }
-    .bar > :global(*) {
-      flex: none;
     }
     .wc,
     .hide-xs {

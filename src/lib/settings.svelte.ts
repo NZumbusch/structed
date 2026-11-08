@@ -1,3 +1,5 @@
+import { ui } from './ui.svelte';
+import { db } from './db.svelte';
 export type Theme = 'system' | 'light' | 'dark' | 'sepia';
 export type GroupBy = 'source' | 'author' | 'tag' | 'kind' | 'publication' | 'year' | 'none';
 
@@ -58,6 +60,10 @@ export interface Settings {
   autoBlockWords: number; // inline quotes with at least this many words become block quotes (0 = off)
   editorSpellcheck: boolean;
   editorAutoDash: boolean; // " - " becomes " – " while typing
+  editorSmartQuotes: boolean; // typed " and ' become typographic quotes, ... becomes …
+  editorNbsp: boolean; // non-breaking space after "S.", "§", inside "z. B."
+  wordCountUnit: 'words' | 'chars';
+  writeHints: boolean; // readability hints: long sentences, repeated words // the counter in Write: words or characters with spaces
   editorLang: string;
   /** @deprecated merged into lineWidth (one width for every view) */
   editorWidth?: 'narrow' | 'normal' | 'wide';
@@ -138,6 +144,10 @@ const defaults: Settings = {
   autoBlockWords: 40,
   editorSpellcheck: true,
   editorAutoDash: true,
+  editorSmartQuotes: true,
+  editorNbsp: true,
+  wordCountUnit: 'words',
+  writeHints: false,
   editorLang: 'de',
   writeNotes: true,
   focusNotes: false,
@@ -219,4 +229,10 @@ export function applySettings() {
       meta?.setAttribute('content', getComputedStyle(root).getPropertyValue('--bg').trim() || '#1f2430');
     });
   });
+}
+
+/** Language of the text in the open project: its own, or the default from Settings. */
+export function textLang(): string {
+  const id = ui.projectId;
+  return (id && db.get('projects', id)?.lang) || settings.editorLang;
 }

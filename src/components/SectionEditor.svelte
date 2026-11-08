@@ -4,10 +4,12 @@
   import { db } from '../lib/db.svelte';
   import { t } from '../lib/i18n';
   import { droppable } from '../lib/dnd';
-  import { settings } from '../lib/settings.svelte';
+  import { settings, textLang } from '../lib/settings.svelte';
   import { createEditor, insertArtifact } from '../lib/editor.svelte';
   import { editorState, type InsertMode } from '../lib/editorState.svelte';
   import type { Heading } from '../lib/types';
+  import { recordVersion } from '../lib/textHistory';
+  import { wordCount } from '../lib/ops';
 
   let { h, onEditor }: { h: Heading; onEditor?: (id: string, e: Editor) => void } = $props();
   let host: HTMLDivElement;
@@ -34,6 +36,10 @@
         timer = setTimeout(() => {
           lastSaved = json;
           db.update('headings', h.id, { draft: json });
+          if (editor) {
+            const plain = editor.getText();
+            void recordVersion(h.id, json, plain, wordCount(plain));
+          }
         }, 250);
       },
       onFocus: () => (editorState.active = api())
@@ -63,7 +69,7 @@
   });
   $effect(() => {
     editor?.view.dom.setAttribute('spellcheck', String(settings.editorSpellcheck));
-    editor?.view.dom.setAttribute('lang', settings.editorLang);
+    editor?.view.dom.setAttribute('lang', textLang());
     editor?.view.dom.setAttribute('aria-label', t('Text for “{h}”', { h: h.title || t('Untitled') }));
   });
 </script>

@@ -27,6 +27,8 @@ class EditorState {
   dismissed = new WeakMap<object, number>();
 
   active: EditorApi | null = $state(null);
+  /** Write: one undo history across the sections (true = handled) */
+  history: { undo(): boolean; redo(): boolean } | null = null;
   /** footnote being edited (opened by clicking a footnote marker) */
   footnote: {
     /** free text with linked quotes and citations (inline ProseMirror JSON) */
