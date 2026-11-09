@@ -844,6 +844,7 @@ export const de: Record<string, string> = {
   'Secondary citation (quoted from another work)…': 'Sekundärzitat (zitiert nach anderem Werk)…',
   'Citation': 'Quellenangabe',
   'cited in': 'zit. nach',
+  'ibid.': 'ebd.',
   'col.': 'Sp.',
   'cols.': 'Sp.',
   'para.': 'Abs.',

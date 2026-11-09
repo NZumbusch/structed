@@ -38,8 +38,10 @@ describe('word in front of a citation', () => {
     const p = createProject('P');
     const src = db.create('sources', { csl: { id: 'S', type: 'book', title: 'T', author: [{ family: 'Assmann' }], issued: { 'date-parts': [[2011]] } }, tags: [] });
     const a = db.create('artifacts', { kind: 'quote', sourceId: src.id, text: 'Erinnerung', page: '18', tags: [] });
+    const src2 = db.create('sources', { csl: { id: 'S2', type: 'book', title: 'U', author: [{ family: 'Other' }], issued: { 'date-parts': [[2012]] } }, tags: [] });
+    const b = db.create('artifacts', { kind: 'quote', sourceId: src2.id, text: 'Anders', page: '3', tags: [] }); // another source: no "ibid."
     const note = (c: PMNode[]) => footnotePlain(c);
-    const old = [txt('Vgl. '), { type: 'quoteRef', attrs: { id: a.id, mode: 'cite' } }, txt('; s. '), { type: 'quoteRef', attrs: { id: a.id, mode: 'cite' } }];
+    const old = [txt('Vgl. '), { type: 'quoteRef', attrs: { id: a.id, mode: 'cite' } }, txt('; s. '), { type: 'quoteRef', attrs: { id: b.id, mode: 'cite' } }];
     const json = doc([txt('Vgl. '), { type: 'quoteRef', attrs: { id: a.id, mode: 'cite' } }, { type: 'footnote', attrs: { content: old } }]);
     const h = db.create('headings', { projectId: p.id, parentId: null, order: 1, title: 'H', body: '', draft: json });
     const plainBefore = note(old);
@@ -54,5 +56,12 @@ describe('word in front of a citation', () => {
     expect(toClipboard(JSON.parse(now).content)).toEqual(clipBefore);
     expect(draftText(now).split(/\s+/).filter(Boolean).length).toBe(countBefore);
     expect(migratePrefixes()).toBe(0); // only once
+  });
+  it('shows "ibid." (plus the page if it differs) for a citation right after one from the same source', () => {
+    const src = db.create('sources', { csl: { id: 'S3', type: 'book', title: 'T', author: [{ family: 'Assmann' }], issued: { 'date-parts': [[2011]] } }, tags: [] });
+    const mk = (page: string) => db.create('artifacts', { kind: 'quote', sourceId: src.id, text: 'x', page, tags: [] });
+    const [a, b] = [mk('18'), mk('20')];
+    const r = (id: string) => ({ type: 'quoteRef', attrs: { id, mode: 'cite' } });
+    expect(footnotePlain([r(a.id), txt(' '), r(a.id), txt(' '), r(b.id), txt(' und '), r(a.id)])).toBe('Assmann 2011, p. 18 ibid. ibid., p. 20 und Assmann 2011, p. 18');
   });
 });

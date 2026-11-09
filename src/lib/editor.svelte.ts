@@ -8,7 +8,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { db } from './db.svelte';
 import { settings, textLang } from './settings.svelte';
-import { citeText, marks, noteCite, oneLine, wordsOf } from './citecache.svelte';
+import { citeText, ibidCite, marks, noteCite, oneLine, prevQuoteId, wordsOf } from './citecache.svelte';
 import { editorState, type InsertMode } from './editorState.svelte';
 import { ui, type MenuItem } from './ui.svelte';
 import { longpress } from './longpress';
@@ -165,11 +165,28 @@ export const QuoteRef = Node.create<{ inNote: boolean }>({
           return '';
         }
       };
+      /** id of the quote cited right before (same source → "ebd.") */
+      const prevId = (): string | null => {
+        const pos = typeof getPos === 'function' ? getPos() : undefined;
+        if (pos == null) return null;
+        try {
+          const rp = editor.state.doc.resolve(pos);
+          const i = rp.index();
+          return prevQuoteId((k) => {
+            const n = i - k >= 0 ? rp.parent.child(i - k) : undefined;
+            return n && { type: n.type.name, text: n.text, id: n.attrs.id };
+          });
+        } catch {
+          return null;
+        }
+      };
       let before = $state<string | null>('');
-      queueMicrotask(() => (before = textBefore()));
+      let prev = $state<string | null>(null);
+      queueMicrotask(() => ((before = textBefore()), (prev = prevId())));
       const stop = live(() => {
         const { text, cite: raw, a } = quoteParts(attrs.id);
-        const cite = inNote ? noteCite(raw, attrs.mode, before ?? '') : raw;
+        const short = a ? ibidCite(a, prev, raw, before) : raw;
+        const cite = inNote ? noteCite(short, attrs.mode, before ?? '') : short;
         const pre = prefixText(attrs.prefix, before);
         dom.dataset.kind = a?.kind ?? 'missing';
         dom.replaceChildren();
@@ -191,6 +208,7 @@ export const QuoteRef = Node.create<{ inNote: boolean }>({
           if (n.type.name !== 'quoteRef') return false;
           attrs = { ...n.attrs };
           before = textBefore();
+          prev = prevId();
           return true;
         },
         destroy: () => (stop(), unmenu())

@@ -2,8 +2,10 @@
 import { SvelteMap } from 'svelte/reactivity';
 import { db } from './db.svelte';
 import { settings } from './settings.svelte';
+import { t } from './i18n';
 import { citeArtifact } from './cite';
-import { shortCite } from './ops';
+import { locatorText, shortCite } from './ops';
+import { prefixText } from './citePrefix';
 import type { Artifact } from './types';
 
 const cache = new SvelteMap<string, string>();
@@ -48,6 +50,27 @@ export async function citeTextAsync(a: Artifact, opts: { style?: string; locale?
   const page = opts.page ?? a.page ?? '';
   if (!db.get('sources', a.sourceId)) return '';
   return keepTogether((await citeArtifact({ ...a, page }, { style: opts.style ?? settings.citationStyle, locale: opts.locale ?? settings.citationLocale }).catch(() => '')) || fallback(a, page));
+}
+
+/** Id of the quote cited right before (only blank/"," /";" in between), or null. `prev(k)` = the k-th node back. */
+export function prevQuoteId(prev: (k: number) => { type: string; text?: string; id?: unknown } | undefined): string | null {
+  let n = prev(1);
+  if (n?.type === 'text' && /^[\s,;]{1,3}$/.test(n.text ?? '')) n = prev(2);
+  return n?.type === 'quoteRef' && n.id ? String(n.id) : null;
+}
+
+/**
+ * "(ebd.)" / "(ebd., S. 5)" instead of the full citation when the quote right before is from the
+ * same source. `before` = text before the citation (capital letter at the start of a note/sentence
+ * when it stands without brackets). Returns `cite` unchanged otherwise.
+ */
+export function ibidCite(a: Artifact, prevId: string | null, cite: string, before: string | null = null): string {
+  const p = prevId ? db.get('artifacts', prevId) : undefined;
+  if (!p || p.sourceId !== a.sourceId || a.original || p.original || !cite) return cite;
+  const same = (a.page ?? '').trim() === (p.page ?? '').trim() && (a.pageLabel ?? 'page') === (p.pageLabel ?? 'page');
+  if (!same && !a.page?.trim()) return cite;
+  const body = [t('ibid.'), same ? '' : locatorText(a.page, a.pageLabel)].filter(Boolean).join(', ');
+  return keepTogether(cite.startsWith('(') ? `(${body})` : (prefixText(body, before) + '').trim());
 }
 
 export const MARKS: Record<string, [string, string]> = { de: ['„', '“'], en: ['“', '”'], ch: ['«', '»'], none: ['', ''] };

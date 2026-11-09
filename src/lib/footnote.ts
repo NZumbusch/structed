@@ -2,7 +2,7 @@
 // Word export can use them without loading TipTap.
 import { db } from './db.svelte';
 import { settings } from './settings.svelte';
-import { citeText, marks, noteCite, oneLine } from './citecache.svelte';
+import { citeText, ibidCite, marks, noteCite, oneLine, prevQuoteId } from './citecache.svelte';
 import { flatten, sectionNumber } from './ops';
 import { prefixText, textBefore } from './citePrefix';
 
@@ -59,6 +59,9 @@ export function prevText(list: PMNode[], n: PMNode): string {
   return p?.type === 'text' ? (p.text ?? '') : '';
 }
 
+/** Id of the quote cited right before node `i` of an inline list. */
+const prevIdIn = (list: PMNode[], i: number) => prevQuoteId((k) => (i - k >= 0 ? { type: list[i - k].type, text: list[i - k].text, id: list[i - k].attrs?.id } : undefined));
+
 export function footnotePlain(content: PMNode[]): string {
   const [l, r] = marks();
   return content
@@ -69,8 +72,9 @@ export function footnotePlain(content: PMNode[]): string {
       if (n.type === 'quoteRef') {
         const a = db.get('artifacts', String(n.attrs?.id));
         if (!a) return '';
-        const c = noteCite(citeText(a), n.attrs?.mode, prevText(content, n));
-        const pre = prefixText(n.attrs?.prefix, textBefore(content, content.indexOf(n)));
+        const idx = content.indexOf(n);
+        const c = noteCite(ibidCite(a, prevIdIn(content, idx), citeText(a), textBefore(content, idx)), n.attrs?.mode, prevText(content, n));
+        const pre = prefixText(n.attrs?.prefix, textBefore(content, idx));
         return pre + (n.attrs?.mode === 'cite' ? c : `${l}${oneLine(a.text)}${r}${c ? ' ' + c : ''}`);
       }
       return '';
@@ -134,7 +138,8 @@ export function toClipboard(nodes: PMNode[]): { html: string; text: string } {
       } else if (n.type === 'quoteRef') {
         const a = db.get('artifacts', String(n.attrs?.id));
         if (!a) continue;
-        const c = inNote ? noteCite(citeText(a), n.attrs?.mode, text) : citeText(a);
+        const full = ibidCite(a, prevIdIn(list!, i), citeText(a), textBefore(list!, i));
+        const c = inNote ? noteCite(full, n.attrs?.mode, text) : full;
         const pre = prefixText(n.attrs?.prefix, textBefore(list!, i));
         html += esc(pre);
         text += pre;
