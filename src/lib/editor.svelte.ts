@@ -8,7 +8,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { db } from './db.svelte';
 import { settings, textLang } from './settings.svelte';
-import { citeText, marks, oneLine, wordsOf } from './citecache.svelte';
+import { citeText, marks, noteCite, oneLine, wordsOf } from './citecache.svelte';
 import { editorState, type InsertMode } from './editorState.svelte';
 import { ui, type MenuItem } from './ui.svelte';
 import { longpress } from './longpress';
@@ -104,8 +104,11 @@ function quoteParts(id: string) {
 }
 
 /** Inline linked quote ("„…“ (Autor, Jahr, S.)") or citation only. */
-export const QuoteRef = Node.create({
+export const QuoteRef = Node.create<{ inNote: boolean }>({
   name: 'quoteRef',
+  addOptions() {
+    return { inNote: false }; // true in the footnote editor: the citation is shown as in a footnote
+  },
   group: 'inline',
   inline: true,
   atom: true,
@@ -121,14 +124,28 @@ export const QuoteRef = Node.create({
     return ['span', mergeAttributes(HTMLAttributes, { 'data-quote-ref': '' })];
   },
   addNodeView() {
+    const inNote = this.options.inNote;
     return ({ node, editor, getPos }) => {
       const dom = document.createElement('span');
       dom.className = 'qref';
       const unmenu = menuEvents(dom, editor, getPos);
       dom.contentEditable = 'false';
       let attrs = $state({ ...node.attrs });
+      /** the text just before (a citation right after a quote keeps its brackets in a footnote) */
+      const textBefore = () => {
+        const pos = typeof getPos === 'function' ? getPos() : undefined;
+        if (!inNote || pos == null) return '';
+        try {
+          return editor.state.doc.textBetween(Math.max(0, pos - 3), pos, '', '\ufffc');
+        } catch {
+          return '';
+        }
+      };
+      let before = $state('');
+      queueMicrotask(() => (before = textBefore()));
       const stop = live(() => {
-        const { text, cite, a } = quoteParts(attrs.id);
+        const { text, cite: raw, a } = quoteParts(attrs.id);
+        const cite = inNote ? noteCite(raw, attrs.mode, before) : raw;
         dom.dataset.kind = a?.kind ?? 'missing';
         dom.replaceChildren();
         if (attrs.mode === 'cite') {
@@ -148,6 +165,7 @@ export const QuoteRef = Node.create({
         update(n) {
           if (n.type.name !== 'quoteRef') return false;
           attrs = { ...n.attrs };
+          before = textBefore();
           return true;
         },
         destroy: () => (stop(), unmenu())
@@ -445,7 +463,7 @@ export function createFootnoteEditor(opts: { element: HTMLElement; content: PMNo
         listItem: false
       }),
       Placeholder.configure({ placeholder: opts.placeholder }),
-      QuoteRef,
+      QuoteRef.configure({ inNote: true }),
       SectionRef,
       CrossRefKey,
       AutoDash,

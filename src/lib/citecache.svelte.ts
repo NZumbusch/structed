@@ -54,3 +54,28 @@ export const MARKS: Record<string, [string, string]> = { de: ['„', '“'], en:
 export const marks = () => MARKS[settings.quoteMarks] ?? MARKS.de;
 export const oneLine = (s: string) => s.replace(/\s*\n\s*/g, ' ').trim();
 export const wordsOf = (s: string) => (s.trim().match(/\S+/g) ?? []).length;
+
+/** "(Assmann, 2011, S. 18)" → "Assmann, 2011, S. 18" – only when the brackets enclose the whole citation. */
+export function stripParens(cite: string): string {
+  const s = cite.trim();
+  if (!s.startsWith('(') || !s.endsWith(')')) return cite;
+  let depth = 0;
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '(') depth++;
+    else if (s[i] === ')' && --depth === 0 && i < s.length - 1) return cite; // "(A) and (B)"
+  }
+  return s.slice(1, -1);
+}
+
+/**
+ * A citation as it appears in a footnote (Settings → Citations → Citations in footnotes).
+ * "cite" (default): without brackets when it stands alone ("Vgl. Assmann 2011, S. 18"), but
+ * kept right after a quote in quotation marks ("„…“ (Assmann 2011, S. 18)"). `before` is the
+ * text just before the citation.
+ */
+export function noteCite(cite: string, mode: unknown, before = ''): string {
+  const how = settings.noteParens ?? 'cite';
+  if (how === 'all') return stripParens(cite);
+  if (how === 'cite' && mode === 'cite' && !/[“”„"»«‘’‚'›‹]\s*$/.test(before)) return stripParens(cite);
+  return cite;
+}

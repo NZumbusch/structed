@@ -2,7 +2,7 @@
 // Word export can use them without loading TipTap.
 import { db } from './db.svelte';
 import { settings } from './settings.svelte';
-import { citeText, marks, oneLine } from './citecache.svelte';
+import { citeText, marks, noteCite, oneLine } from './citecache.svelte';
 import { flatten, sectionNumber } from './ops';
 
 /** ProseMirror JSON, as stored in drafts. */
@@ -51,6 +51,13 @@ export function footnoteContent(attrs: Record<string, unknown> | undefined): PMN
 }
 
 /** Footnote as plain text (tooltip, search): quotes with their citations, live. */
+/** The text of the node just before `n` in an inline list (for "is this citation right after a quote?"). */
+export function prevText(list: PMNode[], n: PMNode): string {
+  const i = list.indexOf(n);
+  const p = i > 0 ? list[i - 1] : undefined;
+  return p?.type === 'text' ? (p.text ?? '') : '';
+}
+
 export function footnotePlain(content: PMNode[]): string {
   const [l, r] = marks();
   return content
@@ -61,7 +68,7 @@ export function footnotePlain(content: PMNode[]): string {
       if (n.type === 'quoteRef') {
         const a = db.get('artifacts', String(n.attrs?.id));
         if (!a) return '';
-        const c = citeText(a);
+        const c = noteCite(citeText(a), n.attrs?.mode, prevText(content, n));
         return n.attrs?.mode === 'cite' ? c : `${l}${oneLine(a.text)}${r}${c ? ' ' + c : ''}`;
       }
       return '';
@@ -102,7 +109,7 @@ const supNum = (n: number) => String(n).split('').map((d) => SUP[+d]).join('');
 export function toClipboard(nodes: PMNode[]): { html: string; text: string } {
   const notes: { html: string; text: string }[] = [];
   const [l, r] = marks();
-  const inline = (list: PMNode[] | undefined): { html: string; text: string } => {
+  const inline = (list: PMNode[] | undefined, inNote = false): { html: string; text: string } => {
     let html = '';
     let text = '';
     for (const n of list ?? []) {
@@ -125,7 +132,7 @@ export function toClipboard(nodes: PMNode[]): { html: string; text: string } {
       } else if (n.type === 'quoteRef') {
         const a = db.get('artifacts', String(n.attrs?.id));
         if (!a) continue;
-        const c = citeText(a);
+        const c = inNote ? noteCite(citeText(a), n.attrs?.mode, text) : citeText(a);
         if (n.attrs?.mode === 'cite') {
           html += esc(c);
           text += c;
@@ -135,7 +142,7 @@ export function toClipboard(nodes: PMNode[]): { html: string; text: string } {
           text += `${l}${q}${r}${c ? ' ' + c : ''}`;
         }
       } else if (n.type === 'footnote') {
-        const body = inline(footnoteContent(n.attrs));
+        const body = inline(footnoteContent(n.attrs), true);
         notes.push(body);
         html += `<sup>${notes.length}</sup>`;
         text += supNum(notes.length);

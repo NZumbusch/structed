@@ -967,4 +967,8 @@ export const de: Record<string, string> = {
   'Repair umlauts and broken words…': 'Umlaute und zerrissene Wörter reparieren …',
   'Umlauts read as “?” and words broken apart in text from the PDF': 'Als „?“ gelesene Umlaute und zerrissene Wörter im Text aus dem PDF',
   'Repair {n} quotes': '{n} Zitate reparieren',
+  'Citations in footnotes': 'Belege in Fußnoten',
+  'Without brackets when the citation stands alone (Vgl. Assmann 2011, S. 18.)': 'Ohne Klammern, wenn der Beleg für sich steht (Vgl. Assmann 2011, S. 18.)',
+  'Always without brackets': 'Immer ohne Klammern',
+  'With brackets, as in the text': 'Mit Klammern, wie im Text',
 };

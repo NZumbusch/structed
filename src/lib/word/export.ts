@@ -6,8 +6,8 @@ import { db } from '../db.svelte';
 import { settings } from '../settings.svelte';
 import { flatten, sectionNumber, sourcesOf } from '../ops';
 import { bibliography, secondaryPrefix } from '../cite';
-import { citeTextAsync, marks, oneLine } from '../citecache.svelte';
-import { footnoteContent } from '../footnote';
+import { citeTextAsync, marks, noteCite, oneLine } from '../citecache.svelte';
+import { footnoteContent, prevText } from '../footnote';
 import type { Artifact, Project, Source } from '../types';
 import seminararbeit from './seminararbeit.json';
 
@@ -146,7 +146,8 @@ async function inline(nodes: PMNode[] | undefined, ctx: Ctx, base: string, noteI
         const [l, r] = marks();
         out += run(l, base) + run(oneLine(a.text), base, { i: settings.quoteItalic }) + run(r + (src ? ' ' : ''), base);
       }
-      if (src) out += citationField(a, await ctx.citeFormat(a), noteIndex, base, undefined, await ctx.prefix(a));
+      // in a footnote, the citation may lose its brackets (Settings → Citations)
+      if (src) out += citationField(a, noteIndex ? noteCite(await ctx.citeFormat(a), n.attrs?.mode, prevText(nodes ?? [], n)) : await ctx.citeFormat(a), noteIndex, base, undefined, await ctx.prefix(a));
     } else if (n.type === 'footnote') {
       const id = ctx.footnotes.length + 1;
       const fb = ctx.sn.footnotePPr.match(/<w:rPr>.*?<\/w:rPr>/s)?.[0] ?? '';
