@@ -12,6 +12,7 @@ export function draftText(json: string | undefined): string {
       if (n.text) out += n.text;
       else if (n.type === 'quoteRef' || n.type === 'quoteBlock') {
         const a = db.get('artifacts', String(n.attrs?.id));
+        if (typeof n.attrs?.prefix === 'string' && n.attrs.prefix) out += n.attrs.prefix + ' '; // "Vgl." counts as a word
         if (a && n.attrs?.mode !== 'cite') {
           const [l, r] = marks();
           const q = l + oneLine(a.text) + r;

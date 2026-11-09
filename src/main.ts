@@ -10,12 +10,16 @@ import { startZoteroSync, zsync } from './lib/zoterosync.svelte';
 import { startBackHandling } from './lib/back.svelte';
 import { ui } from './lib/ui.svelte';
 import { t } from './lib/i18n';
+import { migratePrefixes } from './lib/citePrefix';
 
 applySettings();
 
 // Handle for end-to-end tests and debugging from the console.
 (window as unknown as { __structed: unknown }).__structed = { db, ui, settings, createDemo, zsync };
 db.init().then(() => {
+  // once: "Vgl." etc. written in front of a citation becomes part of it (looks the same; snapshot first)
+  const moved = migratePrefixes();
+  if (moved) ui.toast(t('{n} citations: the word in front (e.g. “Vgl.”) now belongs to the citation. Everything looks as before; a snapshot was saved first.', { n: moved }), { kind: 'ok' }, 9000);
   sync.start();
   startZoteroSync();
   startBackHandling();

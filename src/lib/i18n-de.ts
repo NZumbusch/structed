@@ -971,4 +971,10 @@ export const de: Record<string, string> = {
   'Without brackets when the citation stands alone (Vgl. Assmann 2011, S. 18.)': 'Ohne Klammern, wenn der Beleg für sich steht (Vgl. Assmann 2011, S. 18.)',
   'Always without brackets': 'Immer ohne Klammern',
   'With brackets, as in the text': 'Mit Klammern, wie im Text',
+  'Before citation prefixes (automatic)': 'Vor der Umstellung der Belegzusätze (automatisch)',
+  'No word in front': 'Kein Zusatz davor',
+  'In front': 'Davor',
+  'Other word in front…': 'Anderer Zusatz …',
+  'Word in front of the citation, e.g. “vgl.”, “siehe”, “dazu”': 'Zusatz vor dem Beleg, z. B. „vgl.“, „siehe“, „dazu“',
+  '{n} citations: the word in front (e.g. “Vgl.”) now belongs to the citation. Everything looks as before; a snapshot was saved first.': '{n} Belege: Das Wort davor (z. B. „Vgl.“) gehört jetzt zum Beleg. Alles sieht aus wie vorher; vorher wurde ein Snapshot gespeichert.',
 };

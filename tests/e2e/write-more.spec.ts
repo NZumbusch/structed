@@ -270,3 +270,62 @@ test('Ctrl+A outside the text copies the whole current text', async ({ page, con
   await page.keyboard.press('Control+a');
   await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toContain('Intro text');
 });
+
+test('a word typed in front of a citation belongs to it; it can be changed in the menu', async ({ page }) => {
+  const ed = page.locator('.compose .ProseMirror').first();
+  await ed.click();
+  await page.keyboard.press('Control+Alt+f');
+  const fed = page.locator('.modal .fed .ProseMirror');
+  await expect(fed).toBeFocused();
+  await page.keyboard.type('vgl. @assmann');
+  await expect(page.locator('.cite-suggest [role="option"], [role="listbox"] [role="option"]').first()).toContainText('Assmann');
+  await page.keyboard.press('Tab');
+  // shown exactly as typed (a capital at the start of the footnote), now part of the citation
+  const ref = fed.locator('.qref');
+  await expect(ref).toHaveText('Vgl. Assmann, 2011, p. 18');
+  await expect(fed).toHaveText('Vgl. Assmann, 2011, p. 18');
+  // change it in the citation's menu
+  await ref.click({ button: 'right' });
+  await page.locator('.cmenu').getByRole('menuitem', { name: 'In front: siehe' }).click();
+  await expect(ref).toHaveText('Siehe Assmann, 2011, p. 18');
+  await ref.click({ button: 'right' });
+  await page.locator('.cmenu').getByRole('menuitem', { name: 'No word in front' }).click();
+  await expect(ref).toHaveText('Assmann, 2011, p. 18');
+  await ref.click({ button: 'right' });
+  await page.locator('.cmenu').getByRole('menuitem', { name: 'In front: vgl.' }).click();
+  await page.keyboard.press('Control+Enter');
+  // saved with the citation, and shown the same in the footnote marker's tooltip
+  await expect(ed.locator('sup.fn')).toHaveAttribute('title', 'Vgl. Assmann, 2011, p. 18');
+  await expect.poll(() => page.evaluate(() => (window as any).__structed.db.all('headings').some((h: any) => h.draft?.includes('"prefix":"vgl."')))).toBe(true);
+});
+
+test('older texts: "Vgl." in front of a citation is converted once at start, looking the same', async ({ page }) => {
+  // a text as it was stored before: "Vgl. " as plain text in front of the citation
+  const before = await page.evaluate(() => {
+    const { db, ui } = (window as any).__structed;
+    const a = db.all('artifacts').find((x: any) => x.text.startsWith('The past'));
+    const h = db.all('headings').find((x: any) => x.projectId === ui.projectId && x.title === 'Introduction');
+    const cite = { type: 'quoteRef', attrs: { id: a.id, mode: 'cite' } };
+    const draft = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'So schon früher, vgl. ' }, cite, { type: 'footnote', attrs: { content: [{ type: 'text', text: 'Vgl. ' }, cite] } }] }] };
+    db.update('headings', h.id, { draft: JSON.stringify(draft) });
+    return db.all('snapshots').length;
+  });
+  const ed = page.locator('.compose .ProseMirror').first();
+  await expect(ed).toHaveText('So schon früher, vgl. (Assmann, 2011, p. 18)');
+  const tip = await ed.locator('sup.fn').getAttribute('title');
+  await page.waitForTimeout(600);
+  await page.reload();
+  await page.waitForFunction(() => (window as any).__structed?.db?.ready);
+  await expect(page.getByText(/2 citations: the word in front/)).toBeVisible();
+  await expect(ed).toHaveText('So schon früher, vgl. (Assmann, 2011, p. 18)'); // looks the same
+  await expect(ed.locator('sup.fn')).toHaveAttribute('title', tip!);
+  const after = await page.evaluate(() => {
+    const { db, ui } = (window as any).__structed;
+    const h = db.all('headings').find((x: any) => x.projectId === ui.projectId && x.title === 'Introduction');
+    return { draft: h.draft as string, snaps: db.all('snapshots').length };
+  });
+  expect(after.draft).toContain('"prefix":"vgl."');
+  expect(after.draft).toContain('"prefix":"Vgl."');
+  expect(after.draft).toContain('"text":"So schon früher, "');
+  expect(after.snaps).toBe(before + 1);
+});

@@ -4,6 +4,7 @@ import { db } from './db.svelte';
 import { settings } from './settings.svelte';
 import { citeText, marks, noteCite, oneLine } from './citecache.svelte';
 import { flatten, sectionNumber } from './ops';
+import { prefixText, textBefore } from './citePrefix';
 
 /** ProseMirror JSON, as stored in drafts. */
 export interface PMNode {
@@ -69,7 +70,8 @@ export function footnotePlain(content: PMNode[]): string {
         const a = db.get('artifacts', String(n.attrs?.id));
         if (!a) return '';
         const c = noteCite(citeText(a), n.attrs?.mode, prevText(content, n));
-        return n.attrs?.mode === 'cite' ? c : `${l}${oneLine(a.text)}${r}${c ? ' ' + c : ''}`;
+        const pre = prefixText(n.attrs?.prefix, textBefore(content, content.indexOf(n)));
+        return pre + (n.attrs?.mode === 'cite' ? c : `${l}${oneLine(a.text)}${r}${c ? ' ' + c : ''}`);
       }
       return '';
     })
@@ -112,7 +114,7 @@ export function toClipboard(nodes: PMNode[]): { html: string; text: string } {
   const inline = (list: PMNode[] | undefined, inNote = false): { html: string; text: string } => {
     let html = '';
     let text = '';
-    for (const n of list ?? []) {
+    for (const [i, n] of (list ?? []).entries()) {
       if (n.type === 'text') {
         let h = esc(n.text ?? '');
         for (const m of n.marks ?? []) {
@@ -133,6 +135,9 @@ export function toClipboard(nodes: PMNode[]): { html: string; text: string } {
         const a = db.get('artifacts', String(n.attrs?.id));
         if (!a) continue;
         const c = inNote ? noteCite(citeText(a), n.attrs?.mode, text) : citeText(a);
+        const pre = prefixText(n.attrs?.prefix, textBefore(list!, i));
+        html += esc(pre);
+        text += pre;
         if (n.attrs?.mode === 'cite') {
           html += esc(c);
           text += c;

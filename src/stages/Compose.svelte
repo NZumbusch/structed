@@ -87,6 +87,22 @@
     }
   );
   const undo = () => history.undo() || (cmd((e) => e.chain().focus().undo().run()), false);
+  /**
+   * Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y while the cursor is not in a text (e.g. right after clicking
+   * the Redo button) still go through the sections' history, before the app's own undo.
+   */
+  function undoKeys(e: KeyboardEvent) {
+    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (k !== 'z' && k !== 'y') return;
+    const el = e.target as HTMLElement | null;
+    if (el?.closest('input, textarea, select, [contenteditable="true"]') || ui.dialog || editorState.footnote || ui.editArtifact) return;
+    const ok = k === 'y' || e.shiftKey ? history.redo() : history.undo();
+    if (ok) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
   const redo = () => history.redo() || (cmd((e) => e.chain().focus().redo().run()), false);
   $effect(() => {
     editorState.history = history;
@@ -509,6 +525,7 @@
 
 <svelte:window
   onkeydown={keys}
+  onkeydowncapture={undoKeys}
   onpointermove={(e) => e.pointerType === 'mouse' && (Math.abs(e.movementX) + Math.abs(e.movementY) > 2) && (typing = false)}
   onpointerdown={() => ((pointerDown = true), (typing = false))}
   onpointerup={() => (pointerDown = false)}

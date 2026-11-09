@@ -5,6 +5,7 @@ import { db } from '../../src/lib/db.svelte';
 import { settings } from '../../src/lib/settings.svelte';
 import { children, createProject, addChildHeading } from '../../src/lib/ops';
 import { buildWordDocument, rpr, esc } from '../../src/lib/word/export';
+import { migratePrefixes } from '../../src/lib/citePrefix';
 
 const tpl = readFileSync(process.cwd() + '/public/word/seminararbeit.docx');
 const bytes = tpl.buffer.slice(tpl.byteOffset, tpl.byteOffset + tpl.byteLength);
@@ -120,6 +121,18 @@ describe('Word export with the Seminararbeit template', () => {
     // Zotero document preferences and template styles are kept
     expect(await zip.file('docProps/custom.xml')!.async('string')).toContain('ZOTERO_PREF_1');
     expect(await zip.file('word/styles.xml')!.async('string')).toContain('STIX Two Text');
+  });
+
+  it('converting "Vgl." into the citation changes nothing in the Word document', async () => {
+    const p = setup();
+    const words = (xml: string) => [...xml.matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g)].map((m) => m[1]).join('');
+    const opts = { templateBytes: bytes, cover: false, toc: false, bibliography: false };
+    const a = await unzip(await buildWordDocument(p, opts));
+    expect(migratePrefixes()).toBeGreaterThan(0);
+    const b = await unzip(await buildWordDocument(p, opts));
+    expect(words(b.fn)).toBe(words(a.fn));
+    expect(words(b.doc)).toBe(words(a.doc));
+    expect(words(b.fn)).toContain('Vgl. ');
   });
 
   it('can export plain citations instead of Zotero fields and skip parts', async () => {
