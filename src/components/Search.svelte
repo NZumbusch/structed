@@ -74,6 +74,7 @@
       [t('Snapshots'), 'history', () => (ui.dialog = 'snapshots')],
       [t('New quote'), 'quote', () => (ui.editArtifact = { kind: 'quote' })],
       [t('New note'), 'note', () => (ui.editArtifact = { kind: 'note' })],
+      [t('Repair text from PDFs (all quotes)…'), 'sparkle', () => (ui.repairItems = db.all('artifacts').map((a) => a.id))],
       ...(ui.projectId
         ? [
             [t('Copy whole text with citations'), 'copy', copyAll],

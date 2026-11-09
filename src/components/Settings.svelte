@@ -202,6 +202,10 @@
           — {t('“Your userID for use in API calls”, then “Create new private key” with read access to the library (and notes).')}
         </p>
         <ZoteroSyncSettings />
+        <h4 class="sh4">{t('Text from PDFs')}</h4>
+        <label class="chk"><input type="checkbox" bind:checked={settings.repairAuto} />{t('Apply sure repairs right away (umlauts read as “?”, broken words); they stay marked in green')}</label>
+        <p class="small muted">{t('Repairs use a German word list (about 0.7 MB, fetched once). Words you correct by hand are remembered: {n} so far.', { n: Object.keys(settings.repairLearned ?? {}).length })}
+          {#if Object.keys(settings.repairLearned ?? {}).length}<button class="btn ghost sm" onclick={() => (settings.repairLearned = {})}>{t('Forget them')}</button>{/if}</p>
         <h4 class="sh4">{t('In Select')}</h4>
         <label class="chk"><input type="checkbox" bind:checked={settings.zoteroHighlightCounts} />{t('Show how many highlights of a source are new (not gone through yet)')}</label>
         <label class="chk"><input type="checkbox" bind:checked={settings.readingStatus} />{t('Reading status per source (to read, reading, read)')}</label>
@@ -291,6 +295,9 @@
           <a href="about.html" target="_blank" rel="noopener">{t('Homepage')}</a> ·
           <a href="privacy.html" target="_blank" rel="noopener">{t('Privacy policy')}</a> ·
           <a href="terms.html" target="_blank" rel="noopener">{t('Terms of use')}</a>
+        </p>
+        <p class="tiny muted">
+          {t('German word list for repairing PDF text:')} <a href="https://github.com/hermitdave/FrequencyWords" target="_blank" rel="noopener">FrequencyWords</a> (Hermit Dave, OpenSubtitles), <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener">CC BY-SA 4.0</a>.
         </p>
         <p class="tiny muted">{t("Version")} {__APP_VERSION__.display}{__APP_VERSION__.stable ? "" : " · " + t("development build")}</p>
       {/if}

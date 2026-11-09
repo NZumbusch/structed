@@ -64,7 +64,11 @@ export interface Settings {
   editorNbsp: boolean; // non-breaking space after "S.", "§", inside "z. B."
   wordCountUnit: 'words' | 'chars';
   writeHints: boolean;
-  writeFootnotesBelow: boolean; // Write: the footnotes listed below each section // readability hints: long sentences, repeated words // the counter in Write: words or characters with spaces
+  writeFootnotesBelow: boolean;
+  /** text from PDFs: repairs that are sure are applied right away (still shown in colour) */
+  repairAuto: boolean;
+  /** "?" words corrected by hand, repaired the same way next time */
+  repairLearned: Record<string, string>; // Write: the footnotes listed below each section // readability hints: long sentences, repeated words // the counter in Write: words or characters with spaces
   editorLang: string;
   /** @deprecated merged into lineWidth (one width for every view) */
   editorWidth?: 'narrow' | 'normal' | 'wide';
@@ -150,6 +154,8 @@ const defaults: Settings = {
   wordCountUnit: 'words',
   writeHints: false,
   writeFootnotesBelow: false,
+  repairAuto: false,
+  repairLearned: {},
   editorLang: 'de',
   writeNotes: true,
   focusNotes: false,
