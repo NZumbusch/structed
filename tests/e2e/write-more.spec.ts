@@ -243,3 +243,30 @@ test('find covers footnotes: marker highlighted, list below the section, replace
   await list.first().getByRole('button').click();
   await expect(page.locator('.modal .fed .ProseMirror')).toContainText('Zur Weihe vgl. Müller.');
 });
+
+test('Ctrl+A outside the text copies the whole current text', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium');
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.evaluate(() => ((window as any).__structed.settings.writeNotes = true));
+  const eds = page.locator('.compose .ProseMirror');
+  await eds.nth(0).click();
+  await page.keyboard.type('Intro text');
+  await page.keyboard.press('Control+Alt+f');
+  await expect(page.locator('.modal .fed .ProseMirror')).toBeFocused();
+  await page.keyboard.type('A note.');
+  await page.keyboard.press('Escape');
+  await expect(eds.nth(0)).toBeFocused();
+  await page.keyboard.type('.');
+  await page.locator('.compose .dtitle').click(); // leave the text
+  await page.keyboard.press('Control+a');
+  await expect(page.getByText('Whole text copied with citations and footnotes')).toBeVisible();
+  const text = await page.evaluate(() => navigator.clipboard.readText());
+  expect(text).toContain('1 Introduction\n\nIntro text¹.'); // typed just now: taken from the editor
+  expect(text).toContain('¹ A note.');
+  expect(text).toContain('2.1 Cultural memory');
+  expect(text).not.toContain('Sketch the starting question'); // the notes under a heading are left out
+  // inside the text, Ctrl+A still selects the paragraph's text as usual
+  await eds.nth(0).click();
+  await page.keyboard.press('Control+a');
+  await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toContain('Intro text');
+});

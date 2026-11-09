@@ -39,7 +39,7 @@ The **library panel** is available in every stage. It groups items by source, au
 - **Pasting** text from a PDF joins its broken lines and removes line-end hyphens; Ctrl+Shift+V pastes without formatting. The cursor comes back where you stopped writing (per project).
 - **Print / PDF**: Ctrl+P in Write (or “Print or save as PDF” in Ctrl+K) prints only the text as a document: black on white, numbered headings, the footnotes at the end and page numbers. Choose “Save as PDF” in the print dialog for a PDF. Comments, hints and other on-screen marks are left out.
 - **Text language per project** (Settings → Editor) for spell check and typed quotes.
-- **Search and command palette**: Ctrl+K – also finds places in the written text (from 3 characters) and can copy the whole text with headings, citations and footnotes.
+- **Search and command palette**: Ctrl+K – also finds places in the written text (from 3 characters) and can copy the whole text with headings, citations and footnotes. In Write, Ctrl+A outside a paragraph does the same: the whole current text (without the notes under the headings) goes to the clipboard.
 - **Undo** with Ctrl+Z (when no text field has focus), plus undo toasts for destructive actions.
 - **Settings**: light, dark, sepia or system theme, high contrast, accent color, text size, writing font, line width, reduced motion, and English or German.
 - **Offline and installable**: a service worker plus a manifest, so it can be installed as an app on phones, tablets and desktops.

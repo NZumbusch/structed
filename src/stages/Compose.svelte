@@ -192,7 +192,7 @@
   }
 
   async function copyAll() {
-    const { html, text } = wholeText(project.id);
+    const { html, text } = wholeText(project.id, (id) => editors.get(id)?.getJSON().content as PMNode[] | undefined);
     const ok = await copyText(text, html);
     ui.toast(ok ? t('Whole text copied with citations and footnotes') : t('Could not copy'), { kind: ok ? 'ok' : 'error' }, 3000);
   }
@@ -461,6 +461,15 @@
     if (focus && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace')) typing = true;
     // the editor already handled it, or a dialog is open
     if (e.defaultPrevented || ui.recordingShortcut || ui.dialog || ui.editArtifact || ui.editSource || ui.placeTarget || editorState.footnote || ui.wordExport || historyOf) return;
+    // Ctrl+A outside a text field: copy the whole current text (headings, footnotes; no notes)
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'a') {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el?.closest('input, textarea, select, [contenteditable="true"]')) {
+        e.preventDefault();
+        copyAll();
+        return;
+      }
+    }
     for (const id in KEYS) {
       if (!matches(e, id)) continue;
       e.preventDefault();
