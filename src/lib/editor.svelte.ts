@@ -239,12 +239,23 @@ export const Footnote = Node.create({
         if (pos == null) return;
         editorState.footnote = {
           content: footnoteContent(attrs),
-          save: (content) =>
+          // history: false while typing (autosave); the last save is one undo step
+          save: (content, history = true) =>
             editor
               .chain()
-              .command(({ tr }) => (tr.setNodeMarkup(pos, undefined, { content, before: '', quoteId: null, quoteText: null, after: '' }), true))
+              .command(({ tr }) => {
+                tr.setNodeMarkup(pos, undefined, { content, before: '', quoteId: null, quoteText: null, after: '' });
+                if (!history) tr.setMeta('addToHistory', false);
+                return true;
+              })
               .run(),
-          remove: () => editor.chain().deleteRange({ from: pos, to: pos + 1 }).run()
+          remove: () => editor.chain().deleteRange({ from: pos, to: pos + 1 }).run(),
+          // back in the text, right after the footnote marker
+          focusAfter: () => {
+            if (editor.isDestroyed) return;
+            const still = editor.state.doc.nodeAt(pos)?.type.name === 'footnote'; // (an empty new one is removed)
+            editor.chain().focus().setTextSelection(Math.min(pos + (still ? 1 : 0), editor.state.doc.content.size)).run();
+          }
         };
       };
       dom.addEventListener('click', open);

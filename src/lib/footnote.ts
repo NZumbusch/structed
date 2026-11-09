@@ -187,12 +187,17 @@ export function toClipboard(nodes: PMNode[]): { html: string; text: string } {
 }
 
 /** The whole text of a project, section by section with numbered headings (for the clipboard). */
-export function wholeText(projectId: string): { html: string; text: string } {
+export function wholeText(projectId: string, live?: (headingId: string) => PMNode[] | undefined): { html: string; text: string } {
   const p = db.get('projects', projectId);
   const nodes: PMNode[] = [];
   if (p?.title) nodes.push({ type: 'heading', attrs: { level: 1, text: p.title } });
   for (const f of flatten(projectId)) {
     nodes.push({ type: 'heading', attrs: { level: Math.min(f.depth + 2, 6), text: `${f.num} ${f.h.title}`.trim() } });
+    const now = live?.(f.h.id); // the editor's text, newer than the saved one
+    if (now) {
+      nodes.push(...now);
+      continue;
+    }
     try {
       nodes.push(...(((f.h.draft && JSON.parse(f.h.draft).content) || []) as PMNode[]));
     } catch {

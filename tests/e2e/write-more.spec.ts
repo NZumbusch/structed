@@ -174,3 +174,99 @@ test('printing shows only the text, with the footnotes at the end', async ({ pag
   await expect(page.locator('.print-notes li')).toHaveText(['A note.']);
   await expect(ed).toContainText('Printed text.');
 });
+
+test('footnotes save themselves: closing in any way keeps the text', async ({ page }) => {
+  const ed = page.locator('.compose .ProseMirror').first();
+  await ed.click();
+  await page.keyboard.type('Text.');
+  await page.keyboard.press('Control+Alt+f');
+  const fed = page.locator('.modal .fed .ProseMirror');
+  await expect(fed).toBeFocused();
+  await page.keyboard.type('Kept after Esc.');
+  // saved while typing, before the dialog is closed
+  await expect(ed.locator('sup.fn')).toHaveAttribute('title', 'Kept after Esc.');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.modal')).toHaveCount(0);
+  await expect(ed.locator('sup.fn')).toHaveAttribute('title', 'Kept after Esc.');
+  // switching to another stage while editing keeps it too
+  await ed.locator('sup.fn').click();
+  await fed.click();
+  await page.keyboard.press('End');
+  await page.keyboard.type(' And more.');
+  // closing the browser tab without closing the footnote: still saved
+  await page.waitForTimeout(1500); // footnote → section → storage
+  await page.reload();
+  await page.waitForFunction(() => (window as any).__structed?.db?.ready);
+  await expect(ed.locator('sup.fn')).toHaveAttribute('title', 'Kept after Esc. And more.');
+  // a new footnote left empty is removed again
+  await ed.click();
+  await page.keyboard.press('End');
+  await page.keyboard.press('Control+Alt+f');
+  await expect(fed).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(ed.locator('sup.fn')).toHaveCount(1);
+});
+
+test('find covers footnotes: marker highlighted, list below the section, replace inside', async ({ page }) => {
+  await page.evaluate(() => ((window as any).__structed.settings.writeFootnotesBelow = true));
+  const ed = page.locator('.compose .ProseMirror').first();
+  await ed.click();
+  await page.keyboard.type('Die Taufe');
+  await page.keyboard.press('Control+Alt+f');
+  await expect(page.locator('.modal .fed .ProseMirror')).toBeFocused();
+  await page.keyboard.type('Zur Taufe vgl. Müller.');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.modal')).toHaveCount(0);
+  await expect(ed).toBeFocused(); // back in the text, after the footnote
+  await page.keyboard.type(' ist alt.');
+  // the footnote is listed below its section
+  const list = page.locator('.compose .sec').first().locator('.sec-notes li');
+  await expect(list).toHaveText(['Zur Taufe vgl. Müller.']);
+  await page.keyboard.press('Control+f');
+  await page.getByRole('textbox', { name: 'Find in the text' }).fill('Taufe');
+  await expect(page.locator('.find .count')).toHaveText('1/2'); // text first, then the footnote
+  await expect(ed.locator('sup.fn.find-fn')).toHaveCount(1);
+  await expect(list.locator('mark')).toHaveText('Taufe');
+  await page.getByRole('textbox', { name: 'Find in the text' }).press('Enter');
+  await expect(page.locator('.find .count')).toHaveText('2/2');
+  await expect(ed.locator('sup.fn.find-fn.find-cur')).toHaveCount(1);
+  await expect(list.first()).toHaveClass(/cur/);
+  // replace inside the footnote
+  await page.getByRole('button', { name: 'Replace', exact: true }).first().click();
+  const r = page.getByRole('textbox', { name: 'Replace with' });
+  await r.fill('Weihe');
+  await r.press('Enter');
+  await expect(list).toHaveText(['Zur Weihe vgl. Müller.']);
+  await expect(ed).toHaveText('Die Taufe ist alt.');
+  // clicking the listed footnote opens it
+  await page.keyboard.press('Escape');
+  await list.first().getByRole('button').click();
+  await expect(page.locator('.modal .fed .ProseMirror')).toContainText('Zur Weihe vgl. Müller.');
+});
+
+test('Ctrl+A outside the text copies the whole current text', async ({ page, context, browserName }) => {
+  test.skip(browserName !== 'chromium');
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.evaluate(() => ((window as any).__structed.settings.writeNotes = true));
+  const eds = page.locator('.compose .ProseMirror');
+  await eds.nth(0).click();
+  await page.keyboard.type('Intro text');
+  await page.keyboard.press('Control+Alt+f');
+  await expect(page.locator('.modal .fed .ProseMirror')).toBeFocused();
+  await page.keyboard.type('A note.');
+  await page.keyboard.press('Escape');
+  await expect(eds.nth(0)).toBeFocused();
+  await page.keyboard.type('.');
+  await page.locator('.compose .dtitle').click(); // leave the text
+  await page.keyboard.press('Control+a');
+  await expect(page.getByText('Whole text copied with citations and footnotes')).toBeVisible();
+  const text = await page.evaluate(() => navigator.clipboard.readText());
+  expect(text).toContain('1 Introduction\n\nIntro text¹.'); // typed just now: taken from the editor
+  expect(text).toContain('¹ A note.');
+  expect(text).toContain('2.1 Cultural memory');
+  expect(text).not.toContain('Sketch the starting question'); // the notes under a heading are left out
+  // inside the text, Ctrl+A still selects the paragraph's text as usual
+  await eds.nth(0).click();
+  await page.keyboard.press('Control+a');
+  await expect.poll(() => page.evaluate(() => window.getSelection()?.toString())).toContain('Intro text');
+});

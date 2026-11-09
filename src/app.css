@@ -581,6 +581,16 @@ body.dnd-active {
   }
   .compose sup.fn {
     color: #000;
+    background: none !important;
+    outline: 0 !important;
+  }
+  /* footnotes printed below their sections instead (setting) */
+  .compose.fnbelow .print-notes {
+    display: none !important;
+  }
+  .compose .sec-notes mark,
+  .compose .sec-notes li.cur {
+    background: none !important;
   }
   .compose .print-notes {
     display: block !important;

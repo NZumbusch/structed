@@ -60,8 +60,12 @@
   let findReplace = $state(false);
   let findInitial = $state('');
   let findBar = $state<{ focus: () => void } | null>(null);
+  let findQuery = $state('');
+  let findCase = $state(false);
+  let findActive = $state<{ editor: Editor; pos: number } | null>(null);
   function openFind(withReplace: boolean) {
     const e = activeEditor();
+    if (e) syncSelection(e);
     const sel = e ? selectionText(e) : '';
     if (withReplace) findReplace = true;
     if (finding) {
@@ -116,6 +120,45 @@
     return out;
   });
 
+  // the footnotes below each section (setting), numbered on through the whole text
+  type SecNote = { n: number; pos: number; text: string };
+  const sectionNotes = $derived.by(() => {
+    void tick;
+    const out = new Map<string, SecNote[]>();
+    if (!settings.writeFootnotesBelow) return out;
+    let n = 0;
+    for (const f of flat) {
+      const e = editors.get(f.h.id);
+      const list: SecNote[] = [];
+      e?.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'footnote') list.push({ n: ++n, pos, text: footnotePlain(footnoteContent(node.attrs)) });
+      });
+      out.set(f.h.id, list);
+    }
+    return out;
+  });
+  function openNote(id: string, pos: number) {
+    const dom = editors.get(id)?.view.nodeDOM(pos);
+    if (dom instanceof HTMLElement) dom.click();
+  }
+  /** the footnote text with the find bar's hits marked */
+  function noteParts(text: string): { hit: boolean; s: string }[] {
+    const q = findQuery;
+    if (!finding || !q) return [{ hit: false, s: text }];
+    const hay = findCase ? text : text.toLowerCase();
+    const needle = findCase ? q : q.toLowerCase();
+    if (hay.length !== text.length) return [{ hit: false, s: text }];
+    const out: { hit: boolean; s: string }[] = [];
+    let i = 0;
+    for (let j = hay.indexOf(needle); j >= 0; j = hay.indexOf(needle, j + needle.length)) {
+      if (j > i) out.push({ hit: false, s: text.slice(i, j) });
+      out.push({ hit: true, s: text.slice(j, j + needle.length) });
+      i = j + needle.length;
+    }
+    if (i < text.length) out.push({ hit: false, s: text.slice(i) });
+    return out;
+  }
+
   // earlier versions of a section
   let historyOf = $state<string | null>(null);
   const historyHeading = $derived(historyOf ? flat.find((f) => f.h.id === historyOf)?.h : undefined);
@@ -139,14 +182,17 @@
   // comments on passages of the text
   let commentCard = $state<{ start: (e: Editor) => Promise<boolean> } | null>(null);
   let scrollTick = $state(0);
+  /** the editor reads a keyboard selection a moment later: take the current one now */
+  const syncSelection = (e: Editor) => (e.view as unknown as { domObserver?: { flush?: () => void } }).domObserver?.flush?.();
   function comment() {
     const e = activeEditor();
+    if (e) syncSelection(e);
     if (!e || e.state.selection.empty) return void ui.toast(t('Select the words you want to comment on first'), {}, 2500);
     commentCard?.start(e);
   }
 
   async function copyAll() {
-    const { html, text } = wholeText(project.id);
+    const { html, text } = wholeText(project.id, (id) => editors.get(id)?.getJSON().content as PMNode[] | undefined);
     const ok = await copyText(text, html);
     ui.toast(ok ? t('Whole text copied with citations and footnotes') : t('Could not copy'), { kind: ok ? 'ok' : 'error' }, 3000);
   }
@@ -415,6 +461,15 @@
     if (focus && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace')) typing = true;
     // the editor already handled it, or a dialog is open
     if (e.defaultPrevented || ui.recordingShortcut || ui.dialog || ui.editArtifact || ui.editSource || ui.placeTarget || editorState.footnote || ui.wordExport || historyOf) return;
+    // Ctrl+A outside a text field: copy the whole current text (headings, footnotes; no notes)
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'a') {
+      const el = document.activeElement as HTMLElement | null;
+      if (!el?.closest('input, textarea, select, [contenteditable="true"]')) {
+        e.preventDefault();
+        copyAll();
+        return;
+      }
+    }
     for (const id in KEYS) {
       if (!matches(e, id)) continue;
       e.preventDefault();
@@ -462,6 +517,7 @@
 
 <div
   class="compose scroll"
+  class:fnbelow={settings.writeFootnotesBelow}
   class:focus
   class:dim={focus && settings.focusDim}
   class:tw={focus && settings.focusTypewriter}
@@ -533,7 +589,7 @@
   {/if}
 
   {#if finding}
-    <FindBar bind:this={findBar} editors={orderedEditors} {tick} bind:replace={findReplace} initial={findInitial} onclose={() => ((finding = false), (findReplace = false))} />
+    <FindBar bind:this={findBar} editors={orderedEditors} {tick} bind:replace={findReplace} bind:query={findQuery} bind:caseSensitive={findCase} bind:active={findActive} initial={findInitial} onclose={() => ((finding = false), (findReplace = false))} />
   {/if}
 
   <article class="paper">
@@ -550,6 +606,19 @@
           <div class="gist md small muted">{@html renderMd(f.h.body)}</div>
         {/if}
         <SectionEditor h={f.h} onEditor={reg} />
+        {#if sectionNotes.get(f.h.id)?.length}
+          {@const notes = sectionNotes.get(f.h.id)!}
+          <ol class="sec-notes" start={notes[0].n} aria-label={t('Footnotes of this section')}>
+            {#each notes as fnote (fnote.pos)}
+              <li class:cur={findActive && findActive.editor === editors.get(f.h.id) && findActive.pos === fnote.pos}>
+                <button class="note-btn" title={t('Edit footnote')} onclick={() => openNote(f.h.id, fnote.pos)}>
+                  {#each noteParts(fnote.text) as part, k (k)}{#if part.hit}<mark>{part.s}</mark>{:else}{part.s}{/if}{/each}
+                  {#if !fnote.text}<span class="muted">{t('(empty)')}</span>{/if}
+                </button>
+              </li>
+            {/each}
+          </ol>
+        {/if}
       </section>
     {:else}
       <div class="empty">{t('Add headings in the Outline first – each heading becomes a section here.')}</div>
@@ -680,6 +749,59 @@
   }
   .print-notes {
     display: none;
+  }
+  /* footnotes below their section (setting) */
+  .sec-notes {
+    margin: 4px 0 0;
+    padding: 6px 0 0 1.6em;
+    border-top: 1px solid var(--border);
+    font-size: 0.85em;
+    line-height: 1.45;
+    color: var(--muted);
+  }
+  .sec-notes li {
+    margin: 0 0 2px;
+    padding-left: 2px;
+    border-radius: 4px;
+  }
+  .sec-notes li::marker {
+    color: var(--accent-text);
+    font-weight: 600;
+  }
+  .note-btn {
+    all: unset;
+    display: inline;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+  }
+  .note-btn:hover {
+    color: var(--text);
+  }
+  .note-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+  .sec-notes mark {
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--accent) 25%, transparent);
+    color: inherit;
+  }
+  .sec-notes li.cur {
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+  .sec-notes li.cur mark {
+    background: color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+  /* a footnote marker with a find hit inside */
+  .compose :global(sup.fn.find-fn) {
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--danger) 22%, transparent);
+    color: var(--danger);
+    outline: 1px solid color-mix(in srgb, var(--danger) 60%, transparent);
+  }
+  .compose :global(sup.fn.find-fn.find-cur) {
+    background: var(--danger);
+    color: var(--bg);
   }
   .paper {
     max-width: var(--measure);

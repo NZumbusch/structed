@@ -46,31 +46,67 @@
     return !!editor && selectedQuotePos(editor) != null;
   };
 
+  // the footnote saves itself while you type, like everything else in the app;
+  // closing it in any way keeps what was written
+  const original = JSON.stringify(fn.content);
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let closed = false;
+  const current = () => (editor ? footnoteEditorContent(editor) : fn.content);
+
   onMount(() => {
     editor = createFootnoteEditor({ element: host, content: fn.content, placeholder: t('Text, quotes and citations, e.g. “Vgl. …; ferner …”') });
     editor.on('transaction', () => tick++);
+    editor.on('update', () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        fn.save(current(), false);
+      }, 300);
+    });
     // focus at once, so the first keys typed land in the footnote
     editor.view.focus();
     editor.commands.focus('end');
-    return () => editor?.destroy();
+    return () => {
+      finish(); // e.g. switching to another stage
+      editor?.destroy();
+    };
   });
 
-  function close() {
-    editorState.footnote = null;
+  /** final save: one undo step from the footnote as it was to the footnote as it is */
+  function finish() {
+    if (closed) return;
+    closed = true;
+    if (timer) clearTimeout(timer);
+    const now = current();
+    const json = JSON.stringify(now);
+    try {
+      if (!now.length && original === '[]') fn.remove(); // a new footnote left empty
+      else if (json === original) fn.save(fn.content, false);
+      else {
+        fn.save(fn.content, false);
+        fn.save(now, true);
+      }
+    } catch {
+      /* the text was closed first */
+    }
   }
-  function save() {
-    if (editor) fn.save(footnoteEditorContent(editor));
-    close();
+
+  function close() {
+    finish();
+    editorState.footnote = null;
+    setTimeout(() => fn.focusAfter?.(), 0); // after the dialog has gone, keep writing
   }
   function remove() {
+    if (timer) clearTimeout(timer);
+    closed = true;
     fn.remove();
-    close();
+    editorState.footnote = null;
   }
   function key(e: KeyboardEvent) {
     // (in the quote search, Ctrl+Enter means "insert and keep it open")
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !(e.target as HTMLElement).closest('.qp')) {
       e.preventDefault();
-      save();
+      close();
     }
   }
 </script>
@@ -105,9 +141,8 @@
   </div>
   {#snippet footer()}
     <button class="btn danger" onclick={remove}><Icon name="trash" size={14} />{t('Delete footnote')}</button>
-    <span class="grow"></span>
-    <button class="btn" onclick={close}>{t('Cancel')}</button>
-    <button class="btn primary" onclick={save} title="Ctrl+Enter">{t('Save')}</button>
+    <span class="grow tiny muted saved">{t('Saved automatically')}</span>
+    <button class="btn primary" onclick={close} title="Ctrl+Enter / Esc">{t('Done')}</button>
   {/snippet}
 </Modal>
 

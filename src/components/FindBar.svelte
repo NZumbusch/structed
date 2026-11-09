@@ -6,19 +6,21 @@
   import Icon from './Icon.svelte';
   import { t } from '../lib/i18n';
   import { ui } from '../lib/ui.svelte';
-  import { findIn, findKey, type Match } from '../lib/typing';
+  import { findIn, findKey, replaceMatch, sameMatch, type Match } from '../lib/typing';
 
   let {
     editors,
     tick,
     replace = $bindable(false),
     initial = '',
+    query = $bindable(''),
+    caseSensitive = $bindable(false),
+    active = $bindable<{ editor: Editor; pos: number } | null>(null),
     onclose
-  }: { editors: () => Editor[]; tick: number; replace?: boolean; initial?: string; onclose: () => void } = $props();
+  }: { editors: () => Editor[]; tick: number; replace?: boolean; initial?: string; query?: string; caseSensitive?: boolean; active?: { editor: Editor; pos: number } | null; onclose: () => void } = $props();
 
-  let query = $state(untrack(() => initial));
+  query = untrack(() => initial);
   let replacement = $state('');
-  let caseSensitive = $state(false);
   let idx = $state(0);
   let input: HTMLInputElement;
 
@@ -37,11 +39,17 @@
     untrack(() => {
       for (const e of editors()) {
         const st = findKey.getState(e.state);
-        const current = c && c.editor === e ? { from: c.from, to: c.to } : null;
-        if (st && st.query === q && st.caseSensitive === cs && st.current?.from === current?.from && st.current?.to === current?.to) continue;
+        const current: Match | null = c && c.editor === e ? { from: c.from, to: c.to, fn: c.fn } : null;
+        if (st && st.query === q && st.caseSensitive === cs && (sameMatch(st.current, current) || (!st.current && !current))) continue;
         e.view.dispatch(e.state.tr.setMeta(findKey, { query: q, caseSensitive: cs, current }).setMeta('addToHistory', false));
       }
     });
+  });
+
+  // the footnote holding the current hit (for the list of footnotes below a section)
+  $effect(() => {
+    const c = cur;
+    active = c?.fn ? { editor: c.editor, pos: c.from } : null;
   });
 
   function reveal() {
@@ -65,7 +73,7 @@
   function replaceOne() {
     const c = cur;
     if (!c) return;
-    c.editor.view.dispatch(c.editor.state.tr.insertText(replacement, c.from, c.to));
+    c.editor.view.dispatch(replaceMatch(c.editor.state.tr, c, replacement));
     // idx now points at the next match
     reveal();
   }
@@ -75,7 +83,7 @@
       const ms = findIn(e.state.doc, query, caseSensitive);
       if (!ms.length) continue;
       const tr = e.state.tr;
-      for (const m of [...ms].reverse()) tr.insertText(replacement, m.from, m.to);
+      for (const m of [...ms].reverse()) replaceMatch(tr, m, replacement);
       e.view.dispatch(tr);
       n += ms.length;
     }
@@ -85,9 +93,11 @@
   function close() {
     const c = cur;
     for (const e of editors()) e.view.dispatch(e.state.tr.setMeta(findKey, { query: '', caseSensitive: false, current: null }).setMeta('addToHistory', false));
+    query = '';
+    active = null;
     onclose();
     // continue writing at the match
-    if (c) c.editor.chain().focus().setTextSelection({ from: c.from, to: c.to }).run();
+    if (c) c.editor.chain().focus().setTextSelection(c.fn ? c.to : { from: c.from, to: c.to }).run();
   }
 
   function keys(e: KeyboardEvent) {
