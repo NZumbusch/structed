@@ -206,3 +206,40 @@ test('footnotes save themselves: closing in any way keeps the text', async ({ pa
   await page.keyboard.press('Escape');
   await expect(ed.locator('sup.fn')).toHaveCount(1);
 });
+
+test('find covers footnotes: marker highlighted, list below the section, replace inside', async ({ page }) => {
+  await page.evaluate(() => ((window as any).__structed.settings.writeFootnotesBelow = true));
+  const ed = page.locator('.compose .ProseMirror').first();
+  await ed.click();
+  await page.keyboard.type('Die Taufe');
+  await page.keyboard.press('Control+Alt+f');
+  await expect(page.locator('.modal .fed .ProseMirror')).toBeFocused();
+  await page.keyboard.type('Zur Taufe vgl. Müller.');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.modal')).toHaveCount(0);
+  await expect(ed).toBeFocused(); // back in the text, after the footnote
+  await page.keyboard.type(' ist alt.');
+  // the footnote is listed below its section
+  const list = page.locator('.compose .sec').first().locator('.sec-notes li');
+  await expect(list).toHaveText(['Zur Taufe vgl. Müller.']);
+  await page.keyboard.press('Control+f');
+  await page.getByRole('textbox', { name: 'Find in the text' }).fill('Taufe');
+  await expect(page.locator('.find .count')).toHaveText('1/2'); // text first, then the footnote
+  await expect(ed.locator('sup.fn.find-fn')).toHaveCount(1);
+  await expect(list.locator('mark')).toHaveText('Taufe');
+  await page.getByRole('textbox', { name: 'Find in the text' }).press('Enter');
+  await expect(page.locator('.find .count')).toHaveText('2/2');
+  await expect(ed.locator('sup.fn.find-fn.find-cur')).toHaveCount(1);
+  await expect(list.first()).toHaveClass(/cur/);
+  // replace inside the footnote
+  await page.getByRole('button', { name: 'Replace', exact: true }).first().click();
+  const r = page.getByRole('textbox', { name: 'Replace with' });
+  await r.fill('Weihe');
+  await r.press('Enter');
+  await expect(list).toHaveText(['Zur Weihe vgl. Müller.']);
+  await expect(ed).toHaveText('Die Taufe ist alt.');
+  // clicking the listed footnote opens it
+  await page.keyboard.press('Escape');
+  await list.first().getByRole('button').click();
+  await expect(page.locator('.modal .fed .ProseMirror')).toContainText('Zur Weihe vgl. Müller.');
+});

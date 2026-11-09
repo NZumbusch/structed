@@ -249,7 +249,13 @@ export const Footnote = Node.create({
                 return true;
               })
               .run(),
-          remove: () => editor.chain().deleteRange({ from: pos, to: pos + 1 }).run()
+          remove: () => editor.chain().deleteRange({ from: pos, to: pos + 1 }).run(),
+          // back in the text, right after the footnote marker
+          focusAfter: () => {
+            if (editor.isDestroyed) return;
+            const still = editor.state.doc.nodeAt(pos)?.type.name === 'footnote'; // (an empty new one is removed)
+            editor.chain().focus().setTextSelection(Math.min(pos + (still ? 1 : 0), editor.state.doc.content.size)).run();
+          }
         };
       };
       dom.addEventListener('click', open);

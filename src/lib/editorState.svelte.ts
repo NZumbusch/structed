@@ -36,6 +36,8 @@ class EditorState {
     /** history: false = not an undo step of its own (autosave while typing) */
     save: (content: import('./footnote').PMNode[], history?: boolean) => void;
     remove: () => void;
+    /** put the cursor back in the text after the footnote */
+    focusAfter?: () => void;
   } | null = $state(null);
 }
 export const editorState = new EditorState();

@@ -77,3 +77,35 @@ describe('pasting text from a PDF', () => {
     expect(joinPdfLines(sentences)).toBe(sentences);
   });
 });
+
+import { replaceInFootnote, replaceMatch } from '../../src/lib/typing';
+import { EditorState } from '@tiptap/pm/state';
+describe('find in footnotes', () => {
+  const fs = new Schema({
+    nodes: {
+      doc: { content: 'block+' },
+      paragraph: { group: 'block', content: 'inline*' },
+      text: { group: 'inline' },
+      footnote: { group: 'inline', inline: true, atom: true, attrs: { content: { default: null }, before: { default: '' }, quoteId: { default: null }, quoteText: { default: null }, after: { default: '' } } }
+    }
+  });
+  const fnNode = (text: string) => fs.node('footnote', { content: [{ type: 'text', text }] });
+  const d = fs.node('doc', null, [fs.node('paragraph', null, [fs.text('Taufe vorn '), fnNode('Zur Taufe und Taufe'), fs.text(' Taufe hinten')])]);
+  it('finds hits in footnotes in reading order', () => {
+    const ms = findIn(d, 'taufe');
+    expect(ms.map((m) => (m.fn ? `fn${m.fn.start}` : d.textBetween(m.from, m.to)))).toEqual(['Taufe', 'fn4', 'fn14', 'Taufe']);
+  });
+  it('replaces inside a footnote, and all at once', () => {
+    let st = EditorState.create({ doc: d });
+    const ms = findIn(st.doc, 'Taufe', true);
+    const tr = st.tr;
+    for (const m of [...ms].reverse()) replaceMatch(tr, m, 'Weihe');
+    st = st.apply(tr);
+    expect(st.doc.textContent).toBe('Weihe vorn  Weihe hinten');
+    expect(st.doc.firstChild!.child(1).attrs.content).toEqual([{ type: 'text', text: 'Zur Weihe und Weihe' }]);
+  });
+  it('keeps the formatting of the first character and drops emptied text', () => {
+    const c = [{ type: 'text', text: 'ab' }, { type: 'text', text: 'cd', marks: [{ type: 'bold' }] }];
+    expect(replaceInFootnote(c, 1, 3, 'X')).toEqual([{ type: 'text', text: 'aX' }, { type: 'text', text: 'd', marks: [{ type: 'bold' }] }]);
+  });
+});

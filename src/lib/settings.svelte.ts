@@ -63,7 +63,8 @@ export interface Settings {
   editorSmartQuotes: boolean; // typed " and ' become typographic quotes, ... becomes …
   editorNbsp: boolean; // non-breaking space after "S.", "§", inside "z. B."
   wordCountUnit: 'words' | 'chars';
-  writeHints: boolean; // readability hints: long sentences, repeated words // the counter in Write: words or characters with spaces
+  writeHints: boolean;
+  writeFootnotesBelow: boolean; // Write: the footnotes listed below each section // readability hints: long sentences, repeated words // the counter in Write: words or characters with spaces
   editorLang: string;
   /** @deprecated merged into lineWidth (one width for every view) */
   editorWidth?: 'narrow' | 'normal' | 'wide';
@@ -148,6 +149,7 @@ const defaults: Settings = {
   editorNbsp: true,
   wordCountUnit: 'words',
   writeHints: false,
+  writeFootnotesBelow: false,
   editorLang: 'de',
   writeNotes: true,
   focusNotes: false,

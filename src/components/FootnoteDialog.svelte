@@ -94,6 +94,7 @@
   function close() {
     finish();
     editorState.footnote = null;
+    setTimeout(() => fn.focusAfter?.(), 0); // after the dialog has gone, keep writing
   }
   function remove() {
     if (timer) clearTimeout(timer);

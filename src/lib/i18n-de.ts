@@ -928,4 +928,8 @@ export const de: Record<string, string> = {
   'Readability hints': 'Lesbarkeitshinweise',
   'Print or save as PDF': 'Drucken oder als PDF speichern',
   'Saved automatically': 'Wird automatisch gespeichert',
+  'Show the footnotes in Write below each section, in order': 'Fußnoten beim Schreiben unter jedem Abschnitt anzeigen, der Reihe nach',
+  'Footnotes of this section': 'Fußnoten dieses Abschnitts',
+  'Edit footnote': 'Fußnote bearbeiten',
+  '(empty)': '(leer)',
 };
