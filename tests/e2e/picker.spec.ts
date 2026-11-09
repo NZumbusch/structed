@@ -106,5 +106,5 @@ test('the footnote dialog uses the same search', async ({ page }) => {
   await dlg.getByLabel('Search quotes').press('Escape');
   await expect(dlg.getByRole('listbox')).toHaveCount(0);
   await expect(dlg.locator('h2')).toHaveText('Footnote');
-  await expect(dlg.locator('.fed')).toContainText('Vgl. (Halbwachs, 1925, p. 42); ferner');
+  await expect(dlg.locator('.fed')).toContainText('Vgl. Halbwachs, 1925, p. 42; ferner');
 });

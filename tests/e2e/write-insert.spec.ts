@@ -126,7 +126,7 @@ test('@ in the text suggests citations and inserts (Name, year, page)', async ({
   await page.keyboard.type('Vgl. @assmann');
   await expect(box.getByRole('option').first()).toContainText('Assmann');
   await page.keyboard.press('Tab');
-  await expect(fed).toContainText('Vgl. (Assmann, 2011, p. 18)');
+  await expect(fed).toContainText('Vgl. Assmann, 2011, p. 18');
   await expect(page.locator('.modal h2')).toHaveText('Footnote'); // the dialog stayed
 });
 
@@ -149,7 +149,7 @@ test('copying text takes the citations and footnotes along; pasting back keeps t
   await page.keyboard.press('Control+a');
   await page.keyboard.press('Control+c');
   const text = await page.evaluate(() => navigator.clipboard.readText());
-  expect(text).toBe('Memory is social (Nora, 1984, p.\u00a012) indeed.¹\n\n¹ See (Assmann, 2011, p.\u00a018)');
+  expect(text).toBe('Memory is social (Nora, 1984, p.\u00a012) indeed.¹\n\n¹ See Assmann, 2011, p.\u00a018'); // in a footnote, a citation alone has no brackets
   const html = await page.evaluate(async () => {
     const items = await navigator.clipboard.read();
     return items[0].types.includes('text/html') ? await (await items[0].getType('text/html')).text() : '';

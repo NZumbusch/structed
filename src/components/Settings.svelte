@@ -134,6 +134,13 @@
           </select>
         </label>
         <p class="small muted">{t('Used for “Copy with citation”, reference previews and exports.')}</p>
+        <label class="field"><span>{t('Citations in footnotes')}</span>
+          <select class="select" bind:value={settings.noteParens}>
+            <option value="cite">{t('Without brackets when the citation stands alone (Vgl. Assmann 2011, S. 18.)')}</option>
+            <option value="all">{t('Always without brackets')}</option>
+            <option value="keep">{t('With brackets, as in the text')}</option>
+          </select>
+        </label>
         <h4 class="sh4">{t('Secondary citations')}</h4>
         <label class="field"><span>{t('Words between original and source')}</span>
           <input class="input" bind:value={settings.secondaryText} placeholder={secondaryWords(settings.citationLocale)} />

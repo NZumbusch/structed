@@ -9,6 +9,7 @@
   import { editorState } from '../lib/editorState.svelte';
   import { authorsFull, projectArtifacts, sourceLabel, visibleTags } from '../lib/ops';
   import { citeText } from '../lib/citecache.svelte';
+  import { insertCitation } from '../lib/editor.svelte';
   import { syncZoteroSoon } from '../lib/zoterosync.svelte';
   import type { Artifact } from '../lib/types';
 
@@ -56,7 +57,7 @@
     if (!cur) return;
     settings.recentQuotes = [a.id, ...(settings.recentQuotes ?? []).filter((x) => x !== a.id)].slice(0, 60);
     editorState.mention = null;
-    cur.editor.chain().focus().insertContentAt({ from: cur.from, to: cur.to }, { type: 'quoteRef', attrs: { id: a.id, mode: 'cite' } }).run();
+    insertCitation(cur.editor, cur.from, cur.to, a.id); // "vgl. @…" → the "vgl." belongs to the citation
   }
   // the editor hands us its keys while the list is open
   $effect(() => {

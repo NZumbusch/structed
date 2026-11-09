@@ -154,3 +154,27 @@ describe('citation styles', () => {
     }
   });
 });
+
+import { noteCite, stripParens } from '../../src/lib/citecache.svelte';
+import { settings as st } from '../../src/lib/settings.svelte';
+describe('citations in footnotes', () => {
+  it('drops the brackets around a whole citation only', () => {
+    expect(stripParens('(Assmann, 2011, S. 18)')).toBe('Assmann, 2011, S. 18');
+    expect(stripParens('(Kaufmann, 1996, Sp. 1121, zit. nach Lotz (Hg.), 2001)')).toBe('Kaufmann, 1996, Sp. 1121, zit. nach Lotz (Hg.), 2001');
+    expect(stripParens('(Assmann, 2011) und (Nora, 1984)')).toBe('(Assmann, 2011) und (Nora, 1984)');
+    expect(stripParens('Assmann 2011, 18.')).toBe('Assmann 2011, 18.');
+  });
+  it('follows the setting: citation alone (default), always, never', () => {
+    st.noteParens = 'cite';
+    expect(noteCite('(Assmann, 2011)', 'cite')).toBe('Assmann, 2011');
+    expect(noteCite('(Assmann, 2011)', 'inline')).toBe('(Assmann, 2011)');
+    // right after a quote in quotation marks, the brackets stay
+    expect(noteCite('(Assmann, 2011)', 'cite', 'Vgl. „The past is […] reconstructed.“ ')).toBe('(Assmann, 2011)');
+    expect(noteCite('(Assmann, 2011)', 'cite', 'Vgl. ')).toBe('Assmann, 2011');
+    st.noteParens = 'all';
+    expect(noteCite('(Assmann, 2011)', 'inline')).toBe('Assmann, 2011');
+    st.noteParens = 'keep';
+    expect(noteCite('(Assmann, 2011)', 'cite')).toBe('(Assmann, 2011)');
+    st.noteParens = 'cite';
+  });
+});

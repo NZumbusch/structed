@@ -85,7 +85,7 @@ test('footnotes are free text: several citations, own words, formatting; numbere
   const fn = ed.locator('sup.fn');
   await expect(fn).toHaveCount(1);
   expect(await fn.evaluate((e) => getComputedStyle(e, '::after').content)).toContain('counter(fn)'); // numbered via CSS counter
-  await expect(fn).toHaveAttribute('title', /^See \(Assmann, 2011, p\. 18\); also „Memory is socially framed and mediated\.“ \(Assmann, 2011, pp\. 22–23\)$/);
+  await expect(fn).toHaveAttribute('title', /^See Assmann, 2011, p\. 18; also „Memory is socially framed and mediated\.“ \(Assmann, 2011, pp\. 22–23\)$/);
   // reopen: everything is still there and editable
   await fn.click();
   await expect(fed.locator('.qref')).toHaveCount(2);

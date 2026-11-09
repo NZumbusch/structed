@@ -6,8 +6,9 @@ import { db } from '../db.svelte';
 import { settings } from '../settings.svelte';
 import { flatten, sectionNumber, sourcesOf } from '../ops';
 import { bibliography, secondaryPrefix } from '../cite';
-import { citeTextAsync, marks, oneLine } from '../citecache.svelte';
-import { footnoteContent } from '../footnote';
+import { citeTextAsync, marks, noteCite, oneLine } from '../citecache.svelte';
+import { footnoteContent, prevText } from '../footnote';
+import { prefixText, textBefore } from '../citePrefix';
 import type { Artifact, Project, Source } from '../types';
 import seminararbeit from './seminararbeit.json';
 
@@ -131,7 +132,7 @@ interface Ctx {
 
 async function inline(nodes: PMNode[] | undefined, ctx: Ctx, base: string, noteIndex = 0): Promise<string> {
   let out = '';
-  for (const n of nodes ?? []) {
+  for (const [i, n] of (nodes ?? []).entries()) {
     if (n.type === 'text') {
       const m = new Set((n.marks ?? []).map((x) => x.type));
       out += run(n.text ?? '', base, { b: m.has('bold'), i: m.has('italic'), u: m.has('underline') });
@@ -142,11 +143,15 @@ async function inline(nodes: PMNode[] | undefined, ctx: Ctx, base: string, noteI
       if (!a) continue;
       const src = db.get('sources', a.sourceId);
       if (src) sourcesOf(a).forEach((x) => ctx.cited.set(x.id, x));
+      // "Vgl." as plain text in front of the field, as written (not Zotero's prefix, which goes inside the brackets)
+      const pre = prefixText(n.attrs?.prefix, textBefore(nodes!, i));
+      if (pre) out += run(pre, base);
       if (n.attrs?.mode !== 'cite') {
         const [l, r] = marks();
         out += run(l, base) + run(oneLine(a.text), base, { i: settings.quoteItalic }) + run(r + (src ? ' ' : ''), base);
       }
-      if (src) out += citationField(a, await ctx.citeFormat(a), noteIndex, base, undefined, await ctx.prefix(a));
+      // in a footnote, the citation may lose its brackets (Settings → Citations)
+      if (src) out += citationField(a, noteIndex ? noteCite(await ctx.citeFormat(a), n.attrs?.mode, prevText(nodes ?? [], n)) : await ctx.citeFormat(a), noteIndex, base, undefined, await ctx.prefix(a));
     } else if (n.type === 'footnote') {
       const id = ctx.footnotes.length + 1;
       const fb = ctx.sn.footnotePPr.match(/<w:rPr>.*?<\/w:rPr>/s)?.[0] ?? '';

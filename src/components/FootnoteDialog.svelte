@@ -8,7 +8,7 @@
   import QuotePicker from './QuotePicker.svelte';
   import { t } from '../lib/i18n';
   import { editorState } from '../lib/editorState.svelte';
-  import { createFootnoteEditor, editableQuote, footnoteEditorContent, makeEditable, selectedQuotePos } from '../lib/editor.svelte';
+  import { createFootnoteEditor, editableQuote, footnoteEditorContent, insertCitation, makeEditable, selectedQuotePos } from '../lib/editor.svelte';
 
   const fn = editorState.footnote!;
   let host: HTMLDivElement;
@@ -34,7 +34,10 @@
     const chain = editor.chain().focus();
     if (mode === 'editable') chain.insertContent(editableQuote(id)).run();
     // no space after it: what follows may be punctuation ("…; ferner …")
-    else chain.insertContent({ type: 'quoteRef', attrs: { id, mode } }).run();
+    else if (mode === 'cite') {
+      chain.run();
+      insertCitation(editor, editor.state.selection.from, editor.state.selection.to, id);
+    } else chain.insertContent({ type: 'quoteRef', attrs: { id, mode } }).run();
   }
 
   const is = (name: string) => {

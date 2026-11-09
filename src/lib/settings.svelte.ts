@@ -67,6 +67,8 @@ export interface Settings {
   writeFootnotesBelow: boolean;
   /** text from PDFs: repairs that are sure are applied right away (still shown in colour) */
   repairAuto: boolean;
+  /** citations in footnotes: keep their brackets, drop them for a citation on its own (“Vgl. Assmann 2011, S. 18.”), or always */
+  noteParens: 'keep' | 'cite' | 'all';
   /** "?" words corrected by hand, repaired the same way next time */
   repairLearned: Record<string, string>; // Write: the footnotes listed below each section // readability hints: long sentences, repeated words // the counter in Write: words or characters with spaces
   editorLang: string;
@@ -155,6 +157,7 @@ const defaults: Settings = {
   writeHints: false,
   writeFootnotesBelow: false,
   repairAuto: false,
+  noteParens: 'cite',
   repairLearned: {},
   editorLang: 'de',
   writeNotes: true,

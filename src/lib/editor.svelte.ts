@@ -8,7 +8,7 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { db } from './db.svelte';
 import { settings, textLang } from './settings.svelte';
-import { citeText, marks, oneLine, wordsOf } from './citecache.svelte';
+import { citeText, marks, noteCite, oneLine, wordsOf } from './citecache.svelte';
 import { editorState, type InsertMode } from './editorState.svelte';
 import { ui, type MenuItem } from './ui.svelte';
 import { longpress } from './longpress';
@@ -21,6 +21,7 @@ import { t } from './i18n';
 import { FindHighlight, NonBreaking, SmartQuotes } from './typing';
 import { joinPdfLines } from './ocr';
 import { CrossRefKey, SectionRef } from './xref.svelte';
+import { prefixChoices, prefixText, splitPrefix } from './citePrefix';
 import { TextComment } from './textComment';
 import { ReadabilityHints } from './hints';
 const tr = t; // where `t` is shadowed
@@ -71,7 +72,26 @@ function quoteMenu(e: MouseEvent, editor: Editor, getPos: (() => number | undefi
       if (x.f !== cur) setQuoteForm(editor, pos, x.f);
     }
   }));
+  if (node.type.name === 'quoteRef') {
+    // a word that belongs to the citation, shown in front of it ("Vgl.", "siehe")
+    const cur = (node.attrs.prefix as string | null) ?? '';
+    const setPrefix = (p: string | null) => editor.chain().focus().command(({ tr }) => (tr.setNodeMarkup(pos, undefined, { ...node.attrs, prefix: p || null }), true)).run();
+    const choices = [...new Set([...prefixChoices(), ...(cur ? [cur] : [])])];
+    items.push(
+      null,
+      { label: t('No word in front'), icon: !cur ? 'check' : undefined, run: () => setPrefix(null) },
+      ...choices.map((p) => ({ label: `${t('In front')}: ${p}`, icon: cur.toLowerCase() === p.toLowerCase() ? 'check' : undefined, run: () => setPrefix(p) })),
+      {
+        label: t('Other word in front…'),
+        run: () => {
+          const v = prompt(t('Word in front of the citation, e.g. “vgl.”, “siehe”, “dazu”'), cur);
+          if (v !== null) setPrefix(v.trim());
+        }
+      }
+    );
+  }
   items.push(
+    null,
     { label: t('As editable text'), icon: 'edit', run: () => (cur === 'cite' ? setQuoteForm(editor, pos, 'inline') && makeEditable(editor, pos) : makeEditable(editor, pos)) },
     null,
     ...(a ? [{ label: t('Edit quote in library'), icon: 'quote', run: () => (ui.editArtifact = { id }) }] : []),
@@ -104,15 +124,19 @@ function quoteParts(id: string) {
 }
 
 /** Inline linked quote ("„…“ (Autor, Jahr, S.)") or citation only. */
-export const QuoteRef = Node.create({
+export const QuoteRef = Node.create<{ inNote: boolean }>({
   name: 'quoteRef',
+  addOptions() {
+    return { inNote: false }; // true in the footnote editor: the citation is shown as in a footnote
+  },
   group: 'inline',
   inline: true,
   atom: true,
   selectable: true,
   draggable: true,
   addAttributes() {
-    return { id: { default: null }, mode: { default: 'inline' } };
+    // prefix: a word that belongs to the citation ("Vgl.", "s.", "zit. nach"), shown in front of it
+    return { id: { default: null }, mode: { default: 'inline' }, prefix: { default: null } };
   },
   parseHTML() {
     return [{ tag: 'span[data-quote-ref]' }];
@@ -121,25 +145,43 @@ export const QuoteRef = Node.create({
     return ['span', mergeAttributes(HTMLAttributes, { 'data-quote-ref': '' })];
   },
   addNodeView() {
+    const inNote = this.options.inNote;
     return ({ node, editor, getPos }) => {
       const dom = document.createElement('span');
       dom.className = 'qref';
       const unmenu = menuEvents(dom, editor, getPos);
       dom.contentEditable = 'false';
       let attrs = $state({ ...node.attrs });
+      /** the text just before: '' at the start of a paragraph, null after another quote/footnote */
+      const textBefore = (): string | null => {
+        const pos = typeof getPos === 'function' ? getPos() : undefined;
+        if (pos == null) return '';
+        try {
+          const rp = editor.state.doc.resolve(pos);
+          if (rp.parentOffset === 0) return '';
+          const b = rp.nodeBefore;
+          return b?.isText ? (b.text ?? '').slice(-8) : null;
+        } catch {
+          return '';
+        }
+      };
+      let before = $state<string | null>('');
+      queueMicrotask(() => (before = textBefore()));
       const stop = live(() => {
-        const { text, cite, a } = quoteParts(attrs.id);
+        const { text, cite: raw, a } = quoteParts(attrs.id);
+        const cite = inNote ? noteCite(raw, attrs.mode, before ?? '') : raw;
+        const pre = prefixText(attrs.prefix, before);
         dom.dataset.kind = a?.kind ?? 'missing';
         dom.replaceChildren();
         if (attrs.mode === 'cite') {
           dom.classList.add('cite-only');
-          dom.textContent = cite || '(?)';
+          dom.textContent = pre + (cite || '(?)');
         } else {
           dom.classList.remove('cite-only');
           const [l, r] = marks();
           const q = document.createElement(settings.quoteItalic ? 'em' : 'span');
           q.textContent = text;
-          dom.append(l, q, r, cite ? ' ' + cite : '');
+          dom.append(pre + l, q, r, cite ? ' ' + cite : '');
         }
         dom.title = (a ? `${a.text}${a.page ? ` – S. ${a.page}` : ''}\n\n` : '') + t('Right-click or double-click: show differently');
       });
@@ -148,6 +190,7 @@ export const QuoteRef = Node.create({
         update(n) {
           if (n.type.name !== 'quoteRef') return false;
           attrs = { ...n.attrs };
+          before = textBefore();
           return true;
         },
         destroy: () => (stop(), unmenu())
@@ -445,7 +488,7 @@ export function createFootnoteEditor(opts: { element: HTMLElement; content: PMNo
         listItem: false
       }),
       Placeholder.configure({ placeholder: opts.placeholder }),
-      QuoteRef,
+      QuoteRef.configure({ inNote: true }),
       SectionRef,
       CrossRefKey,
       AutoDash,
@@ -525,6 +568,27 @@ export function createEditor(opts: {
   });
 }
 
+/**
+ * Insert a citation (citation only) over [from, to]; a word typed right before it ("vgl. ",
+ * "s. ") becomes part of the citation, exactly as written.
+ */
+export function insertCitation(editor: Editor, from: number, to: number, id: string) {
+  const at = editor.state.doc.resolve(from);
+  const before = at.parent.textBetween(0, at.parentOffset, undefined, '\ufffc');
+  const sp = splitPrefix(before);
+  const cut = sp ? before.length - sp.keep.length : 0;
+  // only plain text: an italic "vgl." stays text with its formatting
+  let marked = false;
+  if (sp) editor.state.doc.nodesBetween(from - cut, from, (n) => void (n.isText && n.marks.length && (marked = true)));
+  const plain = !!sp && !marked;
+  const start = plain ? from - cut : from;
+  return editor
+    .chain()
+    .focus()
+    .insertContentAt({ from: start, to }, { type: 'quoteRef', attrs: { id, mode: 'cite', prefix: plain ? sp!.prefix : null } })
+    .run();
+}
+
 /** Decide the node for an artifact and insertion mode. */
 export function insertArtifact(editor: Editor, artifactId: string, mode: InsertMode, pos?: number) {
   const a = db.get('artifacts', artifactId);
@@ -546,7 +610,11 @@ export function insertArtifact(editor: Editor, artifactId: string, mode: InsertM
   }
   if (m === 'block') chain.insertContent({ type: 'quoteBlock', attrs: { id: a.id } }).run();
   else if (m === 'footnote') chain.insertContent({ type: 'footnote', attrs: { content: [{ type: 'quoteRef', attrs: { id: a.id, mode: 'inline' } }] } }).run();
-  else chain.insertContent({ type: 'quoteRef', attrs: { id: a.id, mode: m } }).run();
+  else if (m === 'cite') {
+    chain.run();
+    const { from, to } = editor.state.selection;
+    insertCitation(editor, from, to, a.id);
+  } else chain.insertContent({ type: 'quoteRef', attrs: { id: a.id, mode: m } }).run();
 }
 
 /** Replace the linked quote node at `pos` by editable text (keeps the citation linked). */
