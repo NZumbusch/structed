@@ -49,6 +49,8 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,csl,xml,docx}'],
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        // the word list for repairing PDF text is fetched only when needed, then kept offline
+        runtimeCaching: [{ urlPattern: /\/dict\/[a-z-]+\.txt$/, handler: 'CacheFirst', options: { cacheName: 'dict' } }],
         navigateFallback: 'index.html',
         // the public pages must load as themselves, never be swapped for the app shell
         navigateFallbackDenylist: [/\/(about|privacy|terms)\.html$/]

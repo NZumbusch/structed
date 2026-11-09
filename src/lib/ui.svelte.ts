@@ -40,6 +40,8 @@ class UI {
   collectSourceId: string | null = $state(ls('collectSourceId', null));
   /** sources whose Zotero highlights are being gone through one by one */
   reviewSources: string[] | null = $state(null);
+  /** quotes whose text from a PDF is being repaired ("?" for umlauts, broken words) */
+  repairItems: string[] | null = $state(null);
   focusHeading: string | null = $state(null);
   /** Write: put the cursor on the `nth` occurrence of `text` in a section (from the search palette) */
   writeJump: { headingId: string; text: string; nth: number } | null = $state(null);

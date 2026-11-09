@@ -53,6 +53,8 @@
   const unusedList = $derived(unusedImported());
   const unusedIds = $derived(new Set(unusedList.map((a) => a.id)));
   const unusedHere = $derived(unusedList.filter((a) => a.sourceId === sel));
+  /** quotes of this source whose text has "?" in words (umlauts lost in the PDF) */
+  const damagedHere = $derived(sel ? db.all('artifacts').filter((a) => a.sourceId === sel && /\p{L}\?\p{L}/u.test(a.text)) : []);
   async function deleteUnused(list: Artifact[]) {
     const n = list.length;
     const ok = await ui.ask({
@@ -298,6 +300,7 @@
     ...projects.map((p) => ({ label: t('Add to “{p}”', { p: p.title || t('Untitled project') }), icon: 'plus', run: () => bulkProject(p.id, true) })),
     ...(projects.length ? [null] : []),
     { label: t('Clean up text (OCR/PDF)'), icon: 'sparkle', run: () => bulk('clean') },
+    { label: t('Repair umlauts and broken words…'), icon: 'sparkle', run: () => { ui.repairItems = [...selected]; selected.clear(); } },
     { label: t('Add tag…'), icon: 'tag', run: () => { const v = prompt(t('Tag')); if (v) bulk('tag', v.trim().replace(/^#/, '')); } },
     { label: t('Make quotes'), icon: 'quote', run: () => bulk('kind', 'quote') },
     { label: t('Make paraphrases'), icon: 'paraphrase', run: () => bulk('kind', 'paraphrase') },
@@ -409,6 +412,11 @@
                 </button>
                 <a class="btn ghost sm" href={zoteroSelectUrl(source)} title={t('Show in Zotero')}><Icon name="book" size={14} />{t('Zotero')}</a>
                 <button class="btn ghost sm" onclick={() => openPdf(source)} title={t('Open PDF in Zotero')}><Icon name="file" size={14} />{t('PDF')}</button>
+                {#if damagedHere.length}
+                  <button class="btn ghost sm" onclick={() => (ui.repairItems = db.all('artifacts').filter((a) => a.sourceId === source.id).map((a) => a.id))} title={t('Umlauts read as “?” and words broken apart in text from the PDF')}>
+                    <Icon name="sparkle" size={14} />{t('Repair {n} quotes', { n: damagedHere.length })}
+                  </button>
+                {/if}
                 {#if unusedHere.length}
                   <button class="btn ghost sm" onclick={() => deleteUnused(unusedHere)} title={t('Imported highlights not placed, cited or picked anywhere')}>
                     <Icon name="trash" size={14} />{t('Delete {n} unused highlights', { n: unusedHere.length })}
