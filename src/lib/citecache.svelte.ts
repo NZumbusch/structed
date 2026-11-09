@@ -52,15 +52,8 @@ export async function citeTextAsync(a: Artifact, opts: { style?: string; locale?
   return keepTogether((await citeArtifact({ ...a, page }, { style: opts.style ?? settings.citationStyle, locale: opts.locale ?? settings.citationLocale }).catch(() => '')) || fallback(a, page));
 }
 
-/** Id of the quote cited right before (only blank/"," /";" in between), or null. `prev(k)` = the k-th node back. */
-export function prevQuoteId(prev: (k: number) => { type: string; text?: string; id?: unknown } | undefined): string | null {
-  let n = prev(1);
-  if (n?.type === 'text' && /^[\s,;]{1,3}$/.test(n.text ?? '')) n = prev(2);
-  return n?.type === 'quoteRef' && n.id ? String(n.id) : null;
-}
-
 /**
- * "(ebd.)" / "(ebd., S. 5)" instead of the full citation when the quote right before is from the
+ * "(ebd.)" / "(ebd., S. 5)" instead of the full citation when the citation before it is from the
  * same source. `before` = text before the citation (capital letter at the start of a note/sentence
  * when it stands without brackets). Returns `cite` unchanged otherwise.
  */

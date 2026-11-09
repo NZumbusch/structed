@@ -8,13 +8,13 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { db } from './db.svelte';
 import { settings, textLang } from './settings.svelte';
-import { citeText, ibidCite, marks, noteCite, oneLine, prevQuoteId, wordsOf } from './citecache.svelte';
+import { citeText, ibidCite, marks, noteCite, oneLine, wordsOf } from './citecache.svelte';
 import { editorState, type InsertMode } from './editorState.svelte';
 import { ui, type MenuItem } from './ui.svelte';
 import { longpress } from './longpress';
 import { artifactLabel, shortCite } from './ops';
 import { editableQuote, footnoteContent, footnotePlain, toClipboard, type PMNode } from './footnote';
-import { Slice } from '@tiptap/pm/model';
+import { Slice, type Node as PMDoc } from '@tiptap/pm/model';
 import type { EditorView } from '@tiptap/pm/view';
 export { editableQuote };
 import { t } from './i18n';
@@ -117,6 +117,24 @@ function live(render: () => void) {
   });
 }
 
+/** position of each citation → id of the citation before it in the same text (per document, cached) */
+const prevCache = new WeakMap<object, Map<number, string | null>>();
+function prevCitations(doc: PMDoc): Map<number, string | null> {
+  let m = prevCache.get(doc);
+  if (!m) {
+    m = new Map();
+    let last: string | null = null;
+    doc.descendants((n, pos) => {
+      if (n.type.name === 'quoteRef') {
+        m!.set(pos, last);
+        last = n.attrs.id ? String(n.attrs.id) : null;
+      } else if (n.type.name === 'quoteBlock') last = n.attrs.id ? String(n.attrs.id) : null;
+    });
+    prevCache.set(doc, m);
+  }
+  return m;
+}
+
 function quoteParts(id: string) {
   const a = db.get('artifacts', id);
   if (!a) return { text: '⚠ ' + 'Zitat gelöscht', cite: '', a };
@@ -165,24 +183,17 @@ export const QuoteRef = Node.create<{ inNote: boolean }>({
           return '';
         }
       };
-      /** id of the quote cited right before (same source → "ebd.") */
+      /** id of the quote cited last before this one (same source → "ebd."), whatever text is in between */
       const prevId = (): string | null => {
         const pos = typeof getPos === 'function' ? getPos() : undefined;
-        if (pos == null) return null;
-        try {
-          const rp = editor.state.doc.resolve(pos);
-          const i = rp.index();
-          return prevQuoteId((k) => {
-            const n = i - k >= 0 ? rp.parent.child(i - k) : undefined;
-            return n && { type: n.type.name, text: n.text, id: n.attrs.id };
-          });
-        } catch {
-          return null;
-        }
+        return pos == null ? null : prevCitations(editor.state.doc).get(pos) ?? null;
       };
       let before = $state<string | null>('');
       let prev = $state<string | null>(null);
       queueMicrotask(() => ((before = textBefore()), (prev = prevId())));
+      // an earlier citation may change without this node being touched
+      const onDoc = () => (prev = prevId());
+      editor.on('update', onDoc);
       const stop = live(() => {
         const { text, cite: raw, a } = quoteParts(attrs.id);
         const short = a ? ibidCite(a, prev, raw, before) : raw;
@@ -211,7 +222,7 @@ export const QuoteRef = Node.create<{ inNote: boolean }>({
           prev = prevId();
           return true;
         },
-        destroy: () => (stop(), unmenu())
+        destroy: () => (editor.off('update', onDoc), stop(), unmenu())
       };
     };
   }
