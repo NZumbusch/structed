@@ -2,7 +2,7 @@
 // Word export can use them without loading TipTap.
 import { db } from './db.svelte';
 import { settings } from './settings.svelte';
-import { citeText, ibidCite, marks, noteCite, oneLine, prevQuoteId } from './citecache.svelte';
+import { citeText, ibidCite, marks, noteCite, oneLine } from './citecache.svelte';
 import { flatten, sectionNumber } from './ops';
 import { prefixText, textBefore } from './citePrefix';
 
@@ -59,8 +59,11 @@ export function prevText(list: PMNode[], n: PMNode): string {
   return p?.type === 'text' ? (p.text ?? '') : '';
 }
 
-/** Id of the quote cited right before node `i` of an inline list. */
-const prevIdIn = (list: PMNode[], i: number) => prevQuoteId((k) => (i - k >= 0 ? { type: list[i - k].type, text: list[i - k].text, id: list[i - k].attrs?.id } : undefined));
+/** Id of the quote cited last before node `i` of an inline list (whatever text is in between). */
+const prevIdIn = (list: PMNode[], i: number) => {
+  for (let k = i - 1; k >= 0; k--) if (list[k].type === 'quoteRef') return list[k].attrs?.id ? String(list[k].attrs!.id) : null;
+  return null;
+};
 
 export function footnotePlain(content: PMNode[]): string {
   const [l, r] = marks();
