@@ -62,6 +62,6 @@ describe('word in front of a citation', () => {
     const mk = (page: string) => db.create('artifacts', { kind: 'quote', sourceId: src.id, text: 'x', page, tags: [] });
     const [a, b] = [mk('18'), mk('20')];
     const r = (id: string) => ({ type: 'quoteRef', attrs: { id, mode: 'cite' } });
-    expect(footnotePlain([r(a.id), txt(' '), r(a.id), txt(' '), r(b.id), txt(' und '), r(a.id)])).toBe('Assmann 2011, p. 18 ibid. ibid., p. 20 und ibid., p. 18');
+    expect(footnotePlain([r(a.id), txt(' '), r(a.id), txt(' '), r(b.id), txt(' und '), r(a.id)])).toBe('Assmann 2011, p. 18 ibid. ibid., p. 20 und (ibid., p. 18)');
   });
 });

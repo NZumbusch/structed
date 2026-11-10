@@ -171,6 +171,9 @@ describe('citations in footnotes', () => {
     // right after a quote in quotation marks, the brackets stay
     expect(noteCite('(Assmann, 2011)', 'cite', 'Vgl. „The past is […] reconstructed.“ ')).toBe('(Assmann, 2011)');
     expect(noteCite('(Assmann, 2011)', 'cite', 'Vgl. ')).toBe('Assmann, 2011');
+    // after words of the footnote itself, the brackets stay; after only separators they go
+    expect(noteCite('(Assmann, 2011)', 'cite', 'Das stimmt, aber ')).toBe('(Assmann, 2011)');
+    expect(noteCite('(Assmann, 2011)', 'cite', '; ')).toBe('Assmann, 2011');
     st.noteParens = 'all';
     expect(noteCite('(Assmann, 2011)', 'inline')).toBe('Assmann, 2011');
     st.noteParens = 'keep';
