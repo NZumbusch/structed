@@ -117,18 +117,24 @@ function live(render: () => void) {
   });
 }
 
-/** position of each citation → id of the citation before it in the same text (per document, cached) */
-const prevCache = new WeakMap<object, Map<number, string | null>>();
-function prevCitations(doc: PMDoc): Map<number, string | null> {
+/** position of each citation → id of the citation before it, in the same paragraph / in the same text (per document, cached) */
+interface Prev {
+  para: string | null;
+  section: string | null;
+}
+const prevCache = new WeakMap<object, Map<number, Prev>>();
+function prevCitations(doc: PMDoc): Map<number, Prev> {
   let m = prevCache.get(doc);
   if (!m) {
     m = new Map();
-    let last: string | null = null;
+    let section: string | null = null;
+    let para: string | null = null;
     doc.descendants((n, pos) => {
+      if (n.isTextblock) para = null;
       if (n.type.name === 'quoteRef') {
-        m!.set(pos, last);
-        last = n.attrs.id ? String(n.attrs.id) : null;
-      } else if (n.type.name === 'quoteBlock') last = n.attrs.id ? String(n.attrs.id) : null;
+        m!.set(pos, { para, section });
+        section = para = n.attrs.id ? String(n.attrs.id) : null;
+      } else if (n.type.name === 'quoteBlock') section = n.attrs.id ? String(n.attrs.id) : null;
     });
     prevCache.set(doc, m);
   }
@@ -184,19 +190,19 @@ export const QuoteRef = Node.create<{ inNote: boolean }>({
         }
       };
       /** id of the quote cited last before this one (same source → "ebd."), whatever text is in between */
-      const prevId = (): string | null => {
+      const prevId = (): Prev | null => {
         const pos = typeof getPos === 'function' ? getPos() : undefined;
-        return pos == null ? null : prevCitations(editor.state.doc).get(pos) ?? null;
+        return pos == null ? null : (prevCitations(editor.state.doc).get(pos) ?? null);
       };
       let before = $state<string | null>('');
-      let prev = $state<string | null>(null);
+      let prev = $state<Prev | null>(null);
       queueMicrotask(() => ((before = textBefore()), (prev = prevId())));
       // an earlier citation may change without this node being touched
       const onDoc = () => (prev = prevId());
       editor.on('update', onDoc);
       const stop = live(() => {
         const { text, cite: raw, a } = quoteParts(attrs.id);
-        const short = a ? ibidCite(a, prev, raw, before) : raw;
+        const short = a ? ibidCite(a, (settings.ibidScope === 'section' ? prev?.section : prev?.para) ?? null, raw, before) : raw;
         const cite = inNote ? noteCite(short, attrs.mode, before ?? '') : short;
         const pre = prefixText(attrs.prefix, before);
         dom.dataset.kind = a?.kind ?? 'missing';
