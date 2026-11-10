@@ -5,7 +5,7 @@ import { settings } from './settings.svelte';
 import { t } from './i18n';
 import { citeArtifact } from './cite';
 import { locatorText, shortCite } from './ops';
-import { prefixText } from './citePrefix';
+import { prefixText, splitPrefix } from './citePrefix';
 import type { Artifact } from './types';
 
 const cache = new SvelteMap<string, string>();
@@ -92,6 +92,7 @@ export function stripParens(cite: string): string {
 export function noteCite(cite: string, mode: unknown, before = ''): string {
   const how = settings.noteParens ?? 'cite';
   if (how === 'all') return stripParens(cite);
-  if (how === 'cite' && mode === 'cite' && !/[“”„"»«‘’‚'›‹]\s*$/.test(before)) return stripParens(cite);
+  // with words of the footnote in front of it, the citation keeps its brackets
+  if (how === 'cite' && mode === 'cite' && !/[“”„"»«‘’‚'›‹]\s*$/.test(before) && !/[^\s;,.:–—-]/.test(splitPrefix(before)?.keep ?? before)) return stripParens(cite);
   return cite;
 }
