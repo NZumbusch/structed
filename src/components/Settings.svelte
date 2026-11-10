@@ -141,6 +141,12 @@
             <option value="keep">{t('With brackets, as in the text')}</option>
           </select>
         </label>
+        <label class="field"><span>{t('Short form “ebd.” for the same source')}</span>
+          <select class="select" bind:value={settings.ibidScope}>
+            <option value="paragraph">{t('Only within a paragraph (written out at the first citation of each paragraph)')}</option>
+            <option value="section">{t('Throughout a section')}</option>
+          </select>
+        </label>
         <h4 class="sh4">{t('Secondary citations')}</h4>
         <label class="field"><span>{t('Words between original and source')}</span>
           <input class="input" bind:value={settings.secondaryText} placeholder={secondaryWords(settings.citationLocale)} />

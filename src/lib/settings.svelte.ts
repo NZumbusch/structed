@@ -69,6 +69,8 @@ export interface Settings {
   repairAuto: boolean;
   /** citations in footnotes: keep their brackets, drop them for a citation on its own (“Vgl. Assmann 2011, S. 18.”), or always */
   noteParens: 'keep' | 'cite' | 'all';
+  /** "ebd." for a citation of the same source as the one before: only within a paragraph (the first one in each paragraph is written out) or throughout a section */
+  ibidScope: 'paragraph' | 'section';
   /** "?" words corrected by hand, repaired the same way next time */
   repairLearned: Record<string, string>; // Write: the footnotes listed below each section // readability hints: long sentences, repeated words // the counter in Write: words or characters with spaces
   editorLang: string;
@@ -158,6 +160,7 @@ const defaults: Settings = {
   writeFootnotesBelow: false,
   repairAuto: false,
   noteParens: 'cite',
+  ibidScope: 'paragraph',
   repairLearned: {},
   editorLang: 'de',
   writeNotes: true,
