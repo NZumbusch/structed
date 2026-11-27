@@ -64,6 +64,71 @@ export function autoType(before: string, ch: string, opts: { markdown?: boolean 
   return { from: off + from, insert: text.slice(from) + typed };
 }
 
+/** Double quotation marks of any style: when fixing a whole text they are set anew, like typed ones. */
+const DOUBLE = /^["„“”«»]$/;
+
+/**
+ * Apply the typing helpers to text that was not typed (older text, pasted or imported text),
+ * exactly as if it were typed character by character. `parts` are consecutive pieces of one
+ * text (text nodes of a paragraph); a piece of "\ufffc" stands for a quote, footnote or other
+ * object and is never changed. `context`: the text before (on the same line), already fixed.
+ * `end`: the text ends here (a dash before the last word is set too).
+ */
+export function fixSegments(parts: string[], opts: { markdown?: boolean; context?: string; end?: boolean } = {}): string[] {
+  const ctx = opts.context ?? '';
+  const line = ctx.slice(ctx.lastIndexOf('\n') + 1);
+  // the current line, one entry per output character with the piece it belongs to (-1 = context)
+  let cur: { c: string; p: number }[] = line.split('').map((c) => ({ c, p: -1 }));
+  const out = parts.map(() => '');
+  const flushLine = () => {
+    for (const x of cur) if (x.p >= 0) out[x.p] += x.c;
+    cur = [];
+  };
+  const type = (ch: string, p: number) => {
+    const typed = settings.editorSmartQuotes && DOUBLE.test(ch) ? '"' : ch;
+    const before = cur.map((x) => x.c).join('');
+    const r = autoType(before, typed, opts);
+    if (!r) {
+      cur.push({ c: ch, p });
+      if (ch === '\n') flushLine();
+      return;
+    }
+    // replace cur[r.from…] + the typed character with r.insert, character by character
+    const tail = cur.slice(r.from);
+    tail.push({ c: ch, p });
+    const ins = r.insert.split('');
+    const repl = ins.map((c, i) => ({ c, p: (tail[i] ?? tail[tail.length - 1]).p }));
+    if (ins.length < tail.length) repl[repl.length - 1].p = p; // "..." → "…": belongs with the last dot
+    cur = cur.slice(0, r.from).concat(repl);
+    if (ch === '\n') flushLine();
+  };
+  parts.forEach((part, p) => {
+    if (part === '\ufffc') {
+      cur.push({ c: part, p });
+      return;
+    }
+    for (let i = 0; i < part.length; i++) type(part[i], p); // UTF-16 units, like the indexes of autoType
+  });
+  if (opts.end) {
+    // a final "word - word": the dash comes when the word is finished, here at the end
+    const before = cur.map((x) => x.c).join('');
+    const r = autoType(before, '\n', opts);
+    if (r && r.insert.endsWith('\n')) {
+      const ins = r.insert.slice(0, -1).split('');
+      cur = cur.slice(0, r.from).concat(ins.map((c, i) => ({ c, p: cur[r.from + i]?.p ?? -1 })));
+    }
+  }
+  flushLine();
+  // a piece that stood for an object stays exactly that
+  return out.map((o, i) => (parts[i] === '\ufffc' ? parts[i] : o));
+}
+
+/** A whole text with the typing helpers applied (see fixSegments). */
+export function fixTypography(text: string, opts: { markdown?: boolean } = {}): string {
+  if (!text) return text;
+  return fixSegments([text], { ...opts, end: true })[0];
+}
+
 /** Replace [start, end) of a text field, keeping the browser's undo where it can. */
 function replaceRange(el: HTMLTextAreaElement | HTMLInputElement, start: number, end: number, text: string) {
   el.setSelectionRange(start, end);
@@ -141,11 +206,31 @@ export function prose(el: HTMLTextAreaElement | HTMLInputElement) {
     } else if (e.key.length > 1 && e.key !== 'Shift') last = null; // arrows, Home, Enter…
   };
   const forget = () => (last = null);
+  // pasted text gets the same typography as typed text
+  const onPaste = (e: ClipboardEvent) => {
+    last = null;
+    if (!settings.editorFixPaste) return;
+    const text = e.clipboardData?.getData('text/plain');
+    if (!text) return;
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? start;
+    const fixed = fixSegments([text], { context: el.value.slice(0, start), end: end >= el.value.length })[0];
+    if (fixed === text) return;
+    e.preventDefault();
+    busy = true;
+    try {
+      replaceRange(el, start, end, fixed);
+    } finally {
+      busy = false;
+    }
+  };
+  (el as HTMLElement).addEventListener('paste', onPaste);
   (el as HTMLElement).addEventListener('beforeinput', onBeforeInput);
   (el as HTMLElement).addEventListener('keydown', onKeyDown);
   (el as HTMLElement).addEventListener('pointerdown', forget);
   return {
     destroy() {
+      (el as HTMLElement).removeEventListener('paste', onPaste);
       (el as HTMLElement).removeEventListener('beforeinput', onBeforeInput);
       (el as HTMLElement).removeEventListener('keydown', onKeyDown);
       (el as HTMLElement).removeEventListener('pointerdown', forget);

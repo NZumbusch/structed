@@ -2,7 +2,7 @@
   // Go through the Zotero highlights of one or more sources, one at a time: take it as a
   // quote (or paraphrase / note), or skip it. Skipped and deleted highlights do not come
   // back. Keys: Enter take · S skip · P paraphrase · N note · Z back · E edit the text.
-  import { prose } from '../lib/prosefield';
+  import { fixTypography, prose } from '../lib/prosefield';
   import { onMount } from 'svelte';
   import Modal from './Modal.svelte';
   import Icon from './Icon.svelte';
@@ -98,7 +98,9 @@
 
   function take(kind: ArtifactKind = 'quote') {
     const c = cur;
-    const value = finalText().trim();
+    const raw = finalText().trim();
+    // the same typography as typed text (quotes, …, dash, non-breaking spaces)
+    const value = settings.editorFixPaste ? fixTypography(raw, { markdown: kind === 'note' }) : raw;
     if (!c || !value) return;
     if (editing) remember(learnFromEdit(text, editText));
     db.batch('take highlight', () => {

@@ -1,10 +1,13 @@
 // Clean-up for text copied/extracted from PDFs (Zotero highlights, OCR).
+import { settings } from './settings.svelte';
+import { fixTypography } from './prosefield';
 export interface CleanOptions {
   dehyphenate: boolean; // "exam-\nple" / "exam- ple" -> "example"
   joinLines: boolean; // single line breaks -> spaces
   ligatures: boolean; // ﬁ -> fi ...
   whitespace: boolean; // collapse spaces, fix " ," etc.
   quotes: boolean; // strip wrapping quotation marks
+  typography?: boolean; // typographic quotes, …, dash, non-breaking spaces as when typing (if switched on)
 }
 
 export const defaultClean: CleanOptions = {
@@ -12,7 +15,8 @@ export const defaultClean: CleanOptions = {
   joinLines: true,
   ligatures: true,
   whitespace: true,
-  quotes: true
+  quotes: true,
+  typography: true
 };
 
 const LIG: Record<string, string> = {
@@ -38,6 +42,7 @@ export function cleanText(input: string, o: CleanOptions = defaultClean): string
     const m = s.match(/^["“„«»‚‘'](.*)["”“»«‘’']$/s);
     if (m) s = m[1].trim();
   }
+  if (o.typography && settings.editorFixPaste) s = fixTypography(s);
   return s;
 }
 

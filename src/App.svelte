@@ -303,6 +303,9 @@
   {#if ui.reviewSources}
     {#await import('./components/HighlightReview.svelte') then m}<m.default />{/await}
   {/if}
+  {#if ui.fixTypography}
+    {#await import('./components/FixTypography.svelte') then m}<m.default />{/await}
+  {/if}
   {#if ui.repairItems}
     {#await import('./components/RepairQuotes.svelte') then m}<m.default />{/await}
   {/if}

@@ -10,6 +10,7 @@
   import { addToProject, artifactLabel, deleteArtifact, membership, projectsOf, removeFromProject, shortCite, sourceLabel, tagColor, usageCount, visibleTags } from '../lib/ops';
   import { copyText } from '../lib/clipboard';
   import { citeArtifact } from '../lib/cite';
+  import { quoteInner } from '../lib/citecache.svelte';
   import { settings } from '../lib/settings.svelte';
   import { editorState, type InsertMode } from '../lib/editorState.svelte';
   import { renderMd } from '../lib/markdown';
@@ -60,8 +61,9 @@
 
   const KIND_ICON: Record<string, string> = { quote: 'quote', paraphrase: 'paraphrase', note: 'note', image: 'image' };
 
+  /** in the quotation marks of the citation's language; quotes inside it nested */
   function wrapQuote(s: string) {
-    return settings.citationLocale.startsWith('de') ? `„${s}“` : `“${s}”`;
+    return settings.citationLocale.startsWith('de') ? `„${quoteInner(s)}“` : `“${quoteInner(s)}”`;
   }
 
   async function copy(mode: 'text' | 'cite' | 'both') {

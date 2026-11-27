@@ -1,6 +1,6 @@
 // Plain text of a section's draft, without loading the editor (search, counts).
 import { db } from './db.svelte';
-import { marks, oneLine } from './citecache.svelte';
+import { marks, oneLine, quoteInner } from './citecache.svelte';
 import { sectionNumber } from './ops';
 
 /** Plain text of a draft (for word and character counts): linked quotes count with their text, footnotes do not. */
@@ -15,7 +15,7 @@ export function draftText(json: string | undefined): string {
         if (typeof n.attrs?.prefix === 'string' && n.attrs.prefix) out += n.attrs.prefix + ' '; // "Vgl." counts as a word
         if (a && n.attrs?.mode !== 'cite') {
           const [l, r] = marks();
-          const q = l + oneLine(a.text) + r;
+          const q = l + quoteInner(oneLine(a.text)) + r;
           out += n.type === 'quoteBlock' ? `\n${q}\n` : q;
         }
       } else if (n.type === 'sectionRef') out += sectionNumber(String(n.attrs?.id)) ?? '?';

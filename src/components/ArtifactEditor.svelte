@@ -191,7 +191,7 @@
     <div class="field">
       <div class="row">
         <label class="grow lbl" for="art-text">{kind === 'quote' ? t('Quote (verbatim)') : kind === 'paraphrase' ? t('Paraphrase / summary') : kind === 'image' ? t('Caption') : t('Note (markdown)')}</label>
-        <button class="btn ghost sm" onclick={() => (text = cleanText(text))} title={t('Fix PDF/OCR artifacts: hyphenation, line breaks, ligatures')}>
+        <button class="btn ghost sm" onclick={() => (text = cleanText(text))} title={t('Fix PDF/OCR artifacts: hyphenation, line breaks, ligatures – and typography as when typing')}>
           <Icon name="sparkle" size={13} />{t('Clean up')}
         </button>
       </div>

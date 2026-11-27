@@ -62,6 +62,9 @@ export interface Settings {
   editorAutoDash: boolean; // " - " becomes " – " while typing
   editorSmartQuotes: boolean; // typed " and ' become typographic quotes, ... becomes …
   editorNbsp: boolean; // non-breaking space after "S.", "§", inside "z. B."
+  editorFixPaste: boolean; // pasted and imported text gets the same typography as typed text
+  /** quotation marks inside a quote that stands in quotation marks: 'auto' = the single marks of quoteMarks */
+  nestedQuoteMarks: 'auto' | 'de' | 'en' | 'ch' | 'keep';
   wordCountUnit: 'words' | 'chars';
   writeHints: boolean;
   writeFootnotesBelow: boolean;
@@ -155,6 +158,8 @@ const defaults: Settings = {
   editorAutoDash: true,
   editorSmartQuotes: true,
   editorNbsp: true,
+  editorFixPaste: true,
+  nestedQuoteMarks: 'auto',
   wordCountUnit: 'words',
   writeHints: false,
   writeFootnotesBelow: false,
