@@ -13,6 +13,7 @@ export interface ShortcutDef {
 
 export const SHORTCUTS: ShortcutDef[] = [
   { id: 'search', label: 'Search & commands', group: 'General', default: 'Mod+K' },
+  { id: 'commands', label: 'Commands only (like Ctrl+K, then “>”)', group: 'General', default: 'Mod+Shift+P' },
   { id: 'togglePanel', label: 'Show / hide library panel (quotes)', group: 'General', default: 'Mod+\\' },
   { id: 'save', label: 'Save (everything is saved automatically anyway)', group: 'General', default: 'Mod+S' },
   { id: 'undo', label: 'Undo', group: 'General', default: 'Mod+Z' },

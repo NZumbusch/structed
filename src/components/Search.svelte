@@ -7,12 +7,14 @@
   import { draftText } from '../lib/draft';
   import { wholeText } from '../lib/footnote';
   import { copyText } from '../lib/clipboard';
+  import { allCommands, markUsed, recentCommands, type Command } from '../lib/commands.svelte';
+  import { comboFor, displayCombo } from '../lib/shortcuts';
 
   /** the text is searched from this many characters on, and shows at most this many places */
   const TEXT_MIN = 3;
   const TEXT_MAX = 8;
 
-  /** the text as a document: Write, then the browser's print dialog (“Save as PDF” there) */
+  /** commands of the palette that only make sense without Write open (Write has its own) */
   function printText() {
     ui.stage = 'write';
     ui.focus = false;
@@ -20,28 +22,46 @@
     const go = (n = 0) => (document.querySelector('.compose .ProseMirror') || n > 40 ? setTimeout(() => window.print(), 150) : setTimeout(() => go(n + 1), 50));
     go();
   }
-
   async function copyAll() {
     if (!ui.projectId) return;
     const { html, text } = wholeText(ui.projectId);
     const ok = await copyText(text, html);
     ui.toast(ok ? t('Whole text copied with citations and footnotes') : t('Could not copy'), { kind: ok ? 'ok' : 'error' }, 3000);
   }
+  const fallback: Command[] = [
+    { id: 'write.copyAll', label: 'Copy whole text with citations', group: 'Project', icon: 'copy', when: () => !!ui.projectId, run: copyAll },
+    { id: 'write.print', label: 'Print or save as PDF', group: 'Project', icon: 'file', keywords: 'pdf drucken', when: () => !!ui.projectId, run: printText }
+  ];
 
   interface Hit {
     icon: string;
     label: string;
     sub?: string;
     score: number;
-    run: () => void;
+    run: () => unknown;
+    /** a command: its id, keys and on/off state */
+    cmd?: string;
+    kbd?: string;
+    state?: 'on' | 'off' | 'current';
+    /** a heading above this hit ("Recently used") */
+    head?: string;
   }
-  let q = $state('');
+  let q = $state(ui.paletteQuery);
+  /** ">" at the start: commands only (as in VS Code) */
+  const cmdMode = $derived(q.trimStart().startsWith('>'));
   let hi = $state(0);
   let input: HTMLInputElement;
+  let rows: HTMLElement[] = $state([]);
+  // keep the marked row in view while moving with the arrow keys
+  $effect(() => rows[hi]?.scrollIntoView({ block: 'nearest' }));
   $effect(() => input?.focus());
 
+  /** lower case, without accents, ß = ss: "fussn" finds "Fußnote" */
+  const fold = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/ß/g, 'ss');
+
   function score(hay: string, qq: string): number {
-    const h = hay.toLowerCase();
+    const h = fold(hay);
+    qq = fold(qq);
     if (!qq) return 1;
     const words = qq.split(/\s+/).filter(Boolean);
     let s = 0;
@@ -54,36 +74,52 @@
   }
 
   const hits = $derived.by(() => {
-    const qq = q.trim().toLowerCase();
+    const qq = q.trim().replace(/^>\s*/, '').toLowerCase();
     const out: Hit[] = [];
-    const stages: [Stage, string][] = [
-      ['outline', t('Outline')],
-      ['collect', t('Collect')],
-      ['select', t('Select')],
-      ['arrange', t('Arrange')],
-      ['write', t('Write')]
-    ];
-    for (const [s, l] of stages) {
-      const sc = score(`${t('Go to')} ${l}`, qq);
-      if (sc && qq) out.push({ icon: 'layers', label: `${t('Go to')} ${l}`, score: sc - 0.5, run: () => (ui.stage = s) });
-    }
-    for (const [lab, icon, run] of [
-      [t('Settings'), 'settings', () => (ui.dialog = 'settings')],
-      [t('Export…'), 'upload', () => (ui.dialog = 'export')],
-      [t('Import sources…'), 'download', () => (ui.dialog = 'zotero')],
-      [t('Snapshots'), 'history', () => (ui.dialog = 'snapshots')],
-      [t('New quote'), 'quote', () => (ui.editArtifact = { kind: 'quote' })],
-      [t('New note'), 'note', () => (ui.editArtifact = { kind: 'note' })],
-      [t('Repair text from PDFs (all quotes)…'), 'sparkle', () => (ui.repairItems = db.all('artifacts').map((a) => a.id))],
-      ...(ui.projectId
-        ? [
-            [t('Copy whole text with citations'), 'copy', copyAll],
-            [t('Print or save as PDF'), 'file', printText]
-          ]
-        : [])
-    ] as [string, string, () => void][]) {
-      const sc = score(lab, qq);
-      if (sc && qq) out.push({ icon, label: lab, score: sc - 0.5, run });
+    // commands: every action, setting and tool (Write adds its own while open)
+    const recent = recentCommands();
+    const byId = new Map<string, Command>();
+    for (const c of [...fallback, ...allCommands()]) if (!c.when || c.when()) byId.set(c.id, c);
+    const cmdHit = (c: Command, sc: number): Hit => {
+      const st = c.state?.();
+      const combo = comboFor(c.id);
+      return {
+        icon: c.icon ?? 'settings',
+        label: t(c.label),
+        sub: t(c.group),
+        score: sc,
+        run: c.run,
+        cmd: c.id,
+        kbd: combo ? displayCombo(combo) : undefined,
+        state: c.choice ? (st ? 'current' : undefined) : st === undefined ? undefined : st ? 'on' : 'off'
+      };
+    };
+    if (!qq) {
+      // nothing typed: the commands used last, then (in command mode) all of them
+      const used = recent.map((id) => byId.get(id)).filter((c): c is Command => !!c).slice(0, cmdMode ? 12 : 5);
+      used.forEach((c, i) => out.push({ ...cmdHit(c, 100 - i), head: i === 0 ? t('Recently used') : undefined }));
+      if (cmdMode) {
+        // grouped: the open stage's commands first, settings last
+        const order = [ui.stage === 'write' ? 'Write' : ui.stage === 'outline' ? 'Outline' : '', 'Go to', 'Create', 'General', 'Project', 'Write', 'Outline', 'Tools', 'Settings'];
+        const rank = (c: Command) => {
+          const i = order.indexOf(c.group);
+          return i < 0 ? order.length - 1.5 : i;
+        };
+        const rest = [...byId.values()].filter((c) => !used.includes(c)).sort((a, b) => rank(a) - rank(b));
+        rest.forEach((c, i) => out.push({ ...cmdHit(c, 50 - i / 1000), head: i === 0 ? t('All commands') : undefined }));
+        return out;
+      }
+    } else {
+      for (const c of byId.values()) {
+        const sc = score(`${t(c.label)} ${c.label} ${t(c.group)} ${c.keywords ?? ''}`, qq);
+        if (!sc) continue;
+        const inLabel = score(t(c.label), qq) || score(c.label, qq);
+        const r = recent.indexOf(c.id);
+        // actions before settings; the commands of the open stage first
+        const here = c.group === 'Write' ? ui.stage === 'write' : c.group === 'Outline' ? ui.stage === 'outline' : false;
+        out.push(cmdHit(c, sc + (inLabel ? 1 : 0) + (r >= 0 ? 1 - r / 12 : 0) + (here ? 0.5 : 0) - (c.group === 'Settings' ? 0.6 : 0) - 0.5));
+      }
+      if (cmdMode) return out.sort((a, b) => b.score - a.score).slice(0, 80);
     }
     if (ui.projectId) {
       // places in the written text (phrase match)
@@ -164,6 +200,8 @@
   function go(h: Hit | undefined) {
     if (!h) return;
     ui.dialog = null;
+    ui.paletteQuery = '';
+    if (h.cmd) markUsed(h.cmd);
     h.run();
   }
   function key(e: KeyboardEvent) {
@@ -182,14 +220,30 @@
   <div class="pal" role="dialog" aria-label={t('Search')}>
     <div class="in">
       <Icon name="search" />
-      <input bind:this={input} bind:value={q} oninput={() => (hi = 0)} onkeydown={key} placeholder={t('Search headings, quotes, sources, commands…')} />
+      {#if cmdMode}<span class="mode">{t('Commands')}</span>{/if}
+      <input
+        bind:this={input}
+        bind:value={q}
+        oninput={() => (hi = 0)}
+        onkeydown={key}
+        placeholder={t('Search headings, quotes, sources – or type > for commands…')}
+        aria-label={t('Search and commands')}
+        role="combobox"
+        aria-expanded="true"
+        aria-controls="pal-list"
+        aria-activedescendant={hits.length ? 'pal-' + hi : undefined}
+      />
       <span class="kbd">Esc</span>
     </div>
-    <div class="res scroll">
+    <div class="res scroll" id="pal-list" role="listbox" aria-label={t('Results')}>
       {#each hits as h, i (i)}
-        <button class="hit" class:on={i === hi} onpointerenter={() => (hi = i)} onclick={() => go(h)}>
+        {#if h.head}<div class="head tiny muted" role="presentation">{h.head}</div>{/if}
+        <button class="hit" class:on={i === hi} id={'pal-' + i} role="option" aria-selected={i === hi} tabindex="-1" onpointerenter={() => (hi = i)} onclick={() => go(h)} bind:this={rows[i]}>
           <Icon name={h.icon} size={15} />
-          <span class="grow ellipsis">{h.label}{#if h.sub}<span class="muted small"> — {h.sub}</span>{/if}</span>
+          <span class="grow ellipsis">{h.label}{#if h.sub}<span class="muted small sub">— {h.sub}</span>{/if}</span>
+          {#if h.state === 'current'}<span class="st cur"><Icon name="check" size={13} /></span>
+          {:else if h.state}<span class="st" class:onst={h.state === 'on'}>{t(h.state)}</span>{/if}
+          {#if h.kbd}<span class="kbd">{h.kbd}</span>{/if}
         </button>
       {:else}
         <div class="empty small">{t('Nothing found')}</div>
@@ -254,5 +308,41 @@
   }
   .hit.on {
     background: var(--accent-soft);
+  }
+  .sub {
+    margin-left: 0.4em;
+  }
+  .head {
+    padding: 8px 10px 2px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .mode {
+    font-size: 0.78rem;
+    padding: 2px 8px;
+    border-radius: 99px;
+    background: var(--accent-soft);
+    color: var(--accent-text);
+    white-space: nowrap;
+  }
+  .st {
+    font-size: 0.75rem;
+    padding: 1px 7px;
+    border-radius: 99px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  .st.onst {
+    color: var(--accent-text);
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  }
+  .st.cur {
+    border: 0;
+    color: var(--accent-text);
+    display: inline-flex;
+  }
+  .hit .kbd {
+    flex: none;
   }
 </style>

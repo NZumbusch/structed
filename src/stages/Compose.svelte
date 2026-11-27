@@ -26,7 +26,8 @@
   import { flatten, wordCount } from '../lib/ops';
   import { charCount, draftText, insertArtifact as insertArtifactInto, makeEditable, selectedQuotePos, selectionText } from '../lib/editor.svelte';
   import { editorState, type InsertMode } from '../lib/editorState.svelte';
-  import { matches, hint } from '../lib/shortcuts';
+  import { matches, hint, SHORTCUTS } from '../lib/shortcuts';
+  import { provideCommands, shortcutCommands } from '../lib/commands.svelte';
   import { renderMd } from '../lib/markdown';
   import type { Project } from '../lib/types';
 
@@ -472,6 +473,33 @@
     'write.blockquote': () => cmd((e) => e.chain().focus().toggleBlockquote().run()),
     'write.export': () => (ui.wordExport = true)
   };
+
+  // the same actions in the command palette, while Write is open
+  $effect(() =>
+    provideCommands('write', () => [
+      ...shortcutCommands(
+        SHORTCUTS.filter((d) => d.group === 'Writing'),
+        { ...Object.fromEntries(Object.entries(KEYS).map(([id, run]) => [id, { run }])), 'write.crossRef': { run: () => cmd((e) => pickCrossRef(e)) } },
+        {
+          'write.notes': { state: () => (focus ? settings.focusNotes : settings.writeNotes) },
+          'write.dim': { state: () => settings.focusDim },
+          'write.hints': { state: () => settings.writeHints, keywords: 'lesbarkeit' },
+          'write.typewriter': { state: () => settings.focusTypewriter },
+          'write.footnote': { icon: 'note', keywords: 'fußnote' },
+          'write.insertQuote': { icon: 'quote', keywords: 'zitat einfügen' },
+          'write.comment': { icon: 'comment', keywords: 'kommentar' },
+          'write.find': { icon: 'search', keywords: 'suchen' },
+          'write.replace': { icon: 'search', keywords: 'ersetzen' },
+          'write.history': { icon: 'history', keywords: 'versionen' },
+          'write.copyAll': { icon: 'copy' },
+          'write.print': { icon: 'file', keywords: 'pdf drucken' },
+          'write.export': { icon: 'upload', keywords: 'docx word' }
+        }
+      ),
+      { id: 'write.bold', label: 'Bold', group: 'Write', icon: 'edit', keywords: 'fett', run: () => cmd((e) => e.chain().focus().toggleBold().run()) },
+      { id: 'write.italic', label: 'Italic', group: 'Write', icon: 'edit', keywords: 'kursiv', run: () => cmd((e) => e.chain().focus().toggleItalic().run()) }
+    ])
+  );
 
   function keys(e: KeyboardEvent) {
     if (focus && !e.ctrlKey && !e.metaKey && !e.altKey && (e.key.length === 1 || e.key === 'Enter' || e.key === 'Backspace')) typing = true;
