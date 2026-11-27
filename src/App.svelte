@@ -20,7 +20,8 @@
   import { panelOpenIn, setPanelOpen, settings } from './lib/settings.svelte';
   import { sync } from './lib/sync.svelte';
   import { t } from './lib/i18n';
-  import { matches, comboFor, displayCombo } from './lib/shortcuts';
+  import { matches, comboFor, displayCombo, SHORTCUTS } from './lib/shortcuts';
+  import { provideCommands, shortcutCommands } from './lib/commands.svelte';
   import Tour from './components/Tour.svelte';
   import ContextMenu from './components/ContextMenu.svelte';
   import AskDialog from './components/AskDialog.svelte';
@@ -59,7 +60,8 @@
   }
 
   const ACTIONS: Record<string, { run: () => void; inFields?: boolean; needsProject?: boolean }> = {
-    search: { run: () => (ui.dialog = ui.dialog === 'search' ? null : 'search'), inFields: true },
+    search: { run: () => ((ui.paletteQuery = ''), (ui.dialog = ui.dialog === 'search' ? null : 'search')), inFields: true },
+    commands: { run: () => ((ui.paletteQuery = '>'), (ui.dialog = 'search')), inFields: true },
     togglePanel: {
       run: () =>
         ui.stage === 'write' && !settings.writePanel
@@ -124,6 +126,32 @@
     newSource: { run: () => (ui.editSource = {}), inFields: true },
     importZotero: { run: () => (ui.dialog = 'zotero'), inFields: true }
   };
+
+  // every action is also a command in the palette (labels and keys from the shortcut list)
+  $effect(() =>
+    provideCommands('app', () =>
+      shortcutCommands(
+        SHORTCUTS.filter((d) => d.id !== 'search' && d.id !== 'commands'),
+        Object.fromEntries(Object.entries(ACTIONS).map(([id, a]) => [id, { run: a.run, when: a.needsProject ? () => !!project : undefined }])),
+        {
+          togglePanel: { icon: 'panel' },
+          undo: { icon: 'undo' },
+          redo: { icon: 'redo' },
+          projects: { icon: 'folder', keywords: 'open öffnen new neu' },
+          export: { icon: 'upload' },
+          snapshot: { icon: 'history', keywords: 'backup sicherung' },
+          syncNow: { icon: 'refresh' },
+          toggleTheme: { keywords: 'dark mode dunkel hell' },
+          newQuote: { icon: 'quote' },
+          newParaphrase: { icon: 'paraphrase' },
+          newNote: { icon: 'note' },
+          newSource: { icon: 'book', keywords: 'literatur quelle' },
+          importZotero: { icon: 'download', keywords: 'bibtex ris zotero' },
+          'write.focus': { state: () => ui.focus && ui.stage === 'write' }
+        }
+      )
+    )
+  );
 
   /** Esc leaves focus mode – unless it closes something else first (menu, dialog, library search).
    *  Runs in the capture phase: the text editor would otherwise use Esc itself. */

@@ -34,7 +34,7 @@ test('Ctrl+K finds places in the text and puts the cursor there', async ({ page 
   await page.waitForTimeout(400);
   await stage(page, 'Outline');
   await page.keyboard.press('Control+k');
-  const input = page.getByPlaceholder('Search headings, quotes, sources, commands…');
+  const input = page.getByRole('combobox', { name: 'Search and commands' });
   await input.fill('me');
   await expect(page.locator('.pal').getByText('Memory is always mediated')).toHaveCount(0); // too short to search the text
   await input.fill('mediated by');
@@ -72,7 +72,7 @@ test('copy the whole text with citations from the command palette', async ({ pag
   await page.keyboard.type('Final words.');
   await page.waitForTimeout(400); // saved
   await page.keyboard.press('Control+k');
-  await page.getByPlaceholder('Search headings, quotes, sources, commands…').fill('copy whole');
+  await page.getByRole('combobox', { name: 'Search and commands' }).fill('copy whole');
   await page.keyboard.press('Enter');
   await expect(page.getByText('Whole text copied with citations and footnotes')).toBeVisible();
   const text = await page.evaluate(() => navigator.clipboard.readText());

@@ -42,6 +42,8 @@ class UI {
   reviewSources: string[] | null = $state(null);
   /** quotes whose text from a PDF is being repaired ("?" for umlauts, broken words) */
   repairItems: string[] | null = $state(null);
+  /** text the search & command palette opens with (">" = commands only) */
+  paletteQuery = $state('');
   /** the dialog that fixes the typography of existing text */
   fixTypography = $state(false);
   focusHeading: string | null = $state(null);
