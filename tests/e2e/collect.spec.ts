@@ -147,3 +147,23 @@ test('merge a placeholder source into the real one', async ({ page }) => {
 });
 
 
+
+test('quick capture types like the Write editor', async ({ page }) => {
+  await addSource(page);
+  const ta = page.locator('.capture textarea');
+  await ta.click();
+  await page.keyboard.type('Er sagt "ja" und it\'s gut... vgl. S. 12, z. B. ein Wort - kurz.');
+  await expect(ta).toHaveValue('Er sagt „ja“ und it’s gut… vgl. S. 12, z. B. ein Wort – kurz.');
+  // Backspace right after a change brings the plain character back
+  await page.keyboard.type(' "');
+  await page.keyboard.press('Backspace');
+  await expect(ta).toHaveValue(/kurz\. "$/);
+  // Ctrl+Shift+Space inserts a non-breaking space
+  await page.keyboard.press('Control+Shift+Space');
+  await expect(ta).toHaveValue(/kurz\. " $/);
+  // the browser's undo still works
+  await ta.fill('');
+  await page.keyboard.type('a "b');
+  await page.keyboard.press('Control+z');
+  await expect(ta).not.toHaveValue('a „b');
+});

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { prose } from '../lib/prosefield';
   import Icon from './Icon.svelte';
   import Menu from './Menu.svelte';
   import { db } from '../lib/db.svelte';
@@ -189,6 +190,7 @@
       {#if placement}
         <input
           class="input pn"
+          use:prose
           placeholder={t('Why here? (note for this placement)')}
           value={placement.note ?? ''}
           oninput={(e) => db.update('placements', placement.id, { note: e.currentTarget.value })}

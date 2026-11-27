@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { prose } from '../lib/prosefield';
   import Icon from './Icon.svelte';
   import { db } from '../lib/db.svelte';
   import { ui } from '../lib/ui.svelte';
@@ -42,7 +43,7 @@
 <div class="projects" class:embedded>
   <form class="new card" onsubmit={(e) => { e.preventDefault(); create(); }}>
     <h3>{t('New project')}</h3>
-    <input class="input" bind:value={title} placeholder={t('Working title')} />
+    <input class="input" use:prose bind:value={title} placeholder={t('Working title')} />
     <div class="tpls">
       {#each TPL as [k, label] (k)}
         <button type="button" class="chip tpl" class:on={template === k} onclick={() => (template = k)}>{label}</button>

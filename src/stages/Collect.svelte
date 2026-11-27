@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { prose } from '../lib/prosefield';
   import { keepScroll } from '../lib/keepScroll';
   import { SvelteSet } from 'svelte/reactivity';
   import Icon from '../components/Icon.svelte';
@@ -447,7 +448,7 @@
               <span class="grow"></span>
               <button class="btn ghost sm" onclick={() => (ui.editArtifact = { kind: 'image', sourceId: source?.id ?? null })}><Icon name="image" size={14} />{t('Image')}</button>
             </div>
-            <textarea class="textarea" rows="3" bind:value={qText} placeholder={ui.narrow ? (qKind === 'quote' ? t('Paste or type a quote…') : t('Write…')) : qKind === 'quote' ? t('Paste or type a quote… (Ctrl+Enter to add)') : t('Write… (Ctrl+Enter to add)')}></textarea>
+            <textarea class="textarea" rows="3" use:prose bind:value={qText} placeholder={ui.narrow ? (qKind === 'quote' ? t('Paste or type a quote…') : t('Write…')) : qKind === 'quote' ? t('Paste or type a quote… (Ctrl+Enter to add)') : t('Write… (Ctrl+Enter to add)')}></textarea>
             <div class="row crow">
               <input class="input page" bind:value={qPage} placeholder={t('Page')} />
               <input class="input grow tags" bind:value={qTags} placeholder={t('#tags, comma separated')} />

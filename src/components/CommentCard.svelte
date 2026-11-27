@@ -1,5 +1,6 @@
 <script lang="ts">
   // The comment on the passage at the cursor, shown just below it: write, resolve, close.
+  import { prose } from '../lib/prosefield';
   import type { Editor } from '@tiptap/core';
   import { tick as svelteTick, untrack } from 'svelte';
   import Icon from './Icon.svelte';
@@ -116,7 +117,7 @@
       }
     }}
   >
-    <textarea bind:this={area} bind:value={draft} rows="2" placeholder={t('Comment on this passage…')} aria-label={t('Comment')}></textarea>
+    <textarea bind:this={area} use:prose bind:value={draft} rows="2" placeholder={t('Comment on this passage…')} aria-label={t('Comment')}></textarea>
     <div class="row">
       <span class="tiny muted grow">{t('Ctrl+Enter or Esc: done')}</span>
       <button class="icon-btn sm" title={t('Resolve (removes the comment)')} aria-label={t('Resolve')} onclick={resolve}><Icon name="check" size={14} /></button>

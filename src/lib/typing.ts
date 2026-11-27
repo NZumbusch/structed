@@ -30,7 +30,7 @@ function charBefore(state: EditorState, pos: number): string {
 }
 
 /** After these a quote mark opens: start of the paragraph, spaces, brackets, dashes, other opening marks. */
-const OPENS_AFTER = /^$|[\s([{\/\u2013\u2014-]|[„“‚‘«‹]/;
+export const OPENS_AFTER = /^$|[\s([{\/\u2013\u2014-]|[„“‚‘«‹]/;
 
 export const SmartQuotes = Extension.create({
   name: 'smartQuotes',
@@ -63,24 +63,27 @@ export const SmartQuotes = Extension.create({
   }
 });
 
+/** "word - word" → en dash once the next word is finished (see AutoDash). */
+export const AUTO_DASH = /(?:^|[^\s-])( -) [^\s-][^\s]*?([\s.,;:!?)\]»«“”"'…])$/;
+
 /** Abbreviations that belong to the number or word after them ("S. 12", "§ 5", "Nr. 3"). */
-const BEFORE = /(?<=^|[\s([„“"«‚‘‹])(?:S|Sp|Abs|Nr|Bd|Kap|Abb|Tab|Art|Anm|Bl|Hrsg|Jg|Vol|No|Fig|p|pp|ch)\. $|(?<=^|[\s([„“"«‚‘‹])§§? $/;
+export const NBSP_BEFORE = /(?<=^|[\s([„“"«‚‘‹])(?:S|Sp|Abs|Nr|Bd|Kap|Abb|Tab|Art|Anm|Bl|Hrsg|Jg|Vol|No|Fig|p|pp|ch)\. $|(?<=^|[\s([„“"«‚‘‹])§§? $/;
 /** Two-part abbreviations: "z. B.", "d. h.", "u. a.", "i. d. R." */
-const INNER = /(?<=^|[\s([„“"«‚‘‹])\p{L}\. \p{L}\.$/u;
+export const NBSP_INNER = /(?<=^|[\s([„“"«‚‘‹])\p{L}\. \p{L}\.$/u;
 
 export const NonBreaking = Extension.create({
   name: 'nonBreaking',
   addInputRules() {
     return [
       new InputRule({
-        find: BEFORE,
+        find: NBSP_BEFORE,
         handler: ({ state, range }) => {
           if (!settings.editorNbsp) return null;
           state.tr.insertText(NBSP, range.to - 1, range.to); // the typed space (already in the range)
         }
       }),
       new InputRule({
-        find: INNER,
+        find: NBSP_INNER,
         handler: ({ state, range }) => {
           if (!settings.editorNbsp) return null;
           state.tr.insertText(NBSP, range.from + 2, range.from + 3);

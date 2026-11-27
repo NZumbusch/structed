@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { prose } from '../lib/prosefield';
   import Modal from './Modal.svelte';
   import TagInput from './TagInput.svelte';
   import Icon from './Icon.svelte';
@@ -194,18 +195,18 @@
           <Icon name="sparkle" size={13} />{t('Clean up')}
         </button>
       </div>
-      <textarea id="art-text" bind:this={textEl} class="textarea" rows="6" bind:value={text}></textarea>
+      <textarea id="art-text" bind:this={textEl} class="textarea" rows="6" use:prose bind:value={text}></textarea>
     </div>
 
-    <label class="field"><span>{t('Comment')}</span><textarea class="textarea" rows="2" bind:value={comment} placeholder={t('Your thoughts on it…')}></textarea></label>
+    <label class="field"><span>{t('Comment')}</span><textarea class="textarea" rows="2" use:prose bind:value={comment} placeholder={t('Your thoughts on it…')}></textarea></label>
     <label class="field"><span>{t('Tags / topics')}</span><TagInput bind:tags /></label>
 
     <button class="btn ghost sm more" onclick={() => (showMore = !showMore)}>
       <Icon name={showMore ? 'chevron-down' : 'chevron-right'} size={14} />{t('More fields')}
     </button>
     {#if showMore}
-      <label class="field"><span>{t('Short title (shown when collapsed)')}</span><input class="input" bind:value={title} /></label>
-      <label class="field"><span>{t('Context / full text')}</span><textarea class="textarea" rows="4" bind:value={fullText}></textarea></label>
+      <label class="field"><span>{t('Short title (shown when collapsed)')}</span><input class="input" use:prose bind:value={title} /></label>
+      <label class="field"><span>{t('Context / full text')}</span><textarea class="textarea" rows="4" use:prose bind:value={fullText}></textarea></label>
       <div class="field">
         <span>{t('Color')}</span>
         <div class="row">

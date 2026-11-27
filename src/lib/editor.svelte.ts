@@ -18,7 +18,7 @@ import { Slice, type Node as PMDoc } from '@tiptap/pm/model';
 import type { EditorView } from '@tiptap/pm/view';
 export { editableQuote };
 import { t } from './i18n';
-import { FindHighlight, NonBreaking, SmartQuotes } from './typing';
+import { AUTO_DASH, FindHighlight, NonBreaking, SmartQuotes } from './typing';
 import { joinPdfLines } from './ocr';
 import { CrossRefKey, SectionRef } from './xref.svelte';
 import { prefixChoices, prefixText, splitPrefix } from './citePrefix';
@@ -361,7 +361,7 @@ export const AutoDash = Extension.create({
   addInputRules() {
     return [
       new InputRule({
-        find: /(?:^|[^\s-])( -) [^\s-][^\s]*?([\s.,;:!?)\]»«“”"'…])$/,
+        find: AUTO_DASH,
         handler: ({ state, range, match }) => {
           if (!settings.editorAutoDash) return null;
           const dash = range.from + match[0].indexOf(' -') + 1;
