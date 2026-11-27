@@ -27,8 +27,11 @@ describe('cleanText (PDF/OCR cleanup)', () => {
     expect(cleanText('„Zitat“')).toBe('Zitat');
   });
   it('respects disabled options', () => {
-    const o = { ...defaultClean, joinLines: false, quotes: false };
+    const o = { ...defaultClean, joinLines: false, quotes: false, typography: false };
     expect(cleanText('“a\nb”', o)).toBe('“a\nb”');
+  });
+  it('sets the typography as when typing', () => {
+    expect(cleanText('Er sagt "ja"... S. 12')).toBe('Er sagt „ja“… S.\u00a012');
   });
   it('is idempotent', () => {
     const once = cleanText('recon-\nstruc tion ﬁ  .');

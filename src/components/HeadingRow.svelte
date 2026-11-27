@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { prose } from '../lib/prosefield';
   import { tick } from 'svelte';
   import Icon from './Icon.svelte';
   import Menu from './Menu.svelte';
@@ -205,6 +206,7 @@
       rows="1"
       value={h.title}
       use:autosize={h.title}
+      use:prose
       aria-label={f.num + ' ' + (h.title || (f.depth === 0 ? t('Heading') : t('Subheading')))}
       placeholder={f.depth === 0 ? t('Heading') : t('Subheading')}
       oninput={(e) => {

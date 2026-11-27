@@ -112,3 +112,27 @@ test('global undo via keyboard outside inputs', async ({ page }) => {
   await page.keyboard.press('Control+Shift+z');
   await expect(page.locator('textarea.title')).toHaveCount(2);
 });
+
+test('heading notes type like the Write editor', async ({ page }) => {
+  test.skip(page.viewportSize()!.width <= 700, 'notes button is in the menu on phones');
+  const title = page.locator('textarea.title').first();
+  await title.fill('Einleitung');
+  await page.keyboard.type(' "neu"');
+  await expect(title).toHaveValue('Einleitung „neu“');
+  await page.getByTitle('Notes / gist').first().click();
+  const notes = page.locator('.mdedit .cm-content').first();
+  await notes.click();
+  await page.keyboard.type('Er sagt "ja"... S. 12 - kurz.');
+  await expect(notes).toHaveText('Er sagt „ja“… S.\u00a012 – kurz.');
+  await expect(notes.locator('.nbsp')).toHaveCount(1);
+  await page.keyboard.press('Backspace'); // right after the dash: the hyphen comes back
+  await expect(notes).toHaveText(/S\.\u00a012 - kurz\.$/);
+  await page.keyboard.type('"');
+  await expect(notes).toHaveText(/kurz\.“$/);
+  await page.keyboard.press('Backspace');
+  await expect(notes).toHaveText(/kurz\."$/);
+  // a markdown list stays a list
+  await page.keyboard.press('Enter');
+  await page.keyboard.type(' - Punkt eins ');
+  await expect(notes).toContainText(' - Punkt eins');
+});

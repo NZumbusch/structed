@@ -2,6 +2,7 @@
   // Go through the Zotero highlights of one or more sources, one at a time: take it as a
   // quote (or paraphrase / note), or skip it. Skipped and deleted highlights do not come
   // back. Keys: Enter take · S skip · P paraphrase · N note · Z back · E edit the text.
+  import { fixTypography, prose } from '../lib/prosefield';
   import { onMount } from 'svelte';
   import Modal from './Modal.svelte';
   import Icon from './Icon.svelte';
@@ -97,7 +98,9 @@
 
   function take(kind: ArtifactKind = 'quote') {
     const c = cur;
-    const value = finalText().trim();
+    const raw = finalText().trim();
+    // the same typography as typed text (quotes, …, dash, non-breaking spaces)
+    const value = settings.editorFixPaste ? fixTypography(raw, { markdown: kind === 'note' }) : raw;
     if (!c || !value) return;
     if (editing) remember(learnFromEdit(text, editText));
     db.batch('take highlight', () => {
@@ -194,7 +197,7 @@
           {#if cur.seen}<span class="seen">· {t('skipped before')}</span>{/if}
         </div>
         {#if editing}
-          <textarea class="textarea txt-edit" rows="3" bind:this={textEl} bind:value={editText} use:autosize={editText} spellcheck="true" lang={textLang()} aria-label={t('Text')}></textarea>
+          <textarea class="textarea txt-edit" rows="3" bind:this={textEl} bind:value={editText} use:autosize={editText} use:prose spellcheck="true" lang={textLang()} aria-label={t('Text')}></textarea>
         {:else}
           <!-- svelte-ignore a11y_no_static_element_interactions -->
           <div class="txt" ondblclick={startEdit}>

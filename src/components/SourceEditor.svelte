@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { prose } from '../lib/prosefield';
   import Modal from './Modal.svelte';
   import TagInput from './TagInput.svelte';
   import Icon from './Icon.svelte';
@@ -149,7 +150,7 @@
     <label class="field"><span>DOI</span><input class="input" bind:value={doi} /></label>
     <label class="field"><span>URL</span><input class="input" bind:value={url} /></label>
     <label class="field span2"><span>{t('Tags / topics')}</span><TagInput bind:tags /></label>
-    <label class="field span2"><span>{t('Notes on this source')}</span><textarea class="textarea" rows="2" bind:value={note}></textarea></label>
+    <label class="field span2"><span>{t('Notes on this source')}</span><textarea class="textarea" rows="2" use:prose bind:value={note}></textarea></label>
   </div>
   {#if preview}
     <div class="preview"><span class="tiny muted">{t('Reference preview')}</span><div>{preview}</div></div>

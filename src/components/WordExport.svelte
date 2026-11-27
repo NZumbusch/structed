@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { prose } from '../lib/prosefield';
   import Modal from './Modal.svelte';
   import Icon from './Icon.svelte';
   import { db } from '../lib/db.svelte';
@@ -69,9 +70,9 @@
         {#each COVER_FIELDS as k (k)}
           <label class="field"><span>{t(LABELS[k])}</span>
             {#if k === 'title' || k === 'author'}
-              <textarea class="textarea" rows={k === 'author' ? 4 : 2} bind:value={cover[k]}></textarea>
+              <textarea class="textarea" rows={k === 'author' ? 4 : 2} use:prose bind:value={cover[k]}></textarea>
             {:else}
-              <input class="input" bind:value={cover[k]} />
+              <input class="input" use:prose bind:value={cover[k]} />
             {/if}
           </label>
         {/each}

@@ -42,6 +42,8 @@ class UI {
   reviewSources: string[] | null = $state(null);
   /** quotes whose text from a PDF is being repaired ("?" for umlauts, broken words) */
   repairItems: string[] | null = $state(null);
+  /** the dialog that fixes the typography of existing text */
+  fixTypography = $state(false);
   focusHeading: string | null = $state(null);
   /** Write: put the cursor on the `nth` occurrence of `text` in a section (from the search palette) */
   writeJump: { headingId: string; text: string; nth: number } | null = $state(null);

@@ -2,7 +2,7 @@
 // Word export can use them without loading TipTap.
 import { db } from './db.svelte';
 import { settings } from './settings.svelte';
-import { citeText, ibidCite, marks, noteCite, oneLine } from './citecache.svelte';
+import { citeText, ibidCite, marks, noteCite, oneLine, quoteInner } from './citecache.svelte';
 import { flatten, sectionNumber } from './ops';
 import { prefixText, textBefore } from './citePrefix';
 
@@ -22,7 +22,7 @@ export interface PMNode {
 export function editableQuote(id: string, text?: string): PMNode[] {
   const a = db.get('artifacts', id);
   const [l, r] = marks();
-  const q = oneLine(text ?? a?.text ?? '');
+  const q = quoteInner(oneLine(text ?? a?.text ?? ''));
   const italic = settings.quoteItalic ? [{ type: 'italic' }] : [];
   return [
     { type: 'text', text: l },
@@ -78,7 +78,7 @@ export function footnotePlain(content: PMNode[]): string {
         const idx = content.indexOf(n);
         const c = noteCite(ibidCite(a, prevIdIn(content, idx), citeText(a), textBefore(content, idx)), n.attrs?.mode, prevText(content, n));
         const pre = prefixText(n.attrs?.prefix, textBefore(content, idx));
-        return pre + (n.attrs?.mode === 'cite' ? c : `${l}${oneLine(a.text)}${r}${c ? ' ' + c : ''}`);
+        return pre + (n.attrs?.mode === 'cite' ? c : `${l}${quoteInner(oneLine(a.text))}${r}${c ? ' ' + c : ''}`);
       }
       return '';
     })
@@ -150,7 +150,7 @@ export function toClipboard(nodes: PMNode[]): { html: string; text: string } {
           html += esc(c);
           text += c;
         } else {
-          const q = oneLine(a.text);
+          const q = quoteInner(oneLine(a.text));
           html += `${l}${settings.quoteItalic ? `<em>${esc(q)}</em>` : esc(q)}${r}${c ? ' ' + esc(c) : ''}`;
           text += `${l}${q}${r}${c ? ' ' + c : ''}`;
         }
@@ -187,8 +187,8 @@ export function toClipboard(nodes: PMNode[]): { html: string; text: string } {
       const a = db.get('artifacts', String(b.attrs?.id));
       if (!a) return;
       const c = citeText(a);
-      htmlParts.push(`<blockquote><p>${l}${esc(a.text.trim())}${r}</p>${c ? `<p>${esc(c)}</p>` : ''}</blockquote>`);
-      textParts.push(`    ${l}${a.text.trim()}${r}${c ? '\n    ' + c : ''}`);
+      htmlParts.push(`<blockquote><p>${l}${esc(quoteInner(a.text.trim()))}${r}</p>${c ? `<p>${esc(c)}</p>` : ''}</blockquote>`);
+      textParts.push(`    ${l}${quoteInner(a.text.trim())}${r}${c ? '\n    ' + c : ''}`);
     } else if (b.content) b.content.forEach(block);
   };
   // a selection inside one paragraph comes as inline nodes

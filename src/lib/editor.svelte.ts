@@ -8,17 +8,18 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import { db } from './db.svelte';
 import { settings, textLang } from './settings.svelte';
-import { citeText, ibidCite, marks, noteCite, oneLine, wordsOf } from './citecache.svelte';
+import { citeText, ibidCite, marks, noteCite, oneLine, quoteInner, wordsOf } from './citecache.svelte';
 import { editorState, type InsertMode } from './editorState.svelte';
 import { ui, type MenuItem } from './ui.svelte';
 import { longpress } from './longpress';
 import { artifactLabel, shortCite } from './ops';
 import { editableQuote, footnoteContent, footnotePlain, toClipboard, type PMNode } from './footnote';
-import { Slice, type Node as PMDoc } from '@tiptap/pm/model';
+import { Fragment, Slice, type Node as PMDoc } from '@tiptap/pm/model';
 import type { EditorView } from '@tiptap/pm/view';
 export { editableQuote };
 import { t } from './i18n';
-import { FindHighlight, NonBreaking, SmartQuotes } from './typing';
+import { AUTO_DASH, FindHighlight, NonBreaking, SmartQuotes } from './typing';
+import { fixSegments } from './prosefield';
 import { joinPdfLines } from './ocr';
 import { CrossRefKey, SectionRef } from './xref.svelte';
 import { prefixChoices, prefixText, splitPrefix } from './citePrefix';
@@ -144,7 +145,7 @@ function prevCitations(doc: PMDoc): Map<number, Prev> {
 function quoteParts(id: string) {
   const a = db.get('artifacts', id);
   if (!a) return { text: '⚠ ' + 'Zitat gelöscht', cite: '', a };
-  return { text: oneLine(a.text), cite: citeText(a), a };
+  return { text: quoteInner(oneLine(a.text)), cite: citeText(a), a };
 }
 
 /** Inline linked quote ("„…“ (Autor, Jahr, S.)") or citation only. */
@@ -361,7 +362,7 @@ export const AutoDash = Extension.create({
   addInputRules() {
     return [
       new InputRule({
-        find: /(?:^|[^\s-])( -) [^\s-][^\s]*?([\s.,;:!?)\]»«“”"'…])$/,
+        find: AUTO_DASH,
         handler: ({ state, range, match }) => {
           if (!settings.editorAutoDash) return null;
           const dash = range.from + match[0].indexOf(' -') + 1;
@@ -457,9 +458,45 @@ function pasteOwn(view: EditorView, e: ClipboardEvent) {
     return false; // e.g. a block quote pasted into a footnote: fall back to the text
   }
 }
+/** Pasted text from elsewhere gets the typography of typed text (quotes, …, dash, non-breaking spaces). */
+function fixPasted(slice: Slice): Slice {
+  if (!settings.editorFixPaste) return slice;
+  const fixBlock = (node: PMDoc): PMDoc => {
+    if (node.isTextblock) {
+      const kids: PMDoc[] = [];
+      node.forEach((c) => void kids.push(c));
+      const parts = kids.map((c) => (c.isText ? (c.text ?? '') : '\ufffc'));
+      const fixed = fixSegments(parts, { end: true });
+      if (fixed.every((f, i) => f === parts[i])) return node;
+      const content = kids.map((c, i) => (c.isText ? (fixed[i] ? node.type.schema.text(fixed[i], c.marks) : null) : c)).filter((c): c is PMDoc => !!c);
+      return node.copy(Fragment.from(content));
+    }
+    if (node.isLeaf) return node;
+    const kids: PMDoc[] = [];
+    node.forEach((c) => void kids.push(fixBlock(c)));
+    return node.copy(Fragment.from(kids));
+  };
+  const kids: PMDoc[] = [];
+  let inline = false;
+  slice.content.forEach((c) => {
+    if (c.isInline) inline = true;
+    kids.push(c);
+  });
+  if (inline) {
+    // pasted into a paragraph: the pieces form one line of text
+    const parts = kids.map((c) => (c.isText ? (c.text ?? '') : '\ufffc'));
+    const fixed = fixSegments(parts);
+    const schema = kids[0].type.schema;
+    const content = kids.map((c, i) => (c.isText ? (fixed[i] ? schema.text(fixed[i], c.marks) : null) : c)).filter((c): c is PMDoc => !!c);
+    return new Slice(Fragment.from(content), slice.openStart, slice.openEnd);
+  }
+  return new Slice(Fragment.from(kids.map(fixBlock)), slice.openStart, slice.openEnd);
+}
+
 const clipboardProps = {
   // text from a PDF: join its broken lines (Ctrl+Shift+V pastes without formatting, as in Word)
   transformPastedText: (text: string) => joinPdfLines(text),
+  transformPasted: (slice: Slice) => fixPasted(slice),
   handleDOMEvents: {
     copy: (view: EditorView, e: Event) => copySelection(view, e as ClipboardEvent, false),
     cut: (view: EditorView, e: Event) => copySelection(view, e as ClipboardEvent, true)
@@ -691,6 +728,6 @@ export function selectionText(editor: Editor): string {
     const a = db.get('artifacts', String(n.attrs.id));
     if (!a || n.attrs.mode === 'cite') return '';
     const [l, r] = marks();
-    return l + oneLine(a.text) + r;
+    return l + quoteInner(oneLine(a.text)) + r;
   });
 }

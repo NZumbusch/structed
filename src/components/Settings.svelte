@@ -172,6 +172,14 @@
             {/each}
           </div>
         </div>
+        <div class="f"><span>{t('Quotation marks inside a quote')}</span>
+          <div class="seg">
+            {#each [['auto', t('matching')], ['de', '‚…‘'], ['en', '‘…’'], ['ch', '‹…›'], ['keep', t('as in the source')]] as [v, l] (v)}
+              <button class:on={settings.nestedQuoteMarks === v} onclick={() => (settings.nestedQuoteMarks = v as typeof settings.nestedQuoteMarks)}>{l}</button>
+            {/each}
+          </div>
+        </div>
+        <p class="tiny muted">{t('A quote that itself contains a quote („… "ja" …“): in your text, its quotation marks become these. In the library it stays as it is.')}</p>
         <label class="field"><span>{t('Long quotes become block quotes from … words (0 = never)')}</span>
           <input class="input num" type="number" min="0" max="500" bind:value={settings.autoBlockWords} />
         </label>
@@ -183,6 +191,9 @@
         <label class="chk"><input type="checkbox" bind:checked={settings.writeFootnotesBelow} />{t('Show the footnotes in Write below each section, in order')}</label>
         <label class="chk"><input type="checkbox" bind:checked={settings.writeHints} />{t('Readability hints in Write: very long sentences, words repeated close by, sentences that start alike')}</label>
         <label class="chk"><input type="checkbox" bind:checked={settings.editorNbsp} />{t('Keep “S. 12”, “z. B.” and “§ 5” together at line ends (non-breaking space; Ctrl+Shift+Space inserts one)')}</label>
+        <label class="chk"><input type="checkbox" bind:checked={settings.editorFixPaste} />{t('The same for pasted and imported text (Zotero highlights, PDF text)')}</label>
+        <p class="tiny muted">{t('These work in every text field: quotes, notes, comments, headings and Write.')}</p>
+        <button class="btn sm fixbtn" onclick={() => ((ui.fixTypography = true), (ui.dialog = null))}><Icon name="sparkle" size={14} />{t('Fix typography in existing text…')}</button>
         <label class="field"><span>{t('Language of the text (spell check)')}</span>
           <select class="select" bind:value={settings.editorLang}>
             {#each LANGS as [v, l] (v)}<option value={v}>{l}</option>{/each}
@@ -319,6 +330,10 @@
 </Modal>
 
 <style>
+  .fixbtn {
+    justify-self: start;
+    align-self: start;
+  }
   .set {
     display: grid;
     grid-template-columns: 190px 1fr;

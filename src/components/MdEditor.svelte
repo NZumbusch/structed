@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { proseCodeMirror } from '../lib/prosecm';
   import { onMount } from 'svelte';
   import { EditorView, keymap, placeholder as ph, drawSelection } from '@codemirror/view';
   import { EditorState } from '@codemirror/state';
@@ -74,6 +75,7 @@
           EditorView.domEventHandlers({
             keydown: (e) => (onkeydown ? onkeydown(e) === true : false)
           }),
+          proseCodeMirror(),
           keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
           markdown(),
           syntaxHighlighting(live),
@@ -114,5 +116,9 @@
   .mdedit {
     width: 100%;
     cursor: text;
+  }
+  /* non-breaking space: a faint dot underneath, as in Write */
+  .mdedit :global(.nbsp) {
+    background: radial-gradient(circle at 50% 85%, var(--faint) 0 1px, transparent 1.5px);
   }
 </style>

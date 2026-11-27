@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { prose } from '../lib/prosefield';
   import { keepScroll } from '../lib/keepScroll';
   import Icon from '../components/Icon.svelte';
   import HeadingRow from '../components/HeadingRow.svelte';
@@ -50,6 +51,7 @@
       <textarea
         rows="1"
         use:autosize={project.title}
+        use:prose
         class="ptitle"
         value={project.title}
         placeholder={t('Project title')}
@@ -59,6 +61,7 @@
       <textarea
         rows="1"
         use:autosize={project.subtitle}
+        use:prose
         class="psub"
         value={project.subtitle ?? ''}
         placeholder={t('Subtitle, research question or thesis statement…')}

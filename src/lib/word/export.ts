@@ -6,7 +6,7 @@ import { db } from '../db.svelte';
 import { settings } from '../settings.svelte';
 import { flatten, sectionNumber, sourcesOf } from '../ops';
 import { bibliography, secondaryPrefix } from '../cite';
-import { citeTextAsync, marks, noteCite, oneLine } from '../citecache.svelte';
+import { citeTextAsync, marks, noteCite, oneLine, quoteInner } from '../citecache.svelte';
 import { footnoteContent, prevText } from '../footnote';
 import { prefixText, textBefore } from '../citePrefix';
 import type { Artifact, Project, Source } from '../types';
@@ -148,7 +148,7 @@ async function inline(nodes: PMNode[] | undefined, ctx: Ctx, base: string, noteI
       if (pre) out += run(pre, base);
       if (n.attrs?.mode !== 'cite') {
         const [l, r] = marks();
-        out += run(l, base) + run(oneLine(a.text), base, { i: settings.quoteItalic }) + run(r + (src ? ' ' : ''), base);
+        out += run(l, base) + run(quoteInner(oneLine(a.text)), base, { i: settings.quoteItalic }) + run(r + (src ? ' ' : ''), base);
       }
       // in a footnote, the citation may lose its brackets (Settings → Citations)
       if (src) out += citationField(a, noteIndex ? noteCite(await ctx.citeFormat(a), n.attrs?.mode, prevText(nodes ?? [], n)) : await ctx.citeFormat(a), noteIndex, base, undefined, await ctx.prefix(a));
@@ -184,7 +184,7 @@ async function blocks(doc: PMNode | undefined, ctx: Ctx): Promise<string> {
       const src = db.get('sources', a.sourceId);
       if (src) sourcesOf(a).forEach((x) => ctx.cited.set(x.id, x));
       const [l, r] = marks();
-      out += para(sn.quotePPr, run(l + a.text.trim() + r, sn.quoteRPr));
+      out += para(sn.quotePPr, run(l + quoteInner(a.text.trim()) + r, sn.quoteRPr));
       if (src) out += para(sn.quoteCitePPr, citationField(a, await ctx.citeFormat(a), 0, sn.bodyRPr, undefined, await ctx.prefix(a)));
     }
   }
@@ -232,7 +232,7 @@ export async function buildWordDocument(project: Project, o: WordOptions = {}): 
       const pageBreak = (pPr: string) => pPr.replace(/(<w:pStyle [^>]*\/>)?/, (m) => m + '<w:pageBreakBefore/>');
       const src = db.get('sources', motto.sourceId);
       if (src) sourcesOf(motto).forEach((x) => ctx.cited.set(x.id, x));
-      body += para(pageBreak(sn.motto.quotePPr), run(l + motto.text.trim() + r, sn.motto.quoteRPr));
+      body += para(pageBreak(sn.motto.quotePPr), run(l + quoteInner(motto.text.trim()) + r, sn.motto.quoteRPr));
       if (src) body += para(sn.motto.citePPr, citationField(motto, await ctx.citeFormat(motto), 0, sn.motto.citeRPr, undefined, await ctx.prefix(motto)));
       body += sn.motto.sectEnd;
     }
